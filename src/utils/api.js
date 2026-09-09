@@ -22,7 +22,16 @@ api.interceptors.response.use(
     if (error.response?.status === 401) {
       localStorage.removeItem('token');
       localStorage.removeItem('user');
-      const publicPaths = [ROUTES.home, ROUTES.login, ROUTES.register, ROUTES.doctorRegister];
+      const publicPaths = [
+        ROUTES.home,
+        ROUTES.login,
+        ROUTES.register,
+        ROUTES.clinicAdminRegister,
+        ROUTES.doctorSignup,
+        ROUTES.doctorLogin,
+        ROUTES.receptionistSignup,
+        ROUTES.receptionistLogin,
+      ];
       if (!publicPaths.includes(window.location.pathname)) {
         window.location.href = ROUTES.login;
       }

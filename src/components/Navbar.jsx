@@ -3,9 +3,8 @@ import { Link, NavLink, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { LogOut, User, Calendar, LayoutDashboard, Menu, X, Leaf } from 'lucide-react';
 import { LOGO_URL, APP_NAME, BRAND_NAME } from '../constants/branding';
-import { ROUTES } from '../constants/routes';
+import { ROUTES, getDashboardPath } from '../constants/routes';
 import UserAvatar from './UserAvatar';
-
 
 const centerNavClass = ({ isActive }) =>
   `flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors whitespace-nowrap ${
@@ -25,20 +24,27 @@ const ROLE_STYLES = {
   doctor: {
     label: 'Doctor',
     badge: 'bg-[#2a2420] text-[#e8c547] ring-[#d4af37]/40',
-    avatarRing: 'ring-[#d4af37]/60',
-    avatarBg: 'bg-gradient-to-br from-[#2a2420] to-[#3d3530]',
+  },
+  receptionist: {
+    label: 'Reception',
+    badge: 'bg-[#eef6f2] text-[#2f5d4a] ring-[#2f5d4a]/25',
+  },
+  clinic_admin: {
+    label: 'Admin',
+    badge: 'bg-[#2a2420] text-[#e8c547] ring-[#d4af37]/40',
+  },
+  super_admin: {
+    label: 'Platform',
+    badge: 'bg-[#2a2420] text-[#e8c547] ring-[#d4af37]/40',
   },
   patient: {
     label: 'Patient',
     badge: 'bg-[#fdf6e3] text-[#876719] ring-[#d4af37]/30',
-    avatarRing: 'ring-[#d4af37]/40',
-    avatarBg: 'bg-gradient-to-br from-[#a8841f] to-[#876719]',
   },
 };
 
 function UserIdentity({ user, variant = 'desktop' }) {
-  const roleKey = user.role === 'doctor' ? 'doctor' : 'patient';
-  const roleStyle = ROLE_STYLES[roleKey];
+  const roleStyle = ROLE_STYLES[user.role] || ROLE_STYLES.patient;
   const isDesktop = variant === 'desktop';
 
   if (!isDesktop) {
@@ -128,6 +134,22 @@ function LogoutButton({ onClick, variant = 'desktop' }) {
   );
 }
 
+function getCenterLinks(role) {
+  const dashboard = getDashboardPath(role);
+  const links = [{ to: dashboard, label: 'Dashboard', icon: LayoutDashboard }];
+
+  if (role === 'patient' || role === 'doctor') {
+    links.push({ to: ROUTES.appointments, label: 'Appointments', icon: Calendar });
+  }
+
+  if (role === 'receptionist') {
+    links.push({ to: ROUTES.receptionistBook, label: 'Book', icon: Calendar });
+  }
+
+  links.push({ to: ROUTES.profile, label: 'Profile', icon: User });
+  return links;
+}
+
 export default function Navbar() {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
@@ -142,21 +164,13 @@ export default function Navbar() {
 
   const closeMenu = () => setMenuOpen(false);
 
-  const brandPath = user ? `/${user.role}/dashboard` : '/';
-
-  const centerLinks = user
-    ? [
-        { to: `/${user.role}/dashboard`, label: 'Dashboard', icon: LayoutDashboard },
-        { to: '/appointments', label: 'Appointments', icon: Calendar },
-        { to: '/profile', label: 'Profile', icon: User },
-      ]
-    : [];
+  const brandPath = user ? getDashboardPath(user.role) : '/';
+  const centerLinks = user ? getCenterLinks(user.role) : [];
 
   return (
     <nav className="bg-white/95 backdrop-blur-sm border-b border-[#ebe4d8] sticky top-0 z-50 shadow-sm w-full">
       <div className="site-container !px-4 sm:!px-8 lg:!px-12">
         <div className="relative flex items-center justify-between h-16 sm:h-[4.25rem] lg:h-[4.75rem] xl:h-20">
-          {/* Left — Logo */}
           <div className="flex-shrink-0 z-10">
             <Link to={brandPath} className="navbar-brand group" onClick={closeMenu} aria-label={APP_NAME}>
               {!logoError ? (
@@ -185,7 +199,6 @@ export default function Navbar() {
             </Link>
           </div>
 
-          {/* Center — Main navigation */}
           {user && (
             <nav
               className="hidden md:flex absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 items-center gap-1 lg:gap-2"
@@ -200,7 +213,6 @@ export default function Navbar() {
             </nav>
           )}
 
-          {/* Right — Name, role (read-only), logout */}
           <div className="flex items-center gap-1 sm:gap-2 z-10 ml-auto">
             {user ? (
               <div className="hidden md:flex items-center gap-2 pl-3 border-l border-[#ebe4d8]">

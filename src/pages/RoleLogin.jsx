@@ -8,7 +8,19 @@ import AuthPageLogo from '../components/AuthPageLogo';
 import AuthPageLayout from '../components/AuthPageLayout';
 import PasswordInput from '../components/PasswordInput';
 
-export default function Login() {
+/**
+ * Shared role-scoped login form.
+ * Passes `role` to the API so wrong-role accounts are rejected clearly.
+ */
+export default function RoleLogin({
+  role,
+  title,
+  subtitle,
+  signupPath,
+  signupLabel,
+  alternateLoginPath,
+  alternateLoginLabel,
+}) {
   const [form, setForm] = useState({ email: '', password: '' });
   const [loading, setLoading] = useState(false);
   const { login } = useAuth();
@@ -18,7 +30,7 @@ export default function Login() {
     e.preventDefault();
     setLoading(true);
     try {
-      const data = await login(form.email, form.password);
+      const data = await login(form.email, form.password, role);
       toast.success('Welcome back!');
       redirectAfterAuth(data.user.role);
     } catch (err) {
@@ -32,7 +44,8 @@ export default function Login() {
     <AuthPageLayout>
       <div className="text-center mb-3 sm:mb-5">
         <AuthPageLogo className="mb-3 sm:mb-4" />
-        <h1 className="text-lg sm:text-2xl font-bold text-gray-900">Welcome Back</h1>
+        <h1 className="text-lg sm:text-2xl font-bold text-gray-900">{title}</h1>
+        {subtitle && <p className="text-gray-500 mt-1 text-sm">{subtitle}</p>}
       </div>
 
       <div className="card !p-3.5 sm:!p-6">
@@ -69,23 +82,19 @@ export default function Login() {
           </fieldset>
         </form>
 
-        <p className="text-center text-xs sm:text-sm text-gray-500 mt-4 sm:mt-6 space-y-1">
-          <span className="block">
-            Don&apos;t have an account?{' '}
-            <Link to="/register" className="text-primary-600 font-bold hover:underline">
-              Sign up as patient
-            </Link>
-          </span>
-          <span className="block text-gray-400">
-            Staff:{' '}
-            <Link to="/doctor/login" className="text-primary-600 font-medium hover:underline">
-              Doctor
-            </Link>
-            {' · '}
-            <Link to="/receptionist/login" className="text-primary-600 font-medium hover:underline">
-              Receptionist
-            </Link>
-          </span>
+        <p className="text-center text-xs sm:text-sm text-gray-500 mt-4 sm:mt-6">
+          {signupLabel}{' '}
+          <Link to={signupPath} className="text-primary-600 font-bold hover:underline">
+            Sign up
+          </Link>
+          {alternateLoginPath && (
+            <>
+              {' · '}
+              <Link to={alternateLoginPath} className="text-primary-600 font-medium hover:underline">
+                {alternateLoginLabel || 'General login'}
+              </Link>
+            </>
+          )}
         </p>
       </div>
     </AuthPageLayout>

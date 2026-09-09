@@ -10,7 +10,14 @@ import DoctorDashboard from './pages/DoctorDashboard';
 import DoctorDetail from './pages/DoctorDetail';
 import MyAppointments from './pages/MyAppointments';
 import Profile from './pages/Profile';
-import DoctorRegister from './pages/DoctorRegister';
+import ClinicAdminRegister from './pages/ClinicAdminRegister';
+import DoctorSignup from './pages/DoctorSignup';
+import DoctorLogin from './pages/DoctorLogin';
+import ReceptionistSignup from './pages/ReceptionistSignup';
+import ReceptionistLogin from './pages/ReceptionistLogin';
+import ClinicAdminDashboard from './pages/ClinicAdminDashboard';
+import ReceptionistDashboard from './pages/ReceptionistDashboard';
+import ReceptionistBookAppointment from './pages/ReceptionistBookAppointment';
 import { AUTH_PATHS, ROUTES } from './constants/routes';
 
 export default function App() {
@@ -50,10 +57,42 @@ export default function App() {
               }
             />
             <Route
-              path={ROUTES.doctorRegister}
+              path={ROUTES.clinicAdminRegister}
               element={
                 <GuestRoute>
-                  <DoctorRegister />
+                  <ClinicAdminRegister />
+                </GuestRoute>
+              }
+            />
+            <Route
+              path={ROUTES.doctorSignup}
+              element={
+                <GuestRoute>
+                  <DoctorSignup />
+                </GuestRoute>
+              }
+            />
+            <Route
+              path={ROUTES.doctorLogin}
+              element={
+                <GuestRoute>
+                  <DoctorLogin />
+                </GuestRoute>
+              }
+            />
+            <Route
+              path={ROUTES.receptionistSignup}
+              element={
+                <GuestRoute>
+                  <ReceptionistSignup />
+                </GuestRoute>
+              }
+            />
+            <Route
+              path={ROUTES.receptionistLogin}
+              element={
+                <GuestRoute>
+                  <ReceptionistLogin />
                 </GuestRoute>
               }
             />
@@ -71,6 +110,30 @@ export default function App() {
               element={
                 <ProtectedRoute allowedRoles={['doctor']}>
                   <DoctorDashboard />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path={ROUTES.receptionistDashboard}
+              element={
+                <ProtectedRoute allowedRoles={['receptionist']}>
+                  <ReceptionistDashboard />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path={ROUTES.receptionistBook}
+              element={
+                <ProtectedRoute allowedRoles={['receptionist']}>
+                  <ReceptionistBookAppointment />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path={ROUTES.clinicAdminDashboard}
+              element={
+                <ProtectedRoute allowedRoles={['clinic_admin', 'super_admin']}>
+                  <ClinicAdminDashboard />
                 </ProtectedRoute>
               }
             />
@@ -93,7 +156,9 @@ export default function App() {
             <Route
               path={ROUTES.profile}
               element={
-                <ProtectedRoute allowedRoles={['patient', 'doctor']}>
+                <ProtectedRoute
+                  allowedRoles={['patient', 'doctor', 'receptionist', 'clinic_admin', 'super_admin']}
+                >
                   <Profile />
                 </ProtectedRoute>
               }
