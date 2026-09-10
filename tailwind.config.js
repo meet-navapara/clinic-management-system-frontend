@@ -12,6 +12,13 @@ export default {
     },
     extend: {
       colors: {
+        canvas: '#f6f4f0',
+        ink: {
+          DEFAULT: '#1c2430',
+          muted: '#5c6570',
+          faint: '#8a929c',
+        },
+        line: '#e6e1d8',
         brand: {
           forest: '#1a4d2e',
           leaf: '#2d6a4f',
@@ -48,6 +55,12 @@ export default {
       fontFamily: {
         sans: ['Inter', 'system-ui', 'sans-serif'],
         serif: ['Cormorant Garamond', 'Georgia', 'serif'],
+      },
+      maxWidth: {
+        app: '1400px',
+      },
+      boxShadow: {
+        panel: '0 1px 2px rgba(28, 36, 48, 0.04), 0 4px 12px rgba(28, 36, 48, 0.04)',
       },
     },
   },

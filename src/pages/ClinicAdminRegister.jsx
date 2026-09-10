@@ -69,17 +69,11 @@ export default function ClinicAdminRegister() {
           <Building2 className="w-12 h-12 text-[#a8841f] mx-auto mb-4" />
           <h1 className="text-xl font-bold text-gray-900 mb-2">Clinic Admin Already Set Up</h1>
           <p className="text-gray-500 text-sm mb-6">
-            The clinic admin account already exists. Sign in with that account, or use doctor /
-            receptionist signup for staff.
+            The clinic admin account already exists. Sign in to approve doctors.
           </p>
-          <div className="flex flex-col sm:flex-row gap-2 justify-center">
-            <Link to={ROUTES.login} className="btn-primary inline-block text-sm">
-              Go to Login
-            </Link>
-            <Link to={ROUTES.doctorSignup} className="btn-secondary inline-block text-sm">
-              Doctor signup
-            </Link>
-          </div>
+          <Link to={ROUTES.clinicAdminLogin} className="btn-primary inline-block text-sm">
+            Admin Login
+          </Link>
         </div>
       </AuthPageLayout>
     );
@@ -181,7 +175,7 @@ export default function ClinicAdminRegister() {
 
         <p className="text-center text-sm text-gray-500 mt-6">
           Already set up?{' '}
-          <Link to={ROUTES.login} className="text-primary-600 font-medium hover:underline">
+          <Link to={ROUTES.clinicAdminLogin} className="text-primary-600 font-medium hover:underline">
             Sign in
           </Link>
         </p>

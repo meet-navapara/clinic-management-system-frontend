@@ -5,7 +5,7 @@ const ROLE_STYLES = {
     avatarRing: 'ring-[#d4af37]/60',
     avatarBg: 'bg-gradient-to-br from-[#2a2420] to-[#3d3530]',
   },
-  patient: {
+  admin: {
     avatarRing: 'ring-[#d4af37]/40',
     avatarBg: 'bg-gradient-to-br from-[#a8841f] to-[#876719]',
   },
@@ -29,12 +29,14 @@ export const getInitials = (name = '') =>
 export default function UserAvatar({
   name = '',
   profilePhoto = '',
-  role = 'patient',
+  role = 'doctor',
   size = 'md',
   rounded = 'full',
   className = '',
 }) {
-  const roleStyle = ROLE_STYLES[role === 'doctor' ? 'doctor' : 'patient'];
+  const roleKey =
+    role === 'clinic_admin' || role === 'super_admin' || role === 'admin' ? 'admin' : 'doctor';
+  const roleStyle = ROLE_STYLES[roleKey];
   const roundedClass = rounded === 'xl' ? 'rounded-xl' : 'rounded-full';
 
   return (

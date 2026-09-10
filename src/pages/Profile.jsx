@@ -2,7 +2,7 @@ import { useRef, useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import api from '../utils/api';
 import toast from 'react-hot-toast';
-import { User, Mail, Phone, Save, Stethoscope, Camera } from 'lucide-react';
+import { User, Mail, Phone, Save, Camera } from 'lucide-react';
 import UserAvatar from '../components/UserAvatar';
 
 const DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
@@ -46,29 +46,29 @@ const compressProfilePhoto = (file, maxSize = 512) =>
 export default function Profile() {
   const { user, updateUser } = useAuth();
   const fileInputRef = useRef(null);
+  const isDoctor = user?.role === 'doctor';
   const [form, setForm] = useState({
     name: user?.name || '',
     phone: user?.phone || '',
     specialization: user?.specialization || '',
-    experience: user?.experience || 0,
-    consultationFee: user?.consultationFee || 500,
+    qualification: user?.qualification || '',
+    licenseNumber: user?.licenseNumber || '',
+    clinicName: user?.clinicName || '',
+    clinicAddress: user?.clinicAddress || '',
+    city: user?.city || '',
     bio: user?.bio || '',
     availableDays: user?.availableDays || DAYS.slice(0, 5),
     availableSlots: user?.availableSlots || SLOTS,
+    defaultDurationMinutes: user?.practiceSettings?.defaultDurationMinutes || 30,
+    reminderHours: (user?.practiceSettings?.reminderHoursBefore || [24, 2]).join(', '),
+    sendConfirmationReminder: user?.practiceSettings?.sendConfirmationReminder !== false,
   });
+  const [section, setSection] = useState('personal');
   const [loading, setLoading] = useState(false);
   const [profilePhotoFile, setProfilePhotoFile] = useState(null);
   const [photoPreview, setPhotoPreview] = useState(null);
 
-  const handleChange = (e) => {
-    setForm({ ...form, [e.target.name]: e.target.value });
-  };
-
-  const handlePhotoChange = (e) => {
-    const file = e.target.files?.[0] || null;
-    setProfilePhotoFile(file);
-    setPhotoPreview(file ? URL.createObjectURL(file) : null);
-  };
+  const handleChange = (e) => setForm({ ...form, [e.target.name]: e.target.value });
 
   const toggleDay = (day) => {
     setForm((prev) => ({
@@ -88,53 +88,50 @@ export default function Profile() {
     }));
   };
 
-  const getPhotoSrc = () => {
-    if (photoPreview) return photoPreview;
-    if (user?.profilePhoto) return user.profilePhoto;
-    return null;
-  };
-
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
     try {
-      let res;
-      const useFormData = user.role === 'doctor' || profilePhotoFile;
-
-      if (useFormData) {
-        const formData = new FormData();
-        formData.append('name', form.name);
-        formData.append('phone', form.phone);
-
-        if (user.role === 'doctor') {
-          formData.append('specialization', form.specialization);
-          formData.append('experience', String(Number(form.experience)));
-          formData.append('consultationFee', String(Number(form.consultationFee)));
-          formData.append('bio', form.bio);
-          formData.append('availableDays', JSON.stringify(form.availableDays));
-          formData.append('availableSlots', JSON.stringify(form.availableSlots));
-        }
-
-        if (profilePhotoFile) {
-          const compressedPhoto = await compressProfilePhoto(profilePhotoFile);
-          formData.append('profilePhoto', compressedPhoto);
-        }
-
-        res = await api.put('/auth/profile', formData, {
-          transformRequest: [(data, headers) => {
-            delete headers['Content-Type'];
-            return data;
-          }],
-        });
-
-        setProfilePhotoFile(null);
-        setPhotoPreview(null);
-      } else {
-        res = await api.put('/auth/profile', { name: form.name, phone: form.phone });
+      const formData = new FormData();
+      formData.append('name', form.name);
+      formData.append('phone', form.phone);
+      if (isDoctor) {
+        formData.append('specialization', form.specialization);
+        formData.append('qualification', form.qualification);
+        formData.append('licenseNumber', form.licenseNumber);
+        formData.append('clinicName', form.clinicName);
+        formData.append('clinicAddress', form.clinicAddress);
+        formData.append('city', form.city);
+        formData.append('bio', form.bio);
+        formData.append('availableDays', JSON.stringify(form.availableDays));
+        formData.append('availableSlots', JSON.stringify(form.availableSlots));
+        formData.append(
+          'practiceSettings',
+          JSON.stringify({
+            defaultDurationMinutes: Number(form.defaultDurationMinutes) || 30,
+            reminderHoursBefore: String(form.reminderHours)
+              .split(',')
+              .map((n) => Number(n.trim()))
+              .filter((n) => !Number.isNaN(n) && n > 0),
+            sendConfirmationReminder: form.sendConfirmationReminder,
+          })
+        );
+      }
+      if (profilePhotoFile) {
+        formData.append('profilePhoto', await compressProfilePhoto(profilePhotoFile));
       }
 
+      const res = await api.put('/auth/profile', formData, {
+        transformRequest: [(data, headers) => {
+          delete headers['Content-Type'];
+          return data;
+        }],
+      });
+
       updateUser(res.data.user);
-      toast.success('Profile updated successfully!');
+      setProfilePhotoFile(null);
+      setPhotoPreview(null);
+      toast.success('Profile saved.');
     } catch (err) {
       toast.error(err.response?.data?.message || 'Update failed.');
     } finally {
@@ -142,161 +139,197 @@ export default function Profile() {
     }
   };
 
-  const photoSrc = getPhotoSrc();
-  const hasProfilePhoto = Boolean(user?.profilePhoto);
-  const photoButtonLabel = hasProfilePhoto ? 'Edit' : 'Upload Photo';
+  const photoSrc = photoPreview || user?.profilePhoto || null;
 
   return (
     <div className="page-container">
-      <div className="mb-6 sm:mb-8">
-        <h1 className="text-xl sm:text-2xl font-bold text-gray-900">Profile Settings</h1>
-        <p className="text-gray-500 mt-1 text-sm sm:text-base">Manage your account information</p>
-      </div>
+      {isDoctor && (
+        <div className="flex flex-wrap gap-2 mb-5">
+          {[
+            ['personal', 'Personal'],
+            ['practice', 'Practice'],
+            ['schedule', 'Schedule & reminders'],
+          ].map(([key, label]) => (
+            <button
+              key={key}
+              type="button"
+              onClick={() => setSection(key)}
+              className={`tab-chip ${
+                section === key ? 'bg-ink text-white' : 'bg-white text-ink-muted ring-1 ring-line'
+              }`}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+      )}
 
-      <div className="card mb-6">
-        <div className="flex items-start gap-4">
-          <div className="flex flex-col items-center gap-2 shrink-0">
-            {photoSrc ? (
-              <img
-                src={photoSrc}
-                alt={user?.name}
-                className="w-16 h-16 rounded-2xl object-cover object-center block ring-2 ring-[#d4af37]/30"
-              />
-            ) : (
-              <UserAvatar
-                name={user?.name}
-                profilePhoto={user?.profilePhoto}
-                role={user?.role}
-                size="xl"
-                rounded="xl"
-              />
-            )}
+      <form onSubmit={handleSubmit} className="card max-w-3xl">
+        <fieldset disabled={loading} className="space-y-4 border-0 p-0 m-0">
+          {(section === 'personal' || !isDoctor) && (
             <>
+          <div className="flex items-center gap-4">
+            {photoSrc ? (
+              <img src={photoSrc} alt="" className="w-14 h-14 rounded-xl object-cover ring-2 ring-[#d4af37]/30" />
+            ) : (
+              <UserAvatar name={user?.name} role={user?.role} size="lg" rounded="xl" />
+            )}
+            <div>
               <input
                 ref={fileInputRef}
                 type="file"
                 accept="image/jpeg,image/jpg,image/png,image/webp"
                 className="hidden"
-                onChange={handlePhotoChange}
+                onChange={(e) => {
+                  const file = e.target.files?.[0] || null;
+                  setProfilePhotoFile(file);
+                  setPhotoPreview(file ? URL.createObjectURL(file) : null);
+                }}
               />
               <button
                 type="button"
                 onClick={() => fileInputRef.current?.click()}
-                disabled={loading}
-                className="text-xs border border-primary-600 rounded-lg px-2 py-[2px] text-primary-600 font-medium hover:text-primary-700 inline-flex items-center gap-1 disabled:opacity-50 disabled:cursor-not-allowed"
+                className="btn-secondary !min-h-8 !py-1 !px-2.5 text-xs"
               >
-                <Camera className="w-3.5 h-3.5" />
-                {photoButtonLabel}
+                <Camera className="w-3.5 h-3.5" /> Photo
               </button>
+            </div>
+          </div>
+
+          <div>
+            <label className="label-field">
+              <User className="w-4 h-4 inline mr-1" /> Name
+            </label>
+            <input name="name" className="input-field" value={form.name} onChange={handleChange} required />
+          </div>
+          <div>
+            <label className="label-field">
+              <Phone className="w-4 h-4 inline mr-1" /> Phone
+            </label>
+            <input name="phone" className="input-field" value={form.phone} onChange={handleChange} required />
+          </div>
+          <div>
+            <label className="label-field">
+              <Mail className="w-4 h-4 inline mr-1" /> Email
+            </label>
+            <input className="input-field" value={user?.email || ''} disabled />
+          </div>
             </>
-          </div>
-          <div className="min-w-0 pt-0.5">
-            <h2 className="text-lg font-semibold leading-tight">{user?.name}</h2>
-            <p className="text-sm text-gray-500 capitalize mt-1">{user?.role}</p>
-            <p className="text-sm text-gray-400 mt-0.5 break-all sm:break-normal">{user?.email}</p>
-          </div>
-        </div>
-      </div>
+          )}
 
-      <form onSubmit={handleSubmit} className="card space-y-5">
-        <fieldset disabled={loading} className="space-y-5 border-0 p-0 m-0 min-w-0">
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            <User className="w-4 h-4 inline mr-1" /> Full Name
-          </label>
-          <input name="name" className="input-field" value={form.name} onChange={handleChange} required />
-        </div>
-
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            <Phone className="w-4 h-4 inline mr-1" /> Phone
-          </label>
-          <input name="phone" className="input-field" value={form.phone} onChange={handleChange} required />
-        </div>
-
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            <Mail className="w-4 h-4 inline mr-1" /> Email
-          </label>
-          <input className="input-field bg-gray-50" value={user?.email} disabled />
-        </div>
-
-        {user?.role === 'doctor' && (
-          <>
-            <div className="border-t pt-5">
-              <div className="flex items-center gap-2 mb-4">
-                <Stethoscope className="w-5 h-5 text-primary-600" />
-                <span className="font-medium">Doctor Settings</span>
-              </div>
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Specialization</label>
-              <input name="specialization" className="input-field" value={form.specialization} onChange={handleChange} />
-            </div>
-
-            <div className="grid grid-cols-2 gap-4">
+          {isDoctor && section === 'practice' && (
+            <>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Experience (years)</label>
-                <input name="experience" type="number" className="input-field" value={form.experience} onChange={handleChange} />
+                <label className="label-field">Specialization</label>
+                <input name="specialization" className="input-field" value={form.specialization} onChange={handleChange} />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Consultation Fee (₹)</label>
-                <input name="consultationFee" type="number" className="input-field" value={form.consultationFee} onChange={handleChange} />
+                <label className="label-field">Qualification</label>
+                <input name="qualification" className="input-field" value={form.qualification} onChange={handleChange} />
               </div>
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Bio</label>
-              <textarea name="bio" className="input-field" rows={3} value={form.bio} onChange={handleChange} />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Available Days</label>
-              <div className="flex flex-wrap gap-2">
-                {DAYS.map((day) => (
-                  <button
-                    key={day}
-                    type="button"
-                    onClick={() => toggleDay(day)}
-                    className={`px-3 py-1.5 rounded-lg text-sm font-medium border transition-all ${
-                      form.availableDays.includes(day)
-                        ? 'bg-primary-600 text-white border-primary-600'
-                        : 'bg-white text-gray-600 border-gray-200'
-                    }`}
-                  >
-                    {day.slice(0, 3)}
-                  </button>
-                ))}
+              <div>
+                <label className="label-field">License number</label>
+                <input name="licenseNumber" className="input-field" value={form.licenseNumber} onChange={handleChange} />
               </div>
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Available Time Slots</label>
-              <div className="flex flex-wrap gap-2">
-                {SLOTS.map((slot) => (
-                  <button
-                    key={slot}
-                    type="button"
-                    onClick={() => toggleSlot(slot)}
-                    className={`px-3 py-1.5 rounded-lg text-sm font-medium border transition-all ${
-                      form.availableSlots.includes(slot)
-                        ? 'bg-primary-600 text-white border-primary-600'
-                        : 'bg-white text-gray-600 border-gray-200'
-                    }`}
-                  >
-                    {slot}
-                  </button>
-                ))}
+              <div>
+                <label className="label-field">Clinic / practice name</label>
+                <input name="clinicName" className="input-field" value={form.clinicName} onChange={handleChange} />
               </div>
-            </div>
-          </>
-        )}
+              <div>
+                <label className="label-field">Clinic address</label>
+                <input name="clinicAddress" className="input-field" value={form.clinicAddress} onChange={handleChange} />
+              </div>
+              <div>
+                <label className="label-field">City</label>
+                <input name="city" className="input-field" value={form.city} onChange={handleChange} />
+              </div>
+              <div>
+                <label className="label-field">Bio</label>
+                <textarea name="bio" className="input-field" rows={3} value={form.bio} onChange={handleChange} />
+              </div>
+            </>
+          )}
 
-        <button type="submit" className="btn-primary w-full !py-3 inline-flex items-center justify-center gap-2">
-          <Save className="w-4 h-4" />
-          {loading ? 'Saving...' : 'Save Changes'}
-        </button>
+          {isDoctor && section === 'schedule' && (
+            <>
+              <div>
+                <label className="label-field">Available days</label>
+                <div className="flex flex-wrap gap-2">
+                  {DAYS.map((day) => (
+                    <button
+                      key={day}
+                      type="button"
+                      onClick={() => toggleDay(day)}
+                      className={`min-h-9 px-3 rounded-lg text-sm font-medium border ${
+                        form.availableDays.includes(day)
+                          ? 'bg-ink text-white border-ink'
+                          : 'bg-white text-ink-muted border-line'
+                      }`}
+                    >
+                      {day.slice(0, 3)}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <div>
+                <label className="label-field">Time slots</label>
+                <div className="flex flex-wrap gap-2">
+                  {SLOTS.map((slot) => (
+                    <button
+                      key={slot}
+                      type="button"
+                      onClick={() => toggleSlot(slot)}
+                      className={`min-h-9 px-3 rounded-lg text-sm font-medium border ${
+                        form.availableSlots.includes(slot)
+                          ? 'bg-ink text-white border-ink'
+                          : 'bg-white text-ink-muted border-line'
+                      }`}
+                    >
+                      {slot}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <div>
+                <label className="label-field">Default duration (minutes)</label>
+                <input
+                  name="defaultDurationMinutes"
+                  type="number"
+                  min="5"
+                  className="input-field"
+                  value={form.defaultDurationMinutes}
+                  onChange={handleChange}
+                />
+              </div>
+              <div>
+                <label className="label-field">
+                  Reminder hours before (comma-separated)
+                </label>
+                <input
+                  name="reminderHours"
+                  className="input-field"
+                  placeholder="24, 2"
+                  value={form.reminderHours}
+                  onChange={handleChange}
+                />
+              </div>
+              <label className="flex items-center gap-2 text-sm text-ink">
+                <input
+                  type="checkbox"
+                  checked={form.sendConfirmationReminder}
+                  onChange={(e) =>
+                    setForm({ ...form, sendConfirmationReminder: e.target.checked })
+                  }
+                />
+                Send confirmation when appointment is booked
+              </label>
+            </>
+          )}
+
+          <button type="submit" className="btn-primary inline-flex">
+            <Save className="w-4 h-4" />
+            {loading ? 'Saving...' : 'Save'}
+          </button>
         </fieldset>
       </form>
     </div>

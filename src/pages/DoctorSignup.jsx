@@ -1,10 +1,9 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useAuthRedirect } from '../hooks/useAuthRedirect';
-import api from '../utils/api';
 import toast from 'react-hot-toast';
-import { Mail, User, Phone, Stethoscope, Building2 } from 'lucide-react';
+import { Mail, User, Phone } from 'lucide-react';
 import AuthPageLogo from '../components/AuthPageLogo';
 import AuthPageLayout from '../components/AuthPageLayout';
 import PasswordInput from '../components/PasswordInput';
@@ -16,52 +15,29 @@ export default function DoctorSignup() {
     email: '',
     password: '',
     phone: '',
-    clinicId: '',
     specialization: '',
     qualification: '',
+    licenseNumber: '',
     experience: '',
-    consultationFee: '',
+    clinicName: '',
+    city: '',
     bio: '',
   });
-  const [clinics, setClinics] = useState([]);
   const [loading, setLoading] = useState(false);
   const { registerDoctorAccount } = useAuth();
   const redirectAfterAuth = useAuthRedirect();
 
-  useEffect(() => {
-    api
-      .get('/clinics')
-      .then((res) => {
-        const list = res.data.clinics || [];
-        setClinics(list);
-        if (list.length === 1) {
-          setForm((prev) => ({ ...prev, clinicId: list[0]._id }));
-        }
-      })
-      .catch(() => toast.error('Could not load clinics.'));
-  }, []);
-
-  const handleChange = (e) => {
-    setForm({ ...form, [e.target.name]: e.target.value });
-  };
+  const handleChange = (e) => setForm({ ...form, [e.target.name]: e.target.value });
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
     try {
-      const payload = {
-        ...form,
-        experience: Number(form.experience) || 0,
-        consultationFee: Number(form.consultationFee) || 500,
-      };
-      if (!payload.clinicId) delete payload.clinicId;
-      const data = await registerDoctorAccount(payload);
-      toast.success('Doctor account created!');
-      redirectAfterAuth(data.user.role);
+      const data = await registerDoctorAccount(form);
+      toast.success('Account created. Waiting for admin approval.');
+      redirectAfterAuth(data.user.role, data.user);
     } catch (err) {
-      const msg =
-        err.response?.data?.message || err.response?.data?.errors?.[0]?.msg || 'Signup failed.';
-      toast.error(msg);
+      toast.error(err.response?.data?.message || 'Signup failed.');
     } finally {
       setLoading(false);
     }
@@ -71,44 +47,21 @@ export default function DoctorSignup() {
     <AuthPageLayout maxWidth="max-w-lg">
       <div className="text-center mb-3 sm:mb-5">
         <AuthPageLogo className="mb-3 sm:mb-4" />
-        <h1 className="text-lg sm:text-2xl font-bold text-gray-900">Doctor Signup</h1>
-        <p className="text-gray-500 mt-1 text-sm sm:text-base">Create your doctor account</p>
+        <h1 className="text-lg sm:text-2xl font-bold text-gray-900">Doctor Sign up</h1>
+        <p className="text-sm text-gray-500 mt-1">Admin approval required before dashboard access</p>
       </div>
 
       <div className="card">
         <form onSubmit={handleSubmit} className="space-y-4">
           <fieldset disabled={loading} className="space-y-4 border-0 p-0 m-0 min-w-0">
-            {clinics.length > 1 && (
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Clinic</label>
-                <div className="relative">
-                  <Building2 className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
-                  <select
-                    name="clinicId"
-                    className="input-field pl-10"
-                    value={form.clinicId}
-                    onChange={handleChange}
-                    required
-                  >
-                    <option value="">Select clinic</option>
-                    {clinics.map((c) => (
-                      <option key={c._id} value={c._id}>
-                        {c.name}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              </div>
-            )}
-
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Full Name</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Full name</label>
               <div className="relative">
                 <User className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
                 <input
                   name="name"
                   className="input-field pl-10"
-                  placeholder="Dr. Priya Sharma"
+                  placeholder="Dr. Name"
                   value={form.name}
                   onChange={handleChange}
                   required
@@ -116,35 +69,34 @@ export default function DoctorSignup() {
               </div>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
-                <div className="relative">
-                  <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
-                  <input
-                    name="email"
-                    type="email"
-                    className="input-field pl-10"
-                    placeholder="doctor@clinic.com"
-                    value={form.email}
-                    onChange={handleChange}
-                    required
-                  />
-                </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
+              <div className="relative">
+                <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+                <input
+                  name="email"
+                  type="email"
+                  className="input-field pl-10"
+                  placeholder="doctor@clinic.com"
+                  value={form.email}
+                  onChange={handleChange}
+                  required
+                />
               </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Phone</label>
-                <div className="relative">
-                  <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
-                  <input
-                    name="phone"
-                    className="input-field pl-10"
-                    placeholder="9876543210"
-                    value={form.phone}
-                    onChange={handleChange}
-                    required
-                  />
-                </div>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Phone</label>
+              <div className="relative">
+                <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+                <input
+                  name="phone"
+                  className="input-field pl-10"
+                  placeholder="9876543210"
+                  value={form.phone}
+                  onChange={handleChange}
+                  required
+                />
               </div>
             </div>
 
@@ -152,21 +104,12 @@ export default function DoctorSignup() {
               <label className="block text-sm font-medium text-gray-700 mb-1">Password</label>
               <PasswordInput
                 name="password"
-                iconClassName="w-5 h-5"
-                inputClassName="input-field pl-10 pr-11"
-                placeholder="Min 6 characters"
                 value={form.password}
                 onChange={handleChange}
                 required
                 minLength={6}
+                placeholder="Min 6 characters"
               />
-            </div>
-
-            <div className="border-t border-gray-100 pt-4">
-              <div className="flex items-center gap-2 mb-4">
-                <Stethoscope className="w-5 h-5 text-[#a8841f]" />
-                <span className="font-medium text-gray-900">Doctor Profile</span>
-              </div>
             </div>
 
             <div>
@@ -174,70 +117,83 @@ export default function DoctorSignup() {
               <input
                 name="specialization"
                 className="input-field"
-                placeholder="e.g. Panchakarma Specialist"
+                placeholder="e.g. Panchakarma"
                 value={form.specialization}
                 onChange={handleChange}
               />
             </div>
 
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Qualification</label>
-              <input
-                name="qualification"
-                className="input-field"
-                placeholder="e.g. BAMS, MD (Ayurveda)"
-                value={form.qualification}
-                onChange={handleChange}
-              />
+            <div className="grid sm:grid-cols-2 gap-3">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Qualification</label>
+                <input
+                  name="qualification"
+                  className="input-field"
+                  placeholder="BAMS, MD"
+                  value={form.qualification}
+                  onChange={handleChange}
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">License no.</label>
+                <input
+                  name="licenseNumber"
+                  className="input-field"
+                  value={form.licenseNumber}
+                  onChange={handleChange}
+                />
+              </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid sm:grid-cols-2 gap-3">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Experience (years)</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Years of experience</label>
                 <input
                   name="experience"
                   type="number"
+                  min="0"
                   className="input-field"
-                  placeholder="5"
                   value={form.experience}
                   onChange={handleChange}
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Fee (₹)</label>
-                <input
-                  name="consultationFee"
-                  type="number"
-                  className="input-field"
-                  placeholder="500"
-                  value={form.consultationFee}
-                  onChange={handleChange}
-                />
+                <label className="block text-sm font-medium text-gray-700 mb-1">City</label>
+                <input name="city" className="input-field" value={form.city} onChange={handleChange} />
               </div>
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Bio</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Practice / clinic name</label>
+              <input
+                name="clinicName"
+                className="input-field"
+                value={form.clinicName}
+                onChange={handleChange}
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Short bio</label>
               <textarea
                 name="bio"
                 className="input-field"
-                rows={3}
-                placeholder="Brief about your practice..."
+                rows={2}
                 value={form.bio}
                 onChange={handleChange}
               />
             </div>
 
             <button type="submit" className="btn-primary w-full !py-3">
-              {loading ? 'Creating account...' : 'Create Doctor Account'}
+              {loading ? 'Creating...' : 'Create account'}
             </button>
           </fieldset>
         </form>
 
         <p className="text-center text-sm text-gray-500 mt-6">
           Already have an account?{' '}
-          <Link to={ROUTES.doctorLogin} className="text-primary-600 font-medium hover:underline">
-            Doctor sign in
+          <Link to={ROUTES.login} className="text-accent-700 font-medium hover:underline">
+            Login
           </Link>
         </p>
       </div>

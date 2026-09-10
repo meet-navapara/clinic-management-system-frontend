@@ -25,12 +25,11 @@ api.interceptors.response.use(
       const publicPaths = [
         ROUTES.home,
         ROUTES.login,
-        ROUTES.register,
-        ROUTES.clinicAdminRegister,
         ROUTES.doctorSignup,
         ROUTES.doctorLogin,
-        ROUTES.receptionistSignup,
-        ROUTES.receptionistLogin,
+        ROUTES.doctorPending,
+        ROUTES.clinicAdminRegister,
+        ROUTES.clinicAdminLogin,
       ];
       if (!publicPaths.includes(window.location.pathname)) {
         window.location.href = ROUTES.login;

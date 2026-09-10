@@ -1,5 +1,4 @@
 import { useState } from 'react';
-import { Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useAuthRedirect } from '../hooks/useAuthRedirect';
 import toast from 'react-hot-toast';
@@ -8,19 +7,8 @@ import AuthPageLogo from '../components/AuthPageLogo';
 import AuthPageLayout from '../components/AuthPageLayout';
 import PasswordInput from '../components/PasswordInput';
 
-/**
- * Shared role-scoped login form.
- * Passes `role` to the API so wrong-role accounts are rejected clearly.
- */
-export default function RoleLogin({
-  role,
-  title,
-  subtitle,
-  signupPath,
-  signupLabel,
-  alternateLoginPath,
-  alternateLoginLabel,
-}) {
+/** Quiet admin login — not linked from public landing/nav. */
+export default function AdminLogin() {
   const [form, setForm] = useState({ email: '', password: '' });
   const [loading, setLoading] = useState(false);
   const { login } = useAuth();
@@ -30,9 +18,9 @@ export default function RoleLogin({
     e.preventDefault();
     setLoading(true);
     try {
-      const data = await login(form.email, form.password, role);
+      const data = await login(form.email, form.password, 'clinic_admin');
       toast.success('Welcome back!');
-      redirectAfterAuth(data.user.role);
+      redirectAfterAuth(data.user.role, data.user);
     } catch (err) {
       toast.error(err.response?.data?.message || 'Login failed.');
     } finally {
@@ -44,8 +32,7 @@ export default function RoleLogin({
     <AuthPageLayout>
       <div className="text-center mb-3 sm:mb-5">
         <AuthPageLogo className="mb-3 sm:mb-4" />
-        <h1 className="text-lg sm:text-2xl font-bold text-gray-900">{title}</h1>
-        {subtitle && <p className="text-gray-500 mt-1 text-sm">{subtitle}</p>}
+        <h1 className="text-lg sm:text-2xl font-bold text-gray-900">Admin Login</h1>
       </div>
 
       <div className="card !p-3.5 sm:!p-6">
@@ -58,14 +45,13 @@ export default function RoleLogin({
                 <input
                   type="email"
                   className="input-field pl-9 sm:pl-10 !py-2 sm:!py-2.5"
-                  placeholder="you@example.com"
+                  placeholder="admin@clinic.com"
                   value={form.email}
                   onChange={(e) => setForm({ ...form, email: e.target.value })}
                   required
                 />
               </div>
             </div>
-
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Password</label>
               <PasswordInput
@@ -75,27 +61,11 @@ export default function RoleLogin({
                 required
               />
             </div>
-
             <button type="submit" className="btn-primary w-full !py-2.5 sm:!py-3">
               {loading ? 'Signing in...' : 'Sign In'}
             </button>
           </fieldset>
         </form>
-
-        <p className="text-center text-xs sm:text-sm text-gray-500 mt-4 sm:mt-6">
-          {signupLabel}{' '}
-          <Link to={signupPath} className="text-primary-600 font-bold hover:underline">
-            Sign up
-          </Link>
-          {alternateLoginPath && (
-            <>
-              {' · '}
-              <Link to={alternateLoginPath} className="text-primary-600 font-medium hover:underline">
-                {alternateLoginLabel || 'General login'}
-              </Link>
-            </>
-          )}
-        </p>
       </div>
     </AuthPageLayout>
   );

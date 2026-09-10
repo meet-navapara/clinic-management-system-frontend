@@ -11,7 +11,7 @@ export default function GuestRoute({ children }) {
   }
 
   if (user) {
-    return <Navigate to={getDashboardPath(user.role)} replace />;
+    return <Navigate to={getDashboardPath(user.role, user)} replace />;
   }
 
   return children;

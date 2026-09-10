@@ -1,74 +1,32 @@
 # Shreeshakti Ayurveda — Frontend
 
-React frontend for the Shreeshakti Ayurveda appointment booking system. Built with Vite and Tailwind CSS.
+Doctor-centric practice management UI (Vite + React + Tailwind).
 
-## Tech Stack
+## Users
 
-- React 18
-- Vite
-- Tailwind CSS
-- React Router, Axios
+- **Doctor** — patients, appointments, calendar, reminders, inbox, settings
+- **Admin** — approve / reject / suspend doctors (`/admin/login`)
 
-## Prerequisites
+Patients do **not** have accounts or a portal.
 
-- Node.js 18+
-- Backend API running on port 5000 (see `../backend/README.md`)
-
-## Installation
+## Setup
 
 ```bash
 npm install
+npm run dev   # http://localhost:3000
 ```
 
-## Scripts
+Requires the backend on port 5000. Set `VITE_BACKEND_URL` in `.env` if needed.
 
-```bash
-npm run dev      # Start dev server (port 3000)
-npm run build    # Production build
-npm run preview  # Preview production build
-```
+## Main routes
 
-## Development
-
-Start the backend first, then run the frontend:
-
-```bash
-# Terminal 1 — from backend folder
-npm run dev
-
-# Terminal 2 — from frontend folder
-npm run dev
-```
-
-Open **http://localhost:3000**
-
-The Vite dev server proxies `/api` and `/uploads` requests to `http://localhost:5000`.
-
-## Routes
-
-| Page | URL | Who |
-|------|-----|-----|
-| Landing | `/` | Public |
-| Patient signup | `/register` | New patients |
-| Doctor admin setup | `/admin/register` | One-time doctor account |
-| Login | `/login` | Patients and doctor |
-| Patient dashboard | `/patient/dashboard` | Patients |
-| Doctor dashboard | `/doctor/dashboard` | Doctor |
-| Appointments | `/appointments` | Logged-in users |
-| Profile | `/profile` | Logged-in users |
-| Doctor detail | `/doctor/:id` | Patients |
-
-## Project Structure
-
-```
-frontend/
-├── public/         → Static assets
-├── src/
-│   ├── components/ → Reusable UI components
-│   ├── constants/  → Routes and app constants
-│   ├── context/    → Auth context
-│   ├── pages/      → Page components
-│   └── services/   → API client
-├── website-logo/   → Brand logo assets
-└── vite.config.js  → Vite config and API proxy
-```
+| Path | Role |
+|------|------|
+| `/login`, `/doctor/signup` | Doctor auth |
+| `/doctor/dashboard` | Practice overview |
+| `/doctor/calendar` | Day / week calendar |
+| `/doctor/patients` | Patient records |
+| `/doctor/appointments/new` | Schedule visit |
+| `/doctor/inbox` | Doctor notifications |
+| `/doctor/notifications` | Patient reminder logs |
+| `/admin/login`, `/admin/dashboard` | Admin |

@@ -14,7 +14,7 @@ export default function PageLoader({
     >
       <Loader size={size} />
       {message ? (
-        <p className="mt-4 text-sm font-medium text-[#876719] tracking-wide">{message}</p>
+        <p className="mt-4 text-sm font-medium text-ink-muted tracking-wide">{message}</p>
       ) : null}
     </div>
   );

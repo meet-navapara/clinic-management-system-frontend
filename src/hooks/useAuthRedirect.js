@@ -1,19 +1,22 @@
 import { useLocation } from 'react-router-dom';
+import { useAuth } from '../context/AuthContext';
 import { getDashboardPath, isPathAllowedForRole } from '../constants/routes';
 
 export function useAuthRedirect() {
   const location = useLocation();
+  const { user } = useAuth();
 
-  return (role) => {
+  return (role, authUser = user) => {
     if (document.activeElement instanceof HTMLElement) {
       document.activeElement.blur();
     }
 
     const from = location.state?.from?.pathname;
     const path =
-      from && isPathAllowedForRole(from, role) ? from : getDashboardPath(role);
+      from && isPathAllowedForRole(from, role, authUser)
+        ? from
+        : getDashboardPath(role, authUser);
 
-    // Full page load resets iOS Safari zoom after input focus
     window.location.assign(path);
   };
 }

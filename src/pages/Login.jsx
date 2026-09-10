@@ -7,6 +7,7 @@ import { Mail } from 'lucide-react';
 import AuthPageLogo from '../components/AuthPageLogo';
 import AuthPageLayout from '../components/AuthPageLayout';
 import PasswordInput from '../components/PasswordInput';
+import { ROUTES } from '../constants/routes';
 
 export default function Login() {
   const [form, setForm] = useState({ email: '', password: '' });
@@ -18,9 +19,9 @@ export default function Login() {
     e.preventDefault();
     setLoading(true);
     try {
-      const data = await login(form.email, form.password);
+      const data = await login(form.email, form.password, 'doctor');
       toast.success('Welcome back!');
-      redirectAfterAuth(data.user.role);
+      redirectAfterAuth(data.user.role, data.user);
     } catch (err) {
       toast.error(err.response?.data?.message || 'Login failed.');
     } finally {
@@ -32,7 +33,7 @@ export default function Login() {
     <AuthPageLayout>
       <div className="text-center mb-3 sm:mb-5">
         <AuthPageLogo className="mb-3 sm:mb-4" />
-        <h1 className="text-lg sm:text-2xl font-bold text-gray-900">Welcome Back</h1>
+        <h1 className="text-lg sm:text-2xl font-bold text-gray-900">Doctor Login</h1>
       </div>
 
       <div className="card !p-3.5 sm:!p-6">
@@ -45,10 +46,11 @@ export default function Login() {
                 <input
                   type="email"
                   className="input-field pl-9 sm:pl-10 !py-2 sm:!py-2.5"
-                  placeholder="you@example.com"
+                  placeholder="doctor@clinic.com"
                   value={form.email}
                   onChange={(e) => setForm({ ...form, email: e.target.value })}
                   required
+                  autoComplete="email"
                 />
               </div>
             </div>
@@ -60,6 +62,7 @@ export default function Login() {
                 value={form.password}
                 onChange={(e) => setForm({ ...form, password: e.target.value })}
                 required
+                autoComplete="current-password"
               />
             </div>
 
@@ -69,23 +72,11 @@ export default function Login() {
           </fieldset>
         </form>
 
-        <p className="text-center text-xs sm:text-sm text-gray-500 mt-4 sm:mt-6 space-y-1">
-          <span className="block">
-            Don&apos;t have an account?{' '}
-            <Link to="/register" className="text-primary-600 font-bold hover:underline">
-              Sign up as patient
-            </Link>
-          </span>
-          <span className="block text-gray-400">
-            Staff:{' '}
-            <Link to="/doctor/login" className="text-primary-600 font-medium hover:underline">
-              Doctor
-            </Link>
-            {' · '}
-            <Link to="/receptionist/login" className="text-primary-600 font-medium hover:underline">
-              Receptionist
-            </Link>
-          </span>
+        <p className="text-center text-xs sm:text-sm text-gray-500 mt-4 sm:mt-6">
+          New doctor?{' '}
+          <Link to={ROUTES.doctorSignup} className="text-accent-700 font-semibold hover:underline">
+            Sign up
+          </Link>
         </p>
       </div>
     </AuthPageLayout>

@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useEffect } from 'react';
+import { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import api from '../utils/api';
 
 const AuthContext = createContext(null);
@@ -50,30 +50,13 @@ export const AuthProvider = ({ children }) => {
     return persistSession(res.data);
   };
 
-  const register = async (userData) => {
-    const res = await api.post('/auth/register', userData);
-    return persistSession(res.data);
-  };
-
   const registerClinicAdmin = async (userData) => {
     const res = await api.post('/auth/register/clinic-admin', userData);
     return persistSession(res.data);
   };
 
-  /** @deprecated use registerClinicAdmin — kept for older callers */
-  const registerDoctor = async (userData) => {
-    // Legacy /admin/register used to create a doctor; Phase 2 creates clinic_admin instead.
-    // Doctor self-signup uses registerDoctorAccount.
-    return registerClinicAdmin(userData);
-  };
-
   const registerDoctorAccount = async (userData) => {
     const res = await api.post('/auth/register/doctor', userData);
-    return persistSession(res.data);
-  };
-
-  const registerReceptionist = async (userData) => {
-    const res = await api.post('/auth/register/receptionist', userData);
     return persistSession(res.data);
   };
 
@@ -88,19 +71,27 @@ export const AuthProvider = ({ children }) => {
     localStorage.setItem('user', JSON.stringify(updatedUser));
   };
 
+  const refreshUser = useCallback(async () => {
+    const res = await api.get('/auth/me');
+    const next = res.data.user;
+    if (next) {
+      setUser(next);
+      localStorage.setItem('user', JSON.stringify(next));
+    }
+    return next;
+  }, []);
+
   return (
     <AuthContext.Provider
       value={{
         user,
         loading,
         login,
-        register,
-        registerDoctor,
         registerClinicAdmin,
         registerDoctorAccount,
-        registerReceptionist,
         logout,
         updateUser,
+        refreshUser,
       }}
     >
       {children}
