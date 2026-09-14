@@ -16,6 +16,7 @@ import toast from 'react-hot-toast';
 import { getAppointmentStatusConfig, normalizeAppointmentStatus } from '../constants/appointmentStatus';
 import { ROUTES } from '../constants/routes';
 import { patientDisplayName } from '../utils/display';
+import { useBranch } from '../context/BranchContext';
 
 function toDateKey(d) {
   return format(d, 'yyyy-MM-dd');
@@ -81,6 +82,7 @@ function CalendarEvent({ appointment, onOpen }) {
 
 export default function DoctorCalendar() {
   const navigate = useNavigate();
+  const { branchId } = useBranch();
   const [view, setView] = useState('week');
   const [anchor, setAnchor] = useState(() => startOfDay(new Date()));
   const [appointments, setAppointments] = useState([]);
@@ -115,7 +117,7 @@ export default function DoctorCalendar() {
     } finally {
       setLoading(false);
     }
-  }, [range]);
+  }, [range, branchId]);
 
   useEffect(() => {
     load();

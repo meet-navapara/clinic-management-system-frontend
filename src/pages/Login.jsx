@@ -19,7 +19,7 @@ export default function Login() {
     e.preventDefault();
     setLoading(true);
     try {
-      const data = await login(form.email, form.password, 'doctor');
+      const data = await login(form.email, form.password);
       toast.success('Welcome back!');
       redirectAfterAuth(data.user.role, data.user);
     } catch (err) {
@@ -33,7 +33,7 @@ export default function Login() {
     <AuthPageLayout>
       <div className="text-center mb-3 sm:mb-5">
         <AuthPageLogo className="mb-3 sm:mb-4" />
-        <h1 className="text-lg sm:text-2xl font-bold text-gray-900">Doctor Login</h1>
+        <h1 className="text-lg sm:text-2xl font-bold text-gray-900">Clinic sign in</h1>
       </div>
 
       <div className="card !p-3.5 sm:!p-6">
@@ -46,7 +46,7 @@ export default function Login() {
                 <input
                   type="email"
                   className="input-field pl-9 sm:pl-10 !py-2 sm:!py-2.5"
-                  placeholder="doctor@clinic.com"
+                  placeholder="you@clinic.com"
                   value={form.email}
                   onChange={(e) => setForm({ ...form, email: e.target.value })}
                   required

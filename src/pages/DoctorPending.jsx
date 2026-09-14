@@ -64,7 +64,7 @@ export default function DoctorPending() {
         window.location.assign(ROUTES.doctorDashboard);
         return;
       }
-      toast('Still waiting for admin approval.');
+      toast('Still waiting for approval.');
     } catch {
       toast.error('Could not check status.');
     } finally {
@@ -72,29 +72,42 @@ export default function DoctorPending() {
     }
   };
 
+  const goLogin = () => {
+    logout();
+    window.location.assign(ROUTES.login);
+  };
+
   const copy = {
     pending: {
       icon: Clock,
+      eyebrow: 'Pending review',
       title: 'Waiting for approval',
-      body: `Hi${firstName ? ` ${firstName}` : ''}, your account is registered. A clinic admin must approve you before you can open the dashboard.`,
+      body: `Hi${firstName ? ` ${firstName}` : ''}, your doctor account is registered. A Super Admin will review it before you can sign in to your clinic.`,
+      hint: 'This page refreshes automatically once you are approved.',
       iconWrap: 'bg-[#f3efe8] text-[#a8841f]',
     },
     approved: {
       icon: CheckCircle,
+      eyebrow: 'Approved',
       title: "You're approved",
-      body: 'Opening your dashboard…',
+      body: 'Opening your clinic dashboard…',
+      hint: '',
       iconWrap: 'bg-[#eef5f1] text-[#3d6b4f]',
     },
     rejected: {
       icon: XCircle,
+      eyebrow: 'Not approved',
       title: 'Registration not approved',
-      body: 'Your doctor account was not approved. Please contact the clinic admin for more information.',
+      body: 'Your doctor account was not approved. Contact Super Admin if you need help.',
+      hint: '',
       iconWrap: 'bg-[#fef2f2] text-[#9b2c2c]',
     },
     suspended: {
       icon: Ban,
+      eyebrow: 'Suspended',
       title: 'Account suspended',
-      body: 'Your doctor account is suspended. Contact the clinic admin to reactivate access.',
+      body: 'Your doctor account is suspended. Contact Super Admin to restore access.',
+      hint: '',
       iconWrap: 'bg-[#f3efe8] text-ink-muted',
     },
   };
@@ -104,45 +117,50 @@ export default function DoctorPending() {
 
   return (
     <AuthPageLayout>
-      <div className="text-center mb-4 sm:mb-6">
-        <AuthPageLogo />
+      <div className="text-center mb-3 sm:mb-5">
+        <AuthPageLogo className="mb-3 sm:mb-4" />
+        <h1 className="text-lg sm:text-2xl font-bold text-gray-900">{view.title}</h1>
       </div>
 
-      <div className="card text-center !p-6 sm:!p-8">
+      <div className="card !p-5 sm:!p-6 text-center">
         <div
-          className={`mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full ${view.iconWrap}`}
+          className={`mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full ${view.iconWrap}`}
         >
-          <Icon className="w-6 h-6" strokeWidth={1.75} />
+          <Icon className="w-7 h-7" strokeWidth={1.75} aria-hidden="true" />
         </div>
-        <p className="section-label mb-2">Account</p>
-        <h1 className="page-title">{view.title}</h1>
-        <p className="page-subtitle max-w-sm mx-auto">{view.body}</p>
-        {status === 'pending' && (
-          <p className="text-xs text-ink-faint mt-3">
-            This page updates automatically when an admin approves you.
+
+        <p className="section-label mb-3">{view.eyebrow}</p>
+
+        <p className="text-sm sm:text-[15px] text-ink-muted leading-relaxed max-w-[22rem] mx-auto">
+          {view.body}
+        </p>
+
+        {user?.email && status === 'pending' && (
+          <p className="mt-3 text-xs text-ink-faint truncate" title={user.email}>
+            Signed in as {user.email}
           </p>
         )}
-        {status !== 'approved' && (
-          <button
-            type="button"
-            className="btn-primary mt-6"
-            onClick={() => {
-              logout();
-              window.location.assign(ROUTES.login);
-            }}
-          >
-            Back to login
-          </button>
+
+        {view.hint && (
+          <p className="mt-4 text-xs text-ink-faint leading-relaxed">{view.hint}</p>
         )}
-        {status === 'pending' && (
-          <button
-            type="button"
-            className="btn-secondary mt-3"
-            disabled={checking}
-            onClick={checkNow}
-          >
-            {checking ? 'Checking…' : 'Check status'}
-          </button>
+
+        {status !== 'approved' && (
+          <div className="mt-6 flex flex-col-reverse sm:flex-row gap-2.5">
+            {status === 'pending' && (
+              <button
+                type="button"
+                className="btn-secondary flex-1 !min-h-11"
+                disabled={checking}
+                onClick={checkNow}
+              >
+                {checking ? 'Checking…' : 'Check status'}
+              </button>
+            )}
+            <button type="button" className="btn-primary flex-1 !min-h-11" onClick={goLogin}>
+              Back to login
+            </button>
+          </div>
         )}
       </div>
     </AuthPageLayout>

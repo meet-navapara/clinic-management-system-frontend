@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { useBranch } from '../context/BranchContext';
 import api from '../utils/api';
 import toast from 'react-hot-toast';
 import { format, isValid } from 'date-fns';
@@ -12,6 +13,12 @@ import {
   Bell,
   CheckCircle,
   Clock,
+  GitBranch,
+  IdCard,
+  Receipt,
+  Warehouse,
+  FileText,
+  Megaphone,
 } from 'lucide-react';
 import { ROUTES } from '../constants/routes';
 import { patientDisplayName } from '../utils/display';
@@ -29,6 +36,7 @@ function greeting() {
 
 export default function DoctorDashboard() {
   const { user } = useAuth();
+  const { branchId } = useBranch();
   const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
@@ -48,7 +56,7 @@ export default function DoctorDashboard() {
 
   useEffect(() => {
     load();
-  }, []);
+  }, [branchId]);
 
   const name = user?.name?.replace(/^Dr\.?\s*/i, '') || '';
   const today = stats?.today || {};
@@ -63,6 +71,7 @@ export default function DoctorDashboard() {
           <h2 className="page-title">
             {greeting()}, Dr. {name}
           </h2>
+          <p className="text-sm text-ink-muted mt-1">Clinic Management</p>
         </div>
         <div className="flex flex-wrap gap-2">
           <Link to={ROUTES.doctorPatientNew} className="btn-secondary !min-h-10">
@@ -99,6 +108,33 @@ export default function DoctorDashboard() {
               <StatCard label="Completed" value={today.completed ?? 0} icon={CheckCircle} />
               <StatCard label="Patients" value={patients.total ?? 0} icon={Users} hint={`${patients.newThisWeek ?? 0} new this week`} />
             </div>
+            {(stats?.revenue || stats?.queue) && (
+              <div className="grid grid-cols-2 xl:grid-cols-4 gap-3 mt-3">
+                <StatCard label="Own collected" value={`₹${Number(stats.revenue?.paid || 0).toLocaleString('en-IN')}`} hint="From invoices" />
+                <StatCard label="Outstanding" value={`₹${Number(stats.revenue?.due || 0).toLocaleString('en-IN')}`} />
+                <StatCard label="Queue now" value={stats.queue?.length ?? 0} />
+                <StatCard label="Prescriptions" value={stats.prescriptions?.total ?? 0} />
+              </div>
+            )}
+          </section>
+
+          <section className="mb-6">
+            <h3 className="text-sm font-semibold text-ink mb-3">Clinic management</h3>
+            <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-6 gap-2">
+              {[
+                [ROUTES.branches, 'Branches', GitBranch],
+                [ROUTES.staff, 'Staff', IdCard],
+                [ROUTES.billing, 'Billing', Receipt],
+                [ROUTES.inventory, 'Inventory', Warehouse],
+                [ROUTES.consent, 'Consent', FileText],
+                [ROUTES.campaigns, 'Campaigns', Megaphone],
+              ].map(([to, label, Icon]) => (
+                <Link key={to} to={to} className="card !p-3 flex items-center gap-2 hover:bg-[#faf8f3]">
+                  <Icon className="w-4 h-4 text-accent-700 shrink-0" />
+                  <span className="text-sm font-medium text-ink">{label}</span>
+                </Link>
+              ))}
+            </div>
           </section>
 
           <div className="grid xl:grid-cols-2 gap-6">
@@ -109,6 +145,24 @@ export default function DoctorDashboard() {
                   Open calendar
                 </Link>
               </div>
+              {!!stats?.queue?.length && (
+                <div className="card mb-3 !p-4">
+                  <div className="flex justify-between items-center mb-2">
+                    <p className="section-label">Queue</p>
+                    <Link to={ROUTES.queue} className="text-xs font-semibold text-accent-700">Open queue</Link>
+                  </div>
+                  <p className="text-lg font-semibold">TOKEN #{stats.queue[0].tokenLabel}</p>
+                  <p className="text-sm text-ink-muted">{stats.queue[0].patientId?.name}</p>
+                  {stats.queue[0].appointmentId && (
+                    <Link
+                      to={ROUTES.doctorConsult(stats.queue[0].appointmentId._id || stats.queue[0].appointmentId)}
+                      className="btn-primary !min-h-9 mt-2 inline-flex text-sm"
+                    >
+                      Start consultation
+                    </Link>
+                  )}
+                </div>
+              )}
               {!today.appointments?.length ? (
                 <EmptyState
                   icon={Calendar}

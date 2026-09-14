@@ -168,9 +168,12 @@ export default function DoctorSignup() {
               <input
                 name="clinicName"
                 className="input-field"
+                required
                 value={form.clinicName}
                 onChange={handleChange}
+                placeholder="Your clinic name"
               />
+              <p className="text-xs text-gray-500 mt-1">Creates your own clinic — not shared with other doctors</p>
             </div>
 
             <div>

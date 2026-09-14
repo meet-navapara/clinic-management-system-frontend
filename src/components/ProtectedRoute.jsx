@@ -1,9 +1,16 @@
 import { Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { getDashboardPath, ROUTES } from '../constants/routes';
+import { can, isStaffUser } from '../constants/permissions';
 import AuthLoadingScreen from './AuthLoadingScreen';
 
-export default function ProtectedRoute({ children, allowedRoles, requireApprovedDoctor = false }) {
+export default function ProtectedRoute({
+  children,
+  allowedRoles,
+  requireApprovedDoctor = false,
+  permission,
+  anyPermission,
+}) {
   const { user, loading } = useAuth();
   const location = useLocation();
 
@@ -15,7 +22,10 @@ export default function ProtectedRoute({ children, allowedRoles, requireApproved
     return <Navigate to={ROUTES.login} replace state={{ from: location }} />;
   }
 
-  if (allowedRoles && !allowedRoles.includes(user.role)) {
+  const roleOk = allowedRoles
+    ? allowedRoles.includes(user.role) || (allowedRoles.includes('staff') && isStaffUser(user))
+    : true;
+  if (!roleOk) {
     return <Navigate to={getDashboardPath(user.role, user)} replace />;
   }
 
@@ -25,6 +35,13 @@ export default function ProtectedRoute({ children, allowedRoles, requireApproved
     user.approvalStatus !== 'approved'
   ) {
     return <Navigate to={ROUTES.doctorPending} replace />;
+  }
+
+  if (permission && !can(user, permission)) {
+    return <Navigate to={getDashboardPath(user.role, user)} replace />;
+  }
+  if (anyPermission?.length && !anyPermission.some((p) => can(user, p))) {
+    return <Navigate to={getDashboardPath(user.role, user)} replace />;
   }
 
   return children;

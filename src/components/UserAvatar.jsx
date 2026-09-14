@@ -35,7 +35,7 @@ export default function UserAvatar({
   className = '',
 }) {
   const roleKey =
-    role === 'clinic_admin' || role === 'super_admin' || role === 'admin' ? 'admin' : 'doctor';
+    role === 'super_admin' || role === 'admin' ? 'admin' : 'doctor';
   const roleStyle = ROLE_STYLES[roleKey];
   const roundedClass = rounded === 'xl' ? 'rounded-xl' : 'rounded-full';
 

@@ -15,6 +15,8 @@ import { patientDisplayName, formatPatientCode } from '../utils/display';
 import { ROUTES } from '../constants/routes';
 import UserAvatar from '../components/UserAvatar';
 import StatusBadge from '../components/ui/StatusBadge';
+import EmptyState from '../components/ui/EmptyState';
+import { normalizeIndianMobile, isValidEmail } from '../utils/validation';
 
 const TABS = [
   'overview',
@@ -23,6 +25,7 @@ const TABS = [
   'medications',
   'allergies',
   'notes',
+  'billing',
   'timeline',
 ];
 
@@ -41,6 +44,7 @@ export default function DoctorPatientDetail() {
   const [appointments, setAppointments] = useState({ upcoming: [], past: [] });
   const [notes, setNotes] = useState([]);
   const [timeline, setTimeline] = useState([]);
+  const [invoices, setInvoices] = useState([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [noteBody, setNoteBody] = useState('');
@@ -53,6 +57,7 @@ export default function DoctorPatientDetail() {
       setAppointments(res.data.appointments || { upcoming: [], past: [] });
       setNotes(res.data.notes || []);
       setTimeline(res.data.timeline || []);
+      api.get(`/billing/patient/${id}`).then((b) => setInvoices(b.data.invoices || [])).catch(() => setInvoices([]));
       const p = res.data.patient;
       setForm({
         firstName: p.firstName || '',
@@ -92,20 +97,30 @@ export default function DoctorPatientDetail() {
 
   const saveProfile = async (e) => {
     e.preventDefault();
+    const phone = normalizeIndianMobile(form.phone);
+    if (!phone) {
+      toast.error('Mobile number must contain exactly 10 digits (+91).');
+      return;
+    }
+    if (form.email && !isValidEmail(form.email)) {
+      toast.error('Email address is invalid.');
+      return;
+    }
     setSaving(true);
     try {
       const res = await api.put(`/patients/${id}`, {
         ...form,
+        phone,
         allergies: form.allergies,
         conditions: form.conditions,
         medications: form.medications,
         alerts: form.alerts,
       });
       setPatient(res.data.patient);
-      toast.success('Patient updated.');
+      toast.success('Patient updated successfully.');
       await load();
     } catch (err) {
-      toast.error(err.response?.data?.message || 'Update failed.');
+      toast.error(err.response?.data?.message || 'Failed to update patient.');
     } finally {
       setSaving(false);
     }
@@ -136,12 +151,15 @@ export default function DoctorPatientDetail() {
   if (!patient) {
     return (
       <div className="page-container">
-        <div className="card text-center py-12">
-          <p className="text-gray-500 mb-4">Patient not found.</p>
-          <Link to={ROUTES.doctorPatients} className="btn-primary text-sm">
-            Back to patients
-          </Link>
-        </div>
+        <EmptyState
+          title="Patient not found"
+          description="This record may have been removed or you do not have access."
+          action={
+            <Link to={ROUTES.doctorPatients} className="btn-primary text-sm">
+              Back to patients
+            </Link>
+          }
+        />
       </div>
     );
   }
@@ -162,6 +180,11 @@ export default function DoctorPatientDetail() {
               <h2 className="text-lg sm:text-xl font-semibold text-ink">
                 {patientDisplayName(patient)}
               </h2>
+              {patient.createdAt && isValid(new Date(patient.createdAt)) && (
+                <p className="text-xs text-ink-faint mt-1">
+                  Registered: {format(new Date(patient.createdAt), 'd MMM yyyy, h:mm a')}
+                </p>
+              )}
               <p className="text-sm text-ink-muted mt-1 flex flex-wrap gap-x-3 gap-y-1">
                 {age && <span>{age}</span>}
                 {patient.gender && <span className="capitalize">{patient.gender.replace(/_/g, ' ')}</span>}
@@ -221,8 +244,8 @@ export default function DoctorPatientDetail() {
               ['firstName', 'First name'],
               ['lastName', 'Last name'],
               ['preferredName', 'Preferred name'],
-              ['phone', 'Phone'],
-              ['email', 'Email'],
+              ['phone', 'Phone', 'tel'],
+              ['email', 'Email', 'email'],
               ['dateOfBirth', 'Date of birth', 'date'],
               ['gender', 'Gender', 'select'],
               ['address', 'Address'],
@@ -231,12 +254,13 @@ export default function DoctorPatientDetail() {
               ['postalCode', 'ZIP / Postal'],
               ['emergencyContactName', 'Emergency contact'],
               ['emergencyContactRelationship', 'Relationship'],
-              ['emergencyContactPhone', 'Emergency phone'],
+              ['emergencyContactPhone', 'Emergency phone', 'tel'],
             ].map(([key, label, type]) => (
-              <label key={key} className="block text-sm">
+              <label key={key} htmlFor={`edit-${key}`} className="block text-sm">
                 <span className="text-gray-600 font-medium">{label}</span>
                 {type === 'select' ? (
                   <select
+                    id={`edit-${key}`}
                     className="input-field mt-1"
                     value={form[key]}
                     onChange={(e) => setForm({ ...form, [key]: e.target.value })}
@@ -249,7 +273,9 @@ export default function DoctorPatientDetail() {
                   </select>
                 ) : (
                   <input
+                    id={`edit-${key}`}
                     type={type || 'text'}
+                    inputMode={type === 'tel' ? 'numeric' : undefined}
                     className="input-field mt-1"
                     value={form[key]}
                     onChange={(e) => setForm({ ...form, [key]: e.target.value })}
@@ -435,6 +461,32 @@ export default function DoctorPatientDetail() {
               ))
             )}
           </div>
+        </div>
+      )}
+
+      {tab === 'billing' && (
+        <div className="space-y-2">
+          <Link to={ROUTES.billingNew} className="btn-primary inline-flex mb-2">New invoice</Link>
+          {!invoices.length ? (
+            <p className="text-sm text-ink-muted card">No billing history.</p>
+          ) : (
+            invoices.map((inv) => (
+              <Link key={inv._id} to={ROUTES.invoice(inv._id)} className="card !p-4 flex justify-between gap-3">
+                <div>
+                  <p className="font-medium">{inv.invoiceNumber}</p>
+                  <p className="text-xs text-ink-faint">
+                    {inv.invoiceDate && isValid(new Date(inv.invoiceDate))
+                      ? format(new Date(inv.invoiceDate), 'dd MMM yyyy')
+                      : ''}
+                  </p>
+                </div>
+                <div className="text-right text-sm">
+                  <p>₹{inv.total} · paid ₹{inv.paidAmount}</p>
+                  <p className="text-ink-muted capitalize">{inv.paymentStatus?.replace('_', ' ')}</p>
+                </div>
+              </Link>
+            ))
+          )}
         </div>
       )}
 

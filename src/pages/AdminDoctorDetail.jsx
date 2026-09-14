@@ -13,7 +13,6 @@ import { ApprovalBadge } from '../components/ui/StatusBadge';
 export default function AdminDoctorDetail() {
   const { id } = useParams();
   const [doctor, setDoctor] = useState(null);
-  const [activity, setActivity] = useState(null);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
 
@@ -21,7 +20,6 @@ export default function AdminDoctorDetail() {
     try {
       const res = await api.get(`/admin/doctors/${id}`);
       setDoctor(res.data.doctor);
-      setActivity(res.data.activity);
     } catch {
       toast.error('Doctor not found.');
       setDoctor(null);
@@ -91,10 +89,13 @@ export default function AdminDoctorDetail() {
         </div>
       </div>
 
-      <div className="grid grid-cols-3 gap-3 mb-5">
-        <StatCard label="Patients" value={activity?.patientCount ?? 0} />
-        <StatCard label="Appointments" value={activity?.appointmentCount ?? 0} />
-        <StatCard label="Upcoming" value={activity?.upcomingCount ?? 0} />
+      <div className="grid grid-cols-2 gap-3 mb-5">
+        <StatCard label="Registered" value={
+          doctor.createdAt && isValid(new Date(doctor.createdAt))
+            ? format(new Date(doctor.createdAt), 'MMM d, yyyy')
+            : '—'
+        } />
+        <StatCard label="Clinic" value={doctor.clinicName || '—'} />
       </div>
 
       <section className="card grid sm:grid-cols-2 gap-3 text-sm mb-5">

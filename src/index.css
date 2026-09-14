@@ -25,6 +25,19 @@
   }
 }
 
+@layer utilities {
+  @keyframes fadeIn {
+    from {
+      opacity: 0;
+      transform: translateY(8px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+}
+
 @layer components {
   .btn-primary {
     @apply inline-flex items-center justify-center gap-2 min-h-10 px-4 py-2 rounded-lg
@@ -190,5 +203,49 @@
 
   .tab-chip {
     @apply px-3 py-2 rounded-lg text-xs font-semibold capitalize whitespace-nowrap transition-colors;
+  }
+}
+
+@media print {
+  .no-print,
+  aside,
+  header,
+  nav,
+  .print-toolbar {
+    display: none !important;
+  }
+
+  body {
+    background: #fff !important;
+    overflow: visible !important;
+  }
+
+  .print-root,
+  .print-sheet {
+    max-width: none !important;
+    margin: 0 !important;
+    box-shadow: none !important;
+  }
+
+  .print-a4 .print-sheet {
+    width: 210mm;
+  }
+
+  .print-a5 .print-sheet {
+    width: 148mm;
+  }
+
+  .print-receipt .print-sheet {
+    width: 80mm;
+    font-size: 12px;
+  }
+
+  .print-sheet {
+    page-break-inside: avoid;
+  }
+
+  .print-header,
+  .print-footer {
+    break-inside: avoid;
   }
 }

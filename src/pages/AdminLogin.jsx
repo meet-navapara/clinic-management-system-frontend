@@ -18,7 +18,7 @@ export default function AdminLogin() {
     e.preventDefault();
     setLoading(true);
     try {
-      const data = await login(form.email, form.password, 'clinic_admin');
+      const data = await login(form.email, form.password, 'super_admin');
       toast.success('Welcome back!');
       redirectAfterAuth(data.user.role, data.user);
     } catch (err) {
@@ -32,7 +32,7 @@ export default function AdminLogin() {
     <AuthPageLayout>
       <div className="text-center mb-3 sm:mb-5">
         <AuthPageLogo className="mb-3 sm:mb-4" />
-        <h1 className="text-lg sm:text-2xl font-bold text-gray-900">Admin Login</h1>
+        <h1 className="text-lg sm:text-2xl font-bold text-gray-900">Super Admin Login</h1>
       </div>
 
       <div className="card !p-3.5 sm:!p-6">

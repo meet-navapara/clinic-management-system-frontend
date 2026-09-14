@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import api from '../utils/api';
 import toast from 'react-hot-toast';
 import { format, isValid } from 'date-fns';
@@ -10,12 +10,13 @@ import EmptyState from '../components/ui/EmptyState';
 import { SkeletonRows } from '../components/ui/Skeleton';
 import { ApprovalBadge } from '../components/ui/StatusBadge';
 
-const FILTERS = ['pending', 'approved', 'suspended', 'rejected', 'all'];
+const FILTERS = ['pending', 'approved', 'rejected', 'suspended', 'all'];
 
 export default function ClinicAdminDashboard() {
+  const [searchParams, setSearchParams] = useSearchParams();
   const [stats, setStats] = useState(null);
   const [doctors, setDoctors] = useState([]);
-  const [filter, setFilter] = useState('pending');
+  const filter = FILTERS.includes(searchParams.get('status')) ? searchParams.get('status') : 'pending';
   const [search, setSearch] = useState('');
   const [loading, setLoading] = useState(true);
   const [updatingId, setUpdatingId] = useState(null);
@@ -76,17 +77,19 @@ export default function ClinicAdminDashboard() {
   };
 
   const d = stats?.doctors || {};
-  const p = stats?.patients || {};
-  const a = stats?.appointments || {};
 
   return (
     <div className="page-container">
-      <div className="grid grid-cols-2 lg:grid-cols-5 gap-3 mb-6">
-        <StatCard label="Doctors" value={d.total ?? '—'} />
-        <StatCard label="Pending" value={d.pending ?? '—'} />
-        <StatCard label="Patients" value={p.total ?? '—'} />
-        <StatCard label="Today" value={a.today ?? '—'} />
-        <StatCard label="Upcoming" value={a.upcoming ?? '—'} />
+      <div className="mb-6">
+        <p className="section-label mb-1">Platform</p>
+        <h2 className="page-title">Super Admin</h2>
+        <p className="text-sm text-ink-muted mt-1">Doctor registration requests and account status.</p>
+      </div>
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
+        <StatCard label="Pending approvals" value={d.pending ?? '—'} />
+        <StatCard label="Approved doctors" value={d.approved ?? '—'} />
+        <StatCard label="Rejected" value={d.rejected ?? '—'} />
+        <StatCard label="All doctors" value={d.total ?? '—'} />
       </div>
 
       <div className="flex flex-col sm:flex-row gap-3 mb-4">
@@ -95,7 +98,7 @@ export default function ClinicAdminDashboard() {
             <button
               key={key}
               type="button"
-              onClick={() => setFilter(key)}
+              onClick={() => setSearchParams(key === 'pending' ? {} : { status: key })}
               className={`tab-chip ${
                 filter === key ? 'bg-ink text-white' : 'bg-white text-ink-muted ring-1 ring-line'
               }`}
@@ -134,9 +137,10 @@ export default function ClinicAdminDashboard() {
                 <thead>
                   <tr>
                     <th>Doctor</th>
+                    <th>Clinic</th>
+                    <th>Email</th>
+                    <th>Registered</th>
                     <th>Status</th>
-                    <th>Patients</th>
-                    <th>Joined</th>
                     <th />
                   </tr>
                 </thead>
@@ -151,17 +155,18 @@ export default function ClinicAdminDashboard() {
                           {doc.name}
                         </Link>
                         <p className="text-xs text-ink-muted mt-0.5">
-                          {doc.specialization || '—'} · {doc.email}
+                          {doc.specialization || '—'}
                         </p>
                       </td>
-                      <td>
-                        <ApprovalBadge status={doc.approvalStatus} />
-                      </td>
-                      <td className="tabular-nums">{doc.patientCount ?? 0}</td>
+                      <td className="text-ink-muted">{doc.clinicName || '—'}</td>
+                      <td className="text-ink-muted">{doc.email}</td>
                       <td className="text-ink-muted whitespace-nowrap">
                         {doc.createdAt && isValid(new Date(doc.createdAt))
                           ? format(new Date(doc.createdAt), 'MMM d, yyyy')
                           : '—'}
+                      </td>
+                      <td>
+                        <ApprovalBadge status={doc.approvalStatus} />
                       </td>
                       <td>
                         <div className="flex flex-wrap justify-end gap-2">

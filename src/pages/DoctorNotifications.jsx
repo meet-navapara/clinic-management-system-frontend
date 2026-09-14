@@ -7,6 +7,7 @@ import toast from 'react-hot-toast';
 import EmptyState from '../components/ui/EmptyState';
 import { SkeletonRows } from '../components/ui/Skeleton';
 import { ROUTES } from '../constants/routes';
+import { useBranch } from '../context/BranchContext';
 
 function appointmentIdOf(n) {
   const raw = n.appointmentId;
@@ -15,6 +16,7 @@ function appointmentIdOf(n) {
 }
 
 export default function DoctorNotifications() {
+  const { branchId } = useBranch();
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [waBusyId, setWaBusyId] = useState(null);
@@ -25,7 +27,7 @@ export default function DoctorNotifications() {
       .then((res) => setItems(res.data.notifications || []))
       .catch(() => toast.error('Could not load reminders.'))
       .finally(() => setLoading(false));
-  }, []);
+  }, [branchId]);
 
   const openWhatsApp = async (n) => {
     const existing = n.metadata?.whatsappUrl;

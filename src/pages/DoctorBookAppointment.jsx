@@ -10,8 +10,10 @@ import EmptyState from '../components/ui/EmptyState';
 import UserAvatar from '../components/UserAvatar';
 import { useAuth } from '../context/AuthContext';
 import { ROUTES } from '../constants/routes';
+import { useBranch } from '../context/BranchContext';
 
 function PatientPicker({ value, onChange, initialPatient }) {
+  const { branchId } = useBranch();
   const wrapRef = useRef(null);
   const [query, setQuery] = useState('');
   const [results, setResults] = useState([]);
@@ -38,7 +40,7 @@ function PatientPicker({ value, onChange, initialPatient }) {
         .finally(() => setSearching(false));
     }, query.trim() ? 250 : 0);
     return () => clearTimeout(t);
-  }, [query]);
+  }, [query, branchId]);
 
   useEffect(() => {
     const onDoc = (e) => {
@@ -171,6 +173,8 @@ export default function DoctorBookAppointment() {
   );
   const [loading, setLoading] = useState(true);
   const [booking, setBooking] = useState(false);
+  const [doctors, setDoctors] = useState([]);
+  const [doctorId, setDoctorId] = useState(user?.role === 'doctor' ? (user?.id || user?._id) : '');
 
   useEffect(() => {
     api
@@ -200,19 +204,23 @@ export default function DoctorBookAppointment() {
       .finally(() => setLoading(false));
 
     if (user?.availableDays) setAvailableDays(user.availableDays);
-  }, [preselected, user?.availableDays]);
+    if (user?.role !== 'doctor') {
+      api.get('/doctors').then((res) => setDoctors(res.data.doctors || [])).catch(() => {});
+    }
+  }, [preselected, user?.availableDays, user?.role]);
 
   useEffect(() => {
-    const doctorId = user?.id || user?._id;
-    if (!doctorId || !selectedDate) return;
+    const id = doctorId || (user?.role === 'doctor' ? user?.id || user?._id : '');
+    if (!id || !selectedDate) return;
     api
-      .get(`/doctors/${doctorId}/availability`, { params: { date: selectedDate } })
+      .get(`/doctors/${id}/availability`, { params: { date: selectedDate } })
       .then((res) => {
         setAvailableSlots(res.data.availableSlots || []);
+        setAvailableDays(res.data.availableDays || availableDays);
         setSelectedSlot('');
       })
       .catch(() => setAvailableSlots([]));
-  }, [selectedDate, user]);
+  }, [selectedDate, user, doctorId]);
 
   const isDayAvailable = (dateStr) => {
     const parsed = parse(dateStr, 'yyyy-MM-dd', new Date());
@@ -240,6 +248,7 @@ export default function DoctorBookAppointment() {
     try {
       const res = await api.post('/appointments', {
         patientId,
+        doctorId: user?.role === 'doctor' ? undefined : doctorId,
         appointmentDate: selectedDate,
         timeSlot: selectedSlot,
         reason: reason.trim(),
@@ -285,6 +294,17 @@ export default function DoctorBookAppointment() {
               onChange={setPatientId}
               initialPatient={selectedPatient}
             />
+            {user?.role !== 'doctor' && (
+              <div>
+                <label className="label-field">Doctor</label>
+                <select className="input-field" required value={doctorId} onChange={(e) => setDoctorId(e.target.value)}>
+                  <option value="">Select doctor</option>
+                  {doctors.map((d) => (
+                    <option key={d._id} value={d._id}>{d.name}</option>
+                  ))}
+                </select>
+              </div>
+            )}
           </div>
 
           <div className="card space-y-4 lg:col-span-2">

@@ -3,12 +3,15 @@ import { Link } from 'react-router-dom';
 import { format, isValid } from 'date-fns';
 import api from '../utils/api';
 import toast from 'react-hot-toast';
-import { Search, UserPlus, Phone, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Search, UserPlus, Phone } from 'lucide-react';
 import { ROUTES } from '../constants/routes';
 import EmptyState from '../components/ui/EmptyState';
 import PageHeader from '../components/ui/PageHeader';
+import Pagination from '../components/ui/Pagination';
 import { SkeletonRows } from '../components/ui/Skeleton';
 import UserAvatar from '../components/UserAvatar';
+import { useBranch } from '../context/BranchContext';
+import useDebouncedValue from '../hooks/useDebouncedValue';
 
 const PAGE_SIZE = 20;
 
@@ -20,14 +23,16 @@ function visitLabel(visit) {
 }
 
 export default function DoctorPatients() {
+  const { branchId } = useBranch();
   const [patients, setPatients] = useState([]);
   const [search, setSearch] = useState('');
+  const debouncedSearch = useDebouncedValue(search, 300);
   const [page, setPage] = useState(1);
   const [meta, setMeta] = useState({ total: 0, pages: 1 });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
 
-  const load = async (q = search, pageNum = page) => {
+  const load = async (q = debouncedSearch, pageNum = page) => {
     setError(false);
     try {
       const res = await api.get('/patients', {
@@ -36,6 +41,7 @@ export default function DoctorPatients() {
           limit: PAGE_SIZE,
           ...(q.trim() ? { search: q.trim() } : {}),
         },
+        skipErrorToast: true,
       });
       setPatients(res.data.patients || []);
       setMeta({
@@ -51,20 +57,14 @@ export default function DoctorPatients() {
   };
 
   useEffect(() => {
-    setLoading(true);
-    load(search, page);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [page]);
+    setPage(1);
+  }, [debouncedSearch, branchId]);
 
-  const handleSearch = (e) => {
-    e.preventDefault();
-    if (page === 1) {
-      setLoading(true);
-      load(search, 1);
-    } else {
-      setPage(1);
-    }
-  };
+  useEffect(() => {
+    setLoading(true);
+    load(debouncedSearch, page);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [page, branchId, debouncedSearch]);
 
   return (
     <div className="page-container">
@@ -76,20 +76,21 @@ export default function DoctorPatients() {
         }
       />
 
-      <form onSubmit={handleSearch} className="mb-4 flex gap-2">
-        <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-ink-faint" />
+      <div className="mb-4">
+        <label htmlFor="patient-search" className="sr-only">
+          Search patients
+        </label>
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-ink-faint" aria-hidden />
           <input
+            id="patient-search"
             className="input-field pl-9"
             placeholder="Search name, phone, email, or PAT-ID"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
           />
         </div>
-        <button type="submit" className="btn-secondary shrink-0">
-          Search
-        </button>
-      </form>
+      </div>
 
       {loading ? (
         <SkeletonRows />
@@ -122,6 +123,10 @@ export default function DoctorPatients() {
         />
       ) : (
         <>
+          <p className="text-xs text-ink-faint mb-2">
+            {meta.total} patient{meta.total === 1 ? '' : 's'}
+            {meta.pages > 1 ? ` · page ${page} of ${meta.pages}` : ''}
+          </p>
           <div className="hidden md:block card !p-0 overflow-hidden">
             <div className="data-table-wrap">
               <table className="data-table">
@@ -130,6 +135,7 @@ export default function DoctorPatients() {
                     <th>Patient</th>
                     <th>Patient ID</th>
                     <th>Phone</th>
+                    <th>Registered</th>
                     <th>Last visit</th>
                     <th>Next visit</th>
                     <th />
@@ -151,6 +157,11 @@ export default function DoctorPatients() {
                       </td>
                       <td className="font-mono text-xs text-ink-muted">{p.patientCode || '—'}</td>
                       <td className="text-ink-muted">{p.phone || '—'}</td>
+                      <td className="text-ink-muted whitespace-nowrap">
+                        {p.createdAt && isValid(new Date(p.createdAt))
+                          ? format(new Date(p.createdAt), 'MMM d, yyyy')
+                          : '—'}
+                      </td>
                       <td className="text-ink-muted whitespace-nowrap">{visitLabel(p.lastVisit)}</td>
                       <td className="text-ink-muted whitespace-nowrap">{visitLabel(p.nextAppointment)}</td>
                       <td className="text-right">
@@ -182,40 +193,20 @@ export default function DoctorPatients() {
                   <span className="text-xs font-semibold text-accent-700">View</span>
                 </div>
                 <p className="text-sm text-ink-muted flex items-center gap-1.5 mt-3">
-                  <Phone className="w-3.5 h-3.5" /> {p.phone || '—'}
+                  <Phone className="w-3.5 h-3.5" aria-hidden /> {p.phone || '—'}
                 </p>
                 <p className="text-xs text-ink-faint mt-2">
-                  Last {visitLabel(p.lastVisit)} · Next {visitLabel(p.nextAppointment)}
+                  Registered{' '}
+                  {p.createdAt && isValid(new Date(p.createdAt))
+                    ? format(new Date(p.createdAt), 'MMM d, yyyy')
+                    : '—'}{' '}
+                  · Last {visitLabel(p.lastVisit)}
                 </p>
               </Link>
             ))}
           </div>
 
-          {meta.pages > 1 && (
-            <div className="mt-4 flex items-center justify-between gap-3">
-              <p className="text-xs text-ink-faint">
-                {meta.total} patients · page {page} of {meta.pages}
-              </p>
-              <div className="flex gap-2">
-                <button
-                  type="button"
-                  className="btn-secondary !min-h-9"
-                  disabled={page <= 1}
-                  onClick={() => setPage((p) => Math.max(1, p - 1))}
-                >
-                  <ChevronLeft className="w-4 h-4" /> Prev
-                </button>
-                <button
-                  type="button"
-                  className="btn-secondary !min-h-9"
-                  disabled={page >= meta.pages}
-                  onClick={() => setPage((p) => p + 1)}
-                >
-                  Next <ChevronRight className="w-4 h-4" />
-                </button>
-              </div>
-            </div>
-          )}
+          <Pagination page={page} pages={meta.pages} onPage={setPage} />
         </>
       )}
     </div>

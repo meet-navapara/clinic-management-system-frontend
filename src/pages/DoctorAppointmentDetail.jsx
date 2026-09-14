@@ -290,6 +290,11 @@ export default function DoctorAppointmentDetail() {
         <section className="card mb-4">
           <p className="section-label mb-3">Actions</p>
           <div className="flex flex-wrap gap-2">
+            {user?.role === 'doctor' && (
+              <Link to={ROUTES.doctorConsult(id)} className="btn-primary !min-h-10">
+                Start consultation
+              </Link>
+            )}
             <button
               type="button"
               className="btn-primary !min-h-10"

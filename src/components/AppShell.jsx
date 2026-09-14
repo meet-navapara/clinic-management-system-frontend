@@ -5,6 +5,7 @@ import { ROUTES } from '../constants/routes';
 import AuthLoadingScreen from './AuthLoadingScreen';
 import Sidebar from './Sidebar';
 import AppHeader from './layout/AppHeader';
+import ErrorBoundary from './ErrorBoundary';
 
 export default function AppShell() {
   const { user, loading } = useAuth();
@@ -18,14 +19,18 @@ export default function AppShell() {
   }
 
   return (
-    <div className="min-h-dvh w-full bg-canvas">
-      <Sidebar open={menuOpen} onClose={() => setMenuOpen(false)} unread={unread} onUnread={setUnread} />
-      <div className="flex min-h-dvh flex-col min-w-0 md:pl-[4.25rem] lg:pl-60">
-        <AppHeader unread={unread} onMenu={() => setMenuOpen(true)} />
-        <main className="flex-1 w-full flex flex-col min-w-0 min-h-0">
-          <Outlet />
-        </main>
+    <ErrorBoundary resetKey={location.pathname}>
+      <div className="min-h-dvh w-full bg-canvas">
+        <Sidebar open={menuOpen} onClose={() => setMenuOpen(false)} unread={unread} onUnread={setUnread} />
+        <div className="flex min-h-dvh flex-col min-w-0 md:pl-[4.25rem] lg:pl-60">
+          <AppHeader unread={unread} onMenu={() => setMenuOpen(true)} />
+          <main className="flex-1 w-full flex flex-col min-w-0 min-h-0">
+            <ErrorBoundary resetKey={location.pathname}>
+              <Outlet />
+            </ErrorBoundary>
+          </main>
+        </div>
       </div>
-    </div>
+    </ErrorBoundary>
   );
 }

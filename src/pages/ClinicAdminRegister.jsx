@@ -42,7 +42,7 @@ export default function ClinicAdminRegister() {
     setLoading(true);
     try {
       const data = await registerClinicAdmin(form);
-      toast.success('Clinic admin account created!');
+      toast.success('Super Admin account created!');
       redirectAfterAuth(data.user.role);
     } catch (err) {
       const msg =
@@ -67,12 +67,12 @@ export default function ClinicAdminRegister() {
         <AuthPageLogo className="mb-3 sm:mb-4 mx-auto flex" />
         <div className="card text-center !p-3.5 sm:!p-6">
           <Building2 className="w-12 h-12 text-[#a8841f] mx-auto mb-4" />
-          <h1 className="text-xl font-bold text-gray-900 mb-2">Clinic Admin Already Set Up</h1>
+          <h1 className="text-xl font-bold text-gray-900 mb-2">Super Admin Already Set Up</h1>
           <p className="text-gray-500 text-sm mb-6">
-            The clinic admin account already exists. Sign in to approve doctors.
+            The Super Admin account already exists. Sign in to approve doctors.
           </p>
           <Link to={ROUTES.clinicAdminLogin} className="btn-primary inline-block text-sm">
-            Admin Login
+            Super Admin Login
           </Link>
         </div>
       </AuthPageLayout>
@@ -83,9 +83,9 @@ export default function ClinicAdminRegister() {
     <AuthPageLayout maxWidth="max-w-lg">
       <div className="text-center mb-3 sm:mb-5">
         <AuthPageLogo className="mb-3 sm:mb-4" />
-        <h1 className="text-lg sm:text-2xl font-bold text-gray-900">Clinic Admin Setup</h1>
+        <h1 className="text-lg sm:text-2xl font-bold text-gray-900">Super Admin Setup</h1>
         <p className="text-gray-500 mt-1 text-sm sm:text-base">
-          One-time setup for the clinic administrator (separate from doctors)
+          One-time platform setup. Super Admin approves doctors and is not a clinic operator.
         </p>
       </div>
 
@@ -113,7 +113,7 @@ export default function ClinicAdminRegister() {
                 <input
                   name="name"
                   className="input-field pl-10"
-                  placeholder="Clinic Administrator"
+                  placeholder="Platform Super Admin"
                   value={form.name}
                   onChange={handleChange}
                   required
@@ -168,7 +168,7 @@ export default function ClinicAdminRegister() {
             </div>
 
             <button type="submit" className="btn-primary w-full !py-3">
-              {loading ? 'Creating account...' : 'Create Clinic Admin'}
+              {loading ? 'Creating account...' : 'Create Super Admin'}
             </button>
           </fieldset>
         </form>
