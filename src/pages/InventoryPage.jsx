@@ -5,9 +5,11 @@ import toast from 'react-hot-toast';
 import PageHeader from '../components/ui/PageHeader';
 import EmptyState from '../components/ui/EmptyState';
 import Modal from '../components/ui/Modal';
+import Dropdown from '../components/ui/Dropdown';
 import { can, P } from '../constants/permissions';
 import { useAuth } from '../context/AuthContext';
 import { useBranch } from '../context/BranchContext';
+import RequiredMark from '../components/ui/RequiredMark';
 
 export default function InventoryPage() {
   const { user } = useAuth();
@@ -85,15 +87,42 @@ export default function InventoryPage() {
 
       <Modal open={open} title="Stock in" onClose={() => setOpen(false)}>
         <form onSubmit={stockIn} className="space-y-3">
-          <select className="input-field" required value={form.medicineId} onChange={(e) => setForm({ ...form, medicineId: e.target.value })}>
-            <option value="">Select medicine</option>
-            {meds.map((m) => <option key={m._id} value={m._id}>{m.name} {m.strength}</option>)}
-          </select>
-          <input className="input-field" required placeholder="Batch number" value={form.batchNumber} onChange={(e) => setForm({ ...form, batchNumber: e.target.value })} />
-          <input className="input-field" required type="number" min="1" placeholder="Quantity" value={form.quantity} onChange={(e) => setForm({ ...form, quantity: e.target.value })} />
-          <input className="input-field" type="number" placeholder="Purchase price" value={form.purchasePrice} onChange={(e) => setForm({ ...form, purchasePrice: e.target.value })} />
-          <input className="input-field" type="date" value={form.expiryDate} onChange={(e) => setForm({ ...form, expiryDate: e.target.value })} />
-          <input className="input-field" placeholder="Supplier" value={form.supplier} onChange={(e) => setForm({ ...form, supplier: e.target.value })} />
+          <div>
+            <label className="label-field">Medicine <RequiredMark /></label>
+            <Dropdown
+              required
+              searchable
+              value={form.medicineId}
+              onChange={(medicineId) => setForm({ ...form, medicineId })}
+              placeholder="Select medicine"
+              searchPlaceholder="Type medicine name"
+              ariaLabel="Medicine"
+              options={meds.map((m) => ({
+                value: String(m._id),
+                label: [m.name, m.strength].filter(Boolean).join(' '),
+              }))}
+            />
+          </div>
+          <div>
+            <label className="label-field">Batch number <RequiredMark /></label>
+            <input className="input-field" required placeholder="Batch number" value={form.batchNumber} onChange={(e) => setForm({ ...form, batchNumber: e.target.value })} />
+          </div>
+          <div>
+            <label className="label-field">Quantity <RequiredMark /></label>
+            <input className="input-field" required type="number" min="1" placeholder="Quantity" value={form.quantity} onChange={(e) => setForm({ ...form, quantity: e.target.value })} />
+          </div>
+          <div>
+            <label className="label-field">Purchase price</label>
+            <input className="input-field" type="number" placeholder="Purchase price" value={form.purchasePrice} onChange={(e) => setForm({ ...form, purchasePrice: e.target.value })} />
+          </div>
+          <div>
+            <label className="label-field">Expiry date</label>
+            <input className="input-field" type="date" value={form.expiryDate} onChange={(e) => setForm({ ...form, expiryDate: e.target.value })} />
+          </div>
+          <div>
+            <label className="label-field">Supplier</label>
+            <input className="input-field" placeholder="Supplier" value={form.supplier} onChange={(e) => setForm({ ...form, supplier: e.target.value })} />
+          </div>
           <button type="submit" className="btn-primary w-full">Add stock</button>
         </form>
       </Modal>

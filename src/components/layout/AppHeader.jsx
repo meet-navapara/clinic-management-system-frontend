@@ -1,10 +1,10 @@
 import { Link, useLocation } from 'react-router-dom';
-import { Bell, Inbox, Search } from 'lucide-react';
+import { Bell, Inbox } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
-import { can, P } from '../../constants/permissions';
 import { ROUTES, getPageMeta } from '../../constants/routes';
 import UserAvatar from '../UserAvatar';
 import BranchSwitcher from '../BranchSwitcher';
+import BackButton from '../ui/BackButton';
 
 export default function AppHeader({ unread = 0, onMenu }) {
   const { user } = useAuth();
@@ -14,7 +14,7 @@ export default function AppHeader({ unread = 0, onMenu }) {
 
   return (
     <header className="sticky top-0 z-20 h-14 shrink-0 bg-[#f6f4f0]/90 backdrop-blur-md border-b border-line">
-      <div className="h-full max-w-app mx-auto px-4 sm:px-6 lg:px-8 flex items-center gap-2 sm:gap-3">
+      <div className="h-full w-full min-w-0 px-4 sm:px-5 lg:px-6 xl:px-8 flex items-center gap-2 sm:gap-3">
         <button
           type="button"
           className="md:hidden min-h-10 min-w-10 inline-flex items-center justify-center rounded-lg text-ink-muted hover:bg-white"
@@ -25,6 +25,8 @@ export default function AppHeader({ unread = 0, onMenu }) {
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M4 7h16M4 12h16M4 17h16" />
           </svg>
         </button>
+
+        {meta.backTo != null && <BackButton to={meta.backTo} />}
 
         <div className="min-w-0 flex-1">
           {!meta.hideTitle && (
@@ -40,16 +42,6 @@ export default function AppHeader({ unread = 0, onMenu }) {
         </div>
 
         <BranchSwitcher compact />
-
-        {(user?.role === 'doctor' || can(user, P.SEARCH)) && (
-        <Link
-          to={ROUTES.search}
-          className="relative min-h-10 min-w-10 inline-flex items-center justify-center rounded-lg text-ink-muted hover:text-ink hover:bg-white"
-          aria-label="Search"
-        >
-          <Search className="w-5 h-5" />
-        </Link>
-        )}
 
         {isDoctor && (
           <>

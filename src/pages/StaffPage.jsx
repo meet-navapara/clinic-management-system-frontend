@@ -6,11 +6,70 @@ import EmptyState from '../components/ui/EmptyState';
 import Badge from '../components/ui/Badge';
 import Modal from '../components/ui/Modal';
 import Pagination from '../components/ui/Pagination';
+import Dropdown from '../components/ui/Dropdown';
+import Checkbox from '../components/ui/Checkbox';
+import PasswordInput from '../components/PasswordInput';
 import { SkeletonRows } from '../components/ui/Skeleton';
 import { useBranch } from '../context/BranchContext';
 import { STAFF_TYPES, STAFF_TYPE_PERMISSIONS, ACCESS_MODULES, togglePermission } from '../constants/permissions';
+import RequiredMark from '../components/ui/RequiredMark';
+import {
+  normalizeIndianMobile,
+  isValidEmail,
+  meetsPasswordComplexity,
+  STRONG_PASSWORD_MESSAGE,
+} from '../utils/validation';
 
 const TYPES = ['doctor', ...STAFF_TYPES];
+const FIELD_ORDER = ['name', 'email', 'phone', 'staffType', 'branch', 'password'];
+
+function FieldError({ id, message }) {
+  if (!message) return null;
+  return (
+    <p id={id} className="text-xs text-red-600 mt-1" role="alert">
+      {message}
+    </p>
+  );
+}
+
+function passwordIsRequired(form, editing) {
+  const isDoctor = form.staffType === 'doctor';
+  if (!editing) return isDoctor || form.loginEnabled;
+  return !isDoctor && form.loginEnabled && !editing.loginEnabled;
+}
+
+function validateStaffForm(form, editing) {
+  const errors = {};
+  const isDoctor = form.staffType === 'doctor';
+
+  const name = form.name.trim();
+  if (!name) errors.name = 'Full name is required.';
+  else if (name.length > 120) errors.name = 'Name is too long.';
+
+  if (!editing) {
+    const email = form.email.trim();
+    if (!email) errors.email = 'Email is required.';
+    else if (!isValidEmail(email)) errors.email = 'Please enter a valid email address.';
+  }
+
+  if (!form.phone.trim()) errors.phone = 'Mobile number is required.';
+  else if (!normalizeIndianMobile(form.phone)) {
+    errors.phone = 'Mobile number must be a valid 10-digit Indian number (+91).';
+  }
+
+  if (!form.staffType) errors.staffType = 'Staff type is required.';
+
+  if (!isDoctor && !form.branchIds[0]) errors.branch = 'Branch is required.';
+
+  const needPassword = passwordIsRequired(form, editing);
+  if (needPassword && !form.password) errors.password = 'Password is required.';
+  else if (form.password) {
+    if (form.password.length < 6) errors.password = 'Password must be at least 6 characters.';
+    else if (!meetsPasswordComplexity(form.password)) errors.password = STRONG_PASSWORD_MESSAGE;
+  }
+
+  return errors;
+}
 
 const emptyForm = () => ({
   name: '',
@@ -57,12 +116,16 @@ export default function StaffPage() {
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState(null);
   const [form, setForm] = useState(emptyForm());
+  const [fieldErrors, setFieldErrors] = useState({});
   const [saving, setSaving] = useState(false);
+  const [statusFilter, setStatusFilter] = useState('all');
 
   const load = (p = 1) => {
     setLoading(true);
     const params = { page: p, limit: 20 };
     if (branchId) params.branchId = branchId;
+    if (statusFilter === 'disabled') params.status = 'inactive';
+    else if (statusFilter === 'active') params.status = 'active';
     api.get('/staff', { params })
       .then((res) => {
         setRows(res.data.staff || []);
@@ -72,7 +135,16 @@ export default function StaffPage() {
       .catch((err) => toast.error(err.response?.data?.message || 'Could not load staff.'))
       .finally(() => setLoading(false));
   };
-  useEffect(() => load(1), [branchId]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => load(1), [branchId, statusFilter]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const clearFieldError = (name) => {
+    setFieldErrors((prev) => {
+      if (!prev[name]) return prev;
+      const next = { ...prev };
+      delete next[name];
+      return next;
+    });
+  };
 
   const applyPreset = (staffType) => {
     setForm((prev) => ({
@@ -81,11 +153,14 @@ export default function StaffPage() {
       permissions: staffType === 'doctor' ? [] : [...(STAFF_TYPE_PERMISSIONS[staffType] || [])],
       loginEnabled: staffType === 'doctor' ? true : prev.loginEnabled,
     }));
+    clearFieldError('staffType');
+    if (staffType === 'doctor') clearFieldError('branch');
   };
 
   const openCreate = () => {
     setEditing(null);
     setForm(emptyForm());
+    setFieldErrors({});
     setOpen(true);
   };
 
@@ -105,16 +180,31 @@ export default function StaffPage() {
       loginEnabled: s.role === 'doctor' ? true : Boolean(s.loginEnabled),
       permissions: [...(s.permissions || [])],
     });
+    setFieldErrors({});
     setOpen(true);
+  };
+
+  const closeModal = () => {
+    setOpen(false);
+    setFieldErrors({});
   };
 
   const submit = async (e) => {
     e.preventDefault();
+    const errors = validateStaffForm(form, editing);
+    setFieldErrors(errors);
+    if (Object.keys(errors).length) {
+      const firstKey = FIELD_ORDER.find((key) => errors[key]) || Object.keys(errors)[0];
+      document.getElementById(`staff-${firstKey}`)?.focus();
+      toast.error(errors[firstKey]);
+      return;
+    }
+
     setSaving(true);
     try {
       const payload = {
-        name: form.name,
-        phone: form.phone,
+        name: form.name.trim(),
+        phone: form.phone.trim(),
         staffType: form.staffType,
         branchIds: form.branchIds,
         defaultBranchId: form.branchIds[0] || null,
@@ -122,7 +212,7 @@ export default function StaffPage() {
         permissions: form.staffType === 'doctor' ? [] : form.permissions,
       };
       if (!editing) {
-        payload.email = form.email;
+        payload.email = form.email.trim();
         payload.password = form.password;
         await api.post('/staff', payload);
         toast.success(form.staffType === 'doctor' ? 'Doctor added.' : 'Staff added.');
@@ -131,9 +221,17 @@ export default function StaffPage() {
         await api.patch(`/staff/${editing.id || editing._id}`, payload);
         toast.success('Staff updated.');
       }
-      setOpen(false);
+      closeModal();
       load(editing ? page : 1);
     } catch (err) {
+      const apiErrors = err.response?.data?.errors;
+      if (apiErrors && typeof apiErrors === 'object' && !Array.isArray(apiErrors)) {
+        const mapped = { ...apiErrors };
+        if (mapped.branchIds && !mapped.branch) mapped.branch = mapped.branchIds;
+        setFieldErrors(mapped);
+        const firstKey = FIELD_ORDER.find((key) => mapped[key]) || Object.keys(mapped)[0];
+        document.getElementById(`staff-${firstKey}`)?.focus();
+      }
       toast.error(err.response?.data?.message || 'Could not save staff.');
     } finally {
       setSaving(false);
@@ -143,7 +241,11 @@ export default function StaffPage() {
   const setStatus = async (s, staffStatus) => {
     try {
       await api.patch(`/staff/${s.id || s._id}`, { staffStatus });
-      toast.success(`Marked ${staffStatus}.`);
+      toast.success(
+        staffStatus === 'inactive'
+          ? 'Staff disabled. Super Admin can approve them again.'
+          : 'Staff approved.'
+      );
       load(page);
     } catch (err) {
       toast.error(err.response?.data?.message || 'Update failed.');
@@ -172,7 +274,34 @@ export default function StaffPage() {
         description="Clinic staff records and additional doctors. Enable login and set module access for each staff member."
         actions={<button type="button" className="btn-primary" onClick={openCreate}>Add staff</button>}
       />
-      {loading ? <SkeletonRows /> : !rows.length ? <EmptyState title="No staff yet" /> : (
+      <div className="flex flex-wrap gap-2 mb-4">
+        {[
+          { id: 'all', label: 'All' },
+          { id: 'active', label: 'Active' },
+          { id: 'disabled', label: 'Disabled' },
+        ].map((item) => (
+          <button
+            key={item.id}
+            type="button"
+            onClick={() => setStatusFilter(item.id)}
+            className={`tab-chip ${
+              statusFilter === item.id ? 'bg-ink text-white' : 'bg-white text-ink-muted ring-1 ring-line'
+            }`}
+          >
+            {item.label}
+          </button>
+        ))}
+      </div>
+      {loading ? <SkeletonRows /> : !rows.length ? (
+        <EmptyState
+          title={statusFilter === 'disabled' ? 'No disabled staff' : 'No staff yet'}
+          description={
+            statusFilter === 'disabled'
+              ? 'Disabled staff appear here until they are approved again.'
+              : undefined
+          }
+        />
+      ) : (
         <>
           <div className="space-y-2 md:hidden">
             {rows.map((s) => (
@@ -180,10 +309,20 @@ export default function StaffPage() {
                 <p className="font-semibold">{s.name}</p>
                 <p className="text-sm text-ink-muted capitalize">{staffLabel(s)} · {s.email}</p>
                 <p className="text-xs text-ink-faint mt-1">{branchLabel(s)} · Login {s.role === 'doctor' || s.loginEnabled ? 'enabled' : 'disabled'}</p>
-                <div className="flex gap-2 mt-2">
+                <div className="flex flex-wrap gap-2 mt-2">
                   <Badge value={s.staffStatus} />
                   {s.role !== 'doctor' && (
                     <button type="button" className="btn-ghost !min-h-8 text-xs" onClick={() => openEdit(s)}>Manage Access</button>
+                  )}
+                  {s.staffStatus !== 'inactive' && (
+                    <button type="button" className="btn-ghost !min-h-8 text-xs" onClick={() => setStatus(s, 'inactive')}>
+                      Disable
+                    </button>
+                  )}
+                  {s.staffStatus !== 'active' && (
+                    <button type="button" className="btn-primary !min-h-8 text-xs" onClick={() => setStatus(s, 'active')}>
+                      Approve
+                    </button>
                   )}
                 </div>
               </div>
@@ -220,7 +359,7 @@ export default function StaffPage() {
                             <button type="button" className="btn-ghost !min-h-8 text-xs" onClick={() => openEdit(s)}>Edit</button>
                           )}
                           {s.staffStatus !== 'inactive' && <button type="button" className="btn-ghost !min-h-8 text-xs" onClick={() => setStatus(s, 'inactive')}>Disable</button>}
-                          {s.staffStatus !== 'active' && <button type="button" className="btn-ghost !min-h-8 text-xs" onClick={() => setStatus(s, 'active')}>Activate</button>}
+                          {s.staffStatus !== 'active' && <button type="button" className="btn-primary !min-h-8 text-xs" onClick={() => setStatus(s, 'active')}>Approve</button>}
                         </div>
                       </td>
                     </tr>
@@ -232,61 +371,151 @@ export default function StaffPage() {
           <Pagination page={page} pages={pages} onPage={load} />
         </>
       )}
-      <Modal open={open} title={editing ? 'Manage access' : 'Add staff'} onClose={() => setOpen(false)} wide>
-        <form onSubmit={submit} className="space-y-3">
-          <input className="input-field" required placeholder="Full name" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
-          <input className="input-field" required type="email" placeholder="Email / username" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} disabled={Boolean(editing)} />
-          <input className="input-field" required placeholder="Mobile" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} />
-          <label className="block text-sm text-ink-muted">
-            Staff type
-            <select className="input-field mt-1" value={form.staffType} onChange={(e) => applyPreset(e.target.value)} disabled={editing?.role === 'doctor'}>
-              {TYPES.map((r) => <option key={r} value={r}>{r.replace(/_/g, ' ')}</option>)}
-            </select>
-          </label>
-          <label className="block text-sm text-ink-muted">
-            Branch
-            <select
-              className="input-field mt-1"
+      <Modal open={open} title={editing ? 'Manage access' : 'Add staff'} onClose={closeModal} wide>
+        <form onSubmit={submit} className="space-y-3" noValidate>
+          <fieldset disabled={saving} className="space-y-3 border-0 p-0 m-0 min-w-0">
+          <div>
+            <label htmlFor="staff-name" className="label-field">
+              Full name <RequiredMark />
+            </label>
+            <input
+              id="staff-name"
+              name="name"
+              className="input-field"
+              placeholder="Full name"
+              value={form.name}
+              onChange={(e) => {
+                setForm({ ...form, name: e.target.value });
+                clearFieldError('name');
+              }}
+              required
+              maxLength={120}
+              autoComplete="name"
+              aria-invalid={Boolean(fieldErrors.name)}
+              aria-describedby={fieldErrors.name ? 'staff-name-error' : undefined}
+            />
+            <FieldError id="staff-name-error" message={fieldErrors.name} />
+          </div>
+          <div>
+            <label htmlFor="staff-email" className="label-field">
+              Email <RequiredMark />
+            </label>
+            <input
+              id="staff-email"
+              name="email"
+              className="input-field"
+              type="email"
+              placeholder="Email / username"
+              value={form.email}
+              onChange={(e) => {
+                setForm({ ...form, email: e.target.value });
+                clearFieldError('email');
+              }}
+              required
+              disabled={Boolean(editing)}
+              autoComplete="email"
+              aria-invalid={Boolean(fieldErrors.email)}
+              aria-describedby={fieldErrors.email ? 'staff-email-error' : undefined}
+            />
+            <FieldError id="staff-email-error" message={fieldErrors.email} />
+          </div>
+          <div>
+            <label htmlFor="staff-phone" className="label-field">
+              Mobile <RequiredMark />
+            </label>
+            <input
+              id="staff-phone"
+              name="phone"
+              className="input-field"
+              placeholder="9876543210"
+              value={form.phone}
+              onChange={(e) => {
+                setForm({ ...form, phone: e.target.value });
+                clearFieldError('phone');
+              }}
+              required
+              inputMode="tel"
+              autoComplete="tel"
+              aria-invalid={Boolean(fieldErrors.phone)}
+              aria-describedby={fieldErrors.phone ? 'staff-phone-error' : undefined}
+            />
+            <FieldError id="staff-phone-error" message={fieldErrors.phone} />
+          </div>
+          <div>
+            <label htmlFor="staff-staffType" className="label-field">
+              Staff type <RequiredMark />
+            </label>
+            <Dropdown
+              id="staff-staffType"
+              className="mt-0"
+              value={form.staffType}
+              onChange={applyPreset}
+              disabled={editing?.role === 'doctor'}
+              ariaLabel="Staff type"
+              options={TYPES.map((r) => ({ value: r, label: r.replace(/_/g, ' ') }))}
+            />
+            <FieldError id="staff-staffType-error" message={fieldErrors.staffType} />
+          </div>
+          <div>
+            <label htmlFor="staff-branch" className="label-field">
+              Branch {!isDoctorRow ? <RequiredMark /> : null}
+            </label>
+            <Dropdown
+              id="staff-branch"
+              className="mt-0"
               required={!isDoctorRow}
               value={form.branchIds[0] || ''}
-              onChange={(e) => setForm({ ...form, branchIds: e.target.value ? [e.target.value] : [] })}
-            >
-              <option value="">{isDoctorRow ? 'Optional' : 'Select branch'}</option>
-              {branchOptions.map((b) => (
-                <option key={b._id} value={b._id}>
-                  {b.name}{b.isActive === false ? ' (disabled)' : ''}
-                </option>
-              ))}
-            </select>
-          </label>
+              onChange={(id) => {
+                setForm({ ...form, branchIds: id ? [id] : [] });
+                clearFieldError('branch');
+              }}
+              placeholder={isDoctorRow ? 'Optional' : 'Select branch'}
+              ariaLabel="Branch"
+              options={branchOptions.map((b) => ({
+                value: String(b._id),
+                label: `${b.name}${b.isActive === false ? ' (disabled)' : ''}`,
+              }))}
+            />
+            <FieldError id="staff-branch-error" message={fieldErrors.branch} />
+          </div>
           {!isDoctorRow && (
             <p className="text-xs text-ink-faint">Staff operate only in their assigned branch.</p>
           )}
 
           {!isDoctorRow && (
-            <label className="flex items-center gap-2 text-sm text-ink">
-              <input
-                type="checkbox"
-                checked={form.loginEnabled}
-                onChange={(e) => setForm({ ...form, loginEnabled: e.target.checked })}
-              />
+            <Checkbox
+              checked={form.loginEnabled}
+              onChange={(e) => {
+                setForm({ ...form, loginEnabled: e.target.checked });
+                if (!e.target.checked) clearFieldError('password');
+              }}
+            >
               Login access enabled
-            </label>
+            </Checkbox>
           )}
 
           {(showPassword || (!editing && (isDoctorRow || form.loginEnabled))) && (
-            <input
-              className="input-field"
-              type="password"
-              minLength={6}
-              required={
-                (!editing && (isDoctorRow || form.loginEnabled)) ||
-                (Boolean(editing) && form.loginEnabled && !editing.loginEnabled)
-              }
-              placeholder={editing ? 'New password (leave blank to keep)' : 'Unique password (not the doctor password)'}
-              value={form.password}
-              onChange={(e) => setForm({ ...form, password: e.target.value })}
-            />
+            <div>
+              <label htmlFor="staff-password" className="label-field">
+                Password {passwordIsRequired(form, editing) ? <RequiredMark /> : null}
+              </label>
+              <PasswordInput
+                id="staff-password"
+                name="password"
+                value={form.password}
+                onChange={(e) => {
+                  setForm({ ...form, password: e.target.value });
+                  clearFieldError('password');
+                }}
+                minLength={6}
+                required={passwordIsRequired(form, editing)}
+                placeholder={editing ? 'New password (leave blank to keep)' : 'Enter password'}
+                autoComplete="new-password"
+                aria-invalid={Boolean(fieldErrors.password)}
+                aria-describedby={fieldErrors.password ? 'staff-password-error' : undefined}
+              />
+              <FieldError id="staff-password-error" message={fieldErrors.password} />
+            </div>
           )}
 
           {!isDoctorRow && (
@@ -309,27 +538,32 @@ export default function StaffPage() {
                   return (
                     <div key={m.id} className="flex flex-wrap items-center gap-3 text-sm border-b border-line/60 pb-2 last:border-0">
                       <span className="flex-1 min-w-[8rem] text-ink">{m.label}</span>
-                      <label className="inline-flex items-center gap-1 text-ink-muted">
-                        <input
-                          type="checkbox"
-                          checked={viewOn}
-                          onChange={(e) => setForm({ ...form, permissions: togglePermission(form.permissions, m.view, e.target.checked) })}
-                        />
+                      <Checkbox
+                        variant="inline"
+                        className="text-ink-muted"
+                        checked={viewOn}
+                        onChange={(e) =>
+                          setForm({
+                            ...form,
+                            permissions: togglePermission(form.permissions, m.view, e.target.checked),
+                          })
+                        }
+                      >
                         {m.manage ? 'View' : 'Allow'}
-                      </label>
+                      </Checkbox>
                       {m.manage && (
-                        <label className="inline-flex items-center gap-1 text-ink-muted">
-                          <input
-                            type="checkbox"
-                            checked={manageOn}
-                            onChange={(e) => {
-                              let next = togglePermission(form.permissions, m.manage, e.target.checked);
-                              if (e.target.checked) next = togglePermission(next, m.view, true);
-                              setForm({ ...form, permissions: next });
-                            }}
-                          />
+                        <Checkbox
+                          variant="inline"
+                          className="text-ink-muted"
+                          checked={manageOn}
+                          onChange={(e) => {
+                            let next = togglePermission(form.permissions, m.manage, e.target.checked);
+                            if (e.target.checked) next = togglePermission(next, m.view, true);
+                            setForm({ ...form, permissions: next });
+                          }}
+                        >
                           Create / Edit
-                        </label>
+                        </Checkbox>
                       )}
                     </div>
                   );
@@ -341,6 +575,7 @@ export default function StaffPage() {
           <button type="submit" className="btn-primary w-full" disabled={saving}>
             {saving ? 'Saving...' : editing ? 'Save access' : isDoctorRow ? 'Add doctor' : 'Add staff'}
           </button>
+          </fieldset>
         </form>
       </Modal>
     </div>

@@ -8,6 +8,7 @@ import Modal from '../components/ui/Modal';
 import { can, P } from '../constants/permissions';
 import { useAuth } from '../context/AuthContext';
 import { useBranch } from '../context/BranchContext';
+import RequiredMark from '../components/ui/RequiredMark';
 
 export default function BranchesPage() {
   const { user } = useAuth();
@@ -83,8 +84,27 @@ export default function BranchesPage() {
       )}
       <Modal open={open} title="New branch" onClose={() => setOpen(false)}>
         <form onSubmit={save} className="space-y-3">
-          {['name', 'phone', 'email', 'address', 'roomLabel', 'tokenPrefix'].map((f) => (
-            <input key={f} className="input-field" required={f === 'name'} placeholder={f} value={form[f]} onChange={(e) => setForm({ ...form, [f]: e.target.value })} />
+          {[
+            ['name', 'Name', true],
+            ['phone', 'Phone', false],
+            ['email', 'Email', false],
+            ['address', 'Address', false],
+            ['roomLabel', 'Room label', false],
+            ['tokenPrefix', 'Token prefix', false],
+          ].map(([f, label, required]) => (
+            <div key={f}>
+              <label className="label-field" htmlFor={`branch-${f}`}>
+                {label} {required ? <RequiredMark /> : null}
+              </label>
+              <input
+                id={`branch-${f}`}
+                className="input-field"
+                required={required}
+                placeholder={label}
+                value={form[f]}
+                onChange={(e) => setForm({ ...form, [f]: e.target.value })}
+              />
+            </div>
           ))}
           <button type="submit" className="btn-primary w-full" disabled={saving}>{saving ? 'Saving…' : 'Create'}</button>
         </form>

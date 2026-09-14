@@ -3,6 +3,7 @@ import { useParams } from 'react-router-dom';
 import { format, isValid } from 'date-fns';
 import api from '../utils/api';
 import Money from '../components/ui/Money';
+import BackButton from '../components/ui/BackButton';
 
 function BrandHeader({ branding, branch }) {
   return (
@@ -51,7 +52,8 @@ export default function PrintDocument() {
 
   return (
     <div className={`print-root ${paper} bg-white min-h-dvh text-ink`}>
-      <div className="print-toolbar no-print sticky top-0 z-10 bg-canvas border-b border-line px-4 py-2 flex gap-2">
+      <div className="print-toolbar no-print sticky top-0 z-10 bg-canvas border-b border-line px-4 py-2 flex items-center gap-2">
+        <BackButton to={-1} />
         <button type="button" className="btn-primary" onClick={() => window.print()}>Print / Save PDF</button>
         <button type="button" className="btn-secondary" onClick={() => window.close()}>Close</button>
       </div>
@@ -88,6 +90,9 @@ export default function PrintDocument() {
               <div className="flex justify-between"><span>Tax</span><Money value={data.invoice.tax} symbol={branding.currencySymbol} /></div>
               <div className="flex justify-between font-semibold"><span>Total</span><Money value={data.invoice.total} symbol={branding.currencySymbol} /></div>
               <div className="flex justify-between"><span>Paid</span><Money value={data.invoice.paidAmount} symbol={branding.currencySymbol} /></div>
+              {Number(data.invoice.refundedAmount) > 0 && (
+                <div className="flex justify-between"><span>Refunded</span><Money value={data.invoice.refundedAmount} symbol={branding.currencySymbol} /></div>
+              )}
               <div className="flex justify-between"><span>Due</span><Money value={data.invoice.dueAmount} symbol={branding.currencySymbol} /></div>
             </div>
             {data.payments?.[0] && <p className="text-sm mt-3">Payment: {data.payments.map((p) => p.paymentMethod).join(', ')}</p>}

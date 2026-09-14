@@ -4,8 +4,10 @@ import api from '../utils/api';
 import toast from 'react-hot-toast';
 import PageHeader from '../components/ui/PageHeader';
 import Money from '../components/ui/Money';
+import Dropdown from '../components/ui/Dropdown';
 import { ROUTES } from '../constants/routes';
 import { useBranch } from '../context/BranchContext';
+import RequiredMark from '../components/ui/RequiredMark';
 
 const TYPES = ['consultation', 'treatment', 'medicine', 'lab_test', 'procedure', 'other'];
 
@@ -66,9 +68,9 @@ export default function InvoiceEditor() {
   return (
     <div className="page-container">
       <PageHeader title="New invoice" description="Add services, medicines or procedures." />
-      <form onSubmit={submit} className="space-y-4 max-w-3xl">
+      <form onSubmit={submit} className="space-y-4">
         <div className="card space-y-3">
-          <label className="label-field">Patient</label>
+          <label className="label-field">Patient <RequiredMark /></label>
           <input className="input-field" placeholder="Search patient name or phone" value={q} onChange={(e) => setQ(e.target.value)} />
           <div className="flex flex-col gap-1 max-h-40 overflow-y-auto">
             {patients.map((p) => (
@@ -88,14 +90,16 @@ export default function InvoiceEditor() {
         </div>
 
         <div className="card space-y-3">
-          <p className="section-label">Line items</p>
+          <p className="section-label">Line items <RequiredMark /></p>
           {items.map((row, idx) => (
             <div key={idx} className="grid grid-cols-1 sm:grid-cols-12 gap-2 items-end">
-              <select className="input-field sm:col-span-3" value={row.type} onChange={(e) => setItem(idx, { type: e.target.value })}>
-                {TYPES.map((t) => (
-                  <option key={t} value={t}>{t.replace('_', ' ')}</option>
-                ))}
-              </select>
+              <Dropdown
+                className="sm:col-span-3"
+                value={row.type}
+                onChange={(type) => setItem(idx, { type })}
+                ariaLabel="Line item type"
+                options={TYPES.map((t) => ({ value: t, label: t.replace('_', ' ') }))}
+              />
               <input className="input-field sm:col-span-4" placeholder="Description" value={row.name} onChange={(e) => setItem(idx, { name: e.target.value })} />
               <input className="input-field sm:col-span-1" type="number" min="0" placeholder="Qty" value={row.quantity} onChange={(e) => setItem(idx, { quantity: e.target.value })} />
               <input className="input-field sm:col-span-2" type="number" min="0" placeholder="Price" value={row.unitPrice} onChange={(e) => setItem(idx, { unitPrice: e.target.value })} />

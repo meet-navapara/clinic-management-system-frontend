@@ -6,10 +6,12 @@ import PageHeader from '../components/ui/PageHeader';
 import EmptyState from '../components/ui/EmptyState';
 import Badge from '../components/ui/Badge';
 import Modal from '../components/ui/Modal';
+import Dropdown from '../components/ui/Dropdown';
 import { can, P } from '../constants/permissions';
 import { useAuth } from '../context/AuthContext';
 import { ROUTES } from '../constants/routes';
 import { useBranch } from '../context/BranchContext';
+import RequiredMark from '../components/ui/RequiredMark';
 
 export default function ConsentPage() {
   const { user } = useAuth();
@@ -135,22 +137,44 @@ export default function ConsentPage() {
 
       <Modal open={open} title="Consent template" onClose={() => setOpen(false)} wide>
         <form onSubmit={saveTpl} className="space-y-3">
-          <input className="input-field" required placeholder="Name" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
-          <select className="input-field" value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })}>
-            {['general', 'procedure', 'therapy', 'privacy', 'treatment', 'other'].map((c) => <option key={c}>{c}</option>)}
-          </select>
-          <textarea className="input-field" rows={8} required placeholder="Consent text" value={form.body} onChange={(e) => setForm({ ...form, body: e.target.value })} />
+          <div>
+            <label className="label-field">Name <RequiredMark /></label>
+            <input className="input-field" required placeholder="Name" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
+          </div>
+          <div>
+            <label className="label-field">Category</label>
+            <Dropdown
+              value={form.category}
+              onChange={(category) => setForm({ ...form, category })}
+              ariaLabel="Category"
+              options={['general', 'procedure', 'therapy', 'privacy', 'treatment', 'other']}
+            />
+          </div>
+          <div>
+            <label className="label-field">Consent text <RequiredMark /></label>
+            <textarea className="input-field" rows={8} required placeholder="Consent text" value={form.body} onChange={(e) => setForm({ ...form, body: e.target.value })} />
+          </div>
           <button type="submit" className="btn-primary w-full">Save</button>
         </form>
       </Modal>
 
       <Modal open={assignOpen} title="Assign consent" onClose={() => setAssignOpen(false)}>
         <form onSubmit={doAssign} className="space-y-3">
-          <select className="input-field" required value={assign.consentTemplateId} onChange={(e) => setAssign({ ...assign, consentTemplateId: e.target.value })}>
-            <option value="">Template</option>
-            {templates.map((t) => <option key={t._id} value={t._id}>{t.name}</option>)}
-          </select>
-          <input className="input-field" placeholder="Search patient" value={assign.q} onChange={(e) => setAssign({ ...assign, q: e.target.value })} />
+          <div>
+            <label className="label-field">Template <RequiredMark /></label>
+            <Dropdown
+              required
+              value={assign.consentTemplateId}
+              onChange={(consentTemplateId) => setAssign({ ...assign, consentTemplateId })}
+              placeholder="Template"
+              ariaLabel="Consent template"
+              options={templates.map((t) => ({ value: String(t._id), label: t.name }))}
+            />
+          </div>
+          <div>
+            <label className="label-field">Patient <RequiredMark /></label>
+            <input className="input-field" placeholder="Search patient" value={assign.q} onChange={(e) => setAssign({ ...assign, q: e.target.value })} />
+          </div>
           <div className="max-h-40 overflow-y-auto">
             {patients.map((p) => (
               <button type="button" key={p._id} className={`w-full text-left px-3 py-2 rounded-lg text-sm ${assign.patientId === p._id ? 'bg-[#f3efe8]' : ''}`} onClick={() => setAssign({ ...assign, patientId: p._id, q: p.name })}>

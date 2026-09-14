@@ -6,9 +6,11 @@ import PageHeader from '../components/ui/PageHeader';
 import EmptyState from '../components/ui/EmptyState';
 import Modal from '../components/ui/Modal';
 import Badge from '../components/ui/Badge';
+import Dropdown from '../components/ui/Dropdown';
 import { SkeletonRows } from '../components/ui/Skeleton';
 import { can, P } from '../constants/permissions';
 import { useAuth } from '../context/AuthContext';
+import RequiredMark from '../components/ui/RequiredMark';
 
 const TYPES = [
   { id: 'consultation', label: 'Consultation' },
@@ -164,7 +166,7 @@ export default function TemplatesPage() {
       <Modal open={open} title="New template" onClose={() => setOpen(false)} wide>
         <form onSubmit={save} className="space-y-3">
           <div>
-            <label className="label-field">Name</label>
+            <label className="label-field">Name <RequiredMark /></label>
             <input
               className="input-field"
               required
@@ -175,24 +177,26 @@ export default function TemplatesPage() {
           </div>
           <div className="grid sm:grid-cols-2 gap-2">
             <div>
-              <label className="label-field">Type</label>
-              <select className="input-field" value={form.type} onChange={(e) => setForm({ ...form, type: e.target.value })}>
-                {TYPES.map((t) => (
-                  <option key={t.id} value={t.id}>{t.label}</option>
-                ))}
-              </select>
+              <label className="label-field">Type <RequiredMark /></label>
+              <Dropdown
+                value={form.type}
+                onChange={(type) => setForm({ ...form, type })}
+                ariaLabel="Template type"
+                options={TYPES.map((t) => ({ value: t.id, label: t.label }))}
+              />
             </div>
             <div>
-              <label className="label-field">Visibility</label>
-              <select
-                className="input-field"
+              <label className="label-field">Visibility <RequiredMark /></label>
+              <Dropdown
                 value={canClinic ? form.ownerType : 'doctor'}
-                onChange={(e) => setForm({ ...form, ownerType: e.target.value })}
+                onChange={(ownerType) => setForm({ ...form, ownerType })}
                 disabled={!canClinic}
-              >
-                <option value="doctor">Only me</option>
-                {canClinic && <option value="clinic">Shared with clinic</option>}
-              </select>
+                ariaLabel="Visibility"
+                options={[
+                  { value: 'doctor', label: 'Only me' },
+                  ...(canClinic ? [{ value: 'clinic', label: 'Shared with clinic' }] : []),
+                ]}
+              />
             </div>
           </div>
           {FIELD_KEYS.map(([k, label]) => (

@@ -8,10 +8,12 @@ import PageHeader from '../components/ui/PageHeader';
 import Badge from '../components/ui/Badge';
 import Money from '../components/ui/Money';
 import Modal from '../components/ui/Modal';
+import Dropdown from '../components/ui/Dropdown';
 import { Skeleton } from '../components/ui/Skeleton';
 import { ROUTES } from '../constants/routes';
 import { can, P } from '../constants/permissions';
 import { useAuth } from '../context/AuthContext';
+import RequiredMark from '../components/ui/RequiredMark';
 
 const METHODS = ['cash', 'upi', 'card', 'bank_transfer', 'online', 'other'];
 
@@ -145,6 +147,9 @@ export default function InvoiceDetail() {
             <div className="flex justify-between"><span>Tax</span><Money value={invoice.tax} /></div>
             <div className="flex justify-between font-semibold text-base"><span>Total</span><Money value={invoice.total} /></div>
             <div className="flex justify-between"><span>Paid</span><Money value={invoice.paidAmount} /></div>
+            {Number(invoice.refundedAmount) > 0 && (
+              <div className="flex justify-between text-ink-muted"><span>Refunded</span><Money value={invoice.refundedAmount} /></div>
+            )}
             <div className="flex justify-between"><span>Due</span><Money value={invoice.dueAmount} /></div>
           </div>
         </div>
@@ -172,14 +177,15 @@ export default function InvoiceDetail() {
 
       <Modal open={payOpen} title="Collect payment" onClose={() => setPayOpen(false)}>
         <form onSubmit={collect} className="space-y-3">
-          <label className="label-field">Amount</label>
+          <label className="label-field">Amount <RequiredMark /></label>
           <input className="input-field" type="number" min="0.01" step="0.01" value={amount} onChange={(e) => setAmount(e.target.value)} required />
-          <label className="label-field">Method</label>
-          <select className="input-field" value={method} onChange={(e) => setMethod(e.target.value)}>
-            {METHODS.map((m) => (
-              <option key={m} value={m}>{m.replace('_', ' ')}</option>
-            ))}
-          </select>
+          <label className="label-field">Method <RequiredMark /></label>
+          <Dropdown
+            value={method}
+            onChange={setMethod}
+            ariaLabel="Payment method"
+            options={METHODS.map((m) => ({ value: m, label: m.replace('_', ' ') }))}
+          />
           <input className="input-field" placeholder="UPI / txn reference" value={ref} onChange={(e) => setRef(e.target.value)} />
           <button type="submit" className="btn-primary w-full" disabled={busy}>{busy ? 'Saving…' : 'Record payment'}</button>
         </form>

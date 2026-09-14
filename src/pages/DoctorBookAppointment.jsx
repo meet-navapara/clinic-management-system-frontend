@@ -1,155 +1,17 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import { Link, useSearchParams, useNavigate } from 'react-router-dom';
 import { format, parse } from 'date-fns';
 import api from '../utils/api';
 import toast from 'react-hot-toast';
-import { Calendar, Clock, Search, X } from 'lucide-react';
+import { Calendar, Clock } from 'lucide-react';
 import Datepicker from '../components/Datepicker';
 import PageLoader from '../components/PageLoader';
 import EmptyState from '../components/ui/EmptyState';
-import UserAvatar from '../components/UserAvatar';
+import Dropdown from '../components/ui/Dropdown';
+import PatientPicker from '../components/PatientPicker';
 import { useAuth } from '../context/AuthContext';
 import { ROUTES } from '../constants/routes';
-import { useBranch } from '../context/BranchContext';
-
-function PatientPicker({ value, onChange, initialPatient }) {
-  const { branchId } = useBranch();
-  const wrapRef = useRef(null);
-  const [query, setQuery] = useState('');
-  const [results, setResults] = useState([]);
-  const [open, setOpen] = useState(false);
-  const [searching, setSearching] = useState(false);
-  const [selected, setSelected] = useState(initialPatient || null);
-
-  useEffect(() => {
-    if (initialPatient) setSelected(initialPatient);
-  }, [initialPatient]);
-
-  useEffect(() => {
-    const t = setTimeout(() => {
-      setSearching(true);
-      api
-        .get('/patients', {
-          params: {
-            limit: 20,
-            ...(query.trim() ? { search: query.trim() } : {}),
-          },
-        })
-        .then((res) => setResults(res.data.patients || []))
-        .catch(() => setResults([]))
-        .finally(() => setSearching(false));
-    }, query.trim() ? 250 : 0);
-    return () => clearTimeout(t);
-  }, [query, branchId]);
-
-  useEffect(() => {
-    const onDoc = (e) => {
-      if (!wrapRef.current?.contains(e.target)) setOpen(false);
-    };
-    document.addEventListener('mousedown', onDoc);
-    return () => document.removeEventListener('mousedown', onDoc);
-  }, []);
-
-  const pick = (p) => {
-    setSelected(p);
-    onChange(p._id);
-    setQuery('');
-    setOpen(false);
-  };
-
-  const clear = () => {
-    setSelected(null);
-    onChange('');
-    setQuery('');
-    setOpen(true);
-  };
-
-  return (
-    <div ref={wrapRef} className="relative">
-      <div className="relative">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-ink-faint pointer-events-none" />
-        <input
-          className="input-field pl-9 pr-9"
-          placeholder="Search name, phone, or PAT-ID"
-          value={query}
-          onChange={(e) => {
-            setQuery(e.target.value);
-            setOpen(true);
-          }}
-          onFocus={() => setOpen(true)}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter') {
-              e.preventDefault();
-              if (results[0]) pick(results[0]);
-            }
-            if (e.key === 'Escape') setOpen(false);
-          }}
-          autoComplete="off"
-        />
-        {query && (
-          <button
-            type="button"
-            className="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-ink-faint hover:text-ink"
-            onClick={() => setQuery('')}
-            aria-label="Clear search"
-          >
-            <X className="w-4 h-4" />
-          </button>
-        )}
-      </div>
-
-      {open && (
-        <ul className="absolute z-20 mt-1 w-full max-h-56 overflow-auto rounded-xl bg-white border border-line shadow-lg">
-          {searching && results.length === 0 ? (
-            <li className="px-3 py-3 text-sm text-ink-muted">Searching…</li>
-          ) : results.length === 0 ? (
-            <li className="px-3 py-3 text-sm text-ink-muted">No matching patients.</li>
-          ) : (
-            results.map((p) => {
-              const active = value === p._id;
-              return (
-                <li key={p._id}>
-                  <button
-                    type="button"
-                    onClick={() => pick(p)}
-                    className={`w-full text-left px-3 py-2.5 flex items-center gap-3 hover:bg-[#faf8f3] ${
-                      active ? 'bg-[#faf8f3]' : ''
-                    }`}
-                  >
-                    <UserAvatar name={p.name} size="sm" />
-                    <span className="min-w-0">
-                      <span className="block text-sm font-medium text-ink truncate">{p.name}</span>
-                      <span className="block text-xs text-ink-faint truncate">
-                        {[p.phone, p.patientCode].filter(Boolean).join(' · ')}
-                      </span>
-                    </span>
-                  </button>
-                </li>
-              );
-            })
-          )}
-        </ul>
-      )}
-
-      {selected && (
-        <div className="mt-3 flex items-center justify-between gap-3 rounded-lg bg-[#faf8f3] border border-line px-3 py-2.5">
-          <div className="flex items-center gap-3 min-w-0">
-            <UserAvatar name={selected.name} size="sm" />
-            <div className="min-w-0">
-              <p className="text-sm font-medium text-ink truncate">{selected.name}</p>
-              <p className="text-xs text-ink-faint truncate">
-                {[selected.phone, selected.patientCode].filter(Boolean).join(' · ')}
-              </p>
-            </div>
-          </div>
-          <button type="button" className="btn-ghost !min-h-8 !px-2 text-xs" onClick={clear}>
-            Change
-          </button>
-        </div>
-      )}
-    </div>
-  );
-}
+import RequiredMark from '../components/ui/RequiredMark';
 
 export default function DoctorBookAppointment() {
   const { user } = useAuth();
@@ -286,9 +148,9 @@ export default function DoctorBookAppointment() {
           }
         />
       ) : (
-        <form onSubmit={handleBook} className="grid lg:grid-cols-2 gap-4 max-w-4xl">
-          <div className="card space-y-3 lg:col-span-2 max-w-xl">
-            <label className="label-field">Patient</label>
+        <form onSubmit={handleBook} className="grid lg:grid-cols-2 gap-4">
+          <div className="card space-y-3 lg:col-span-2">
+            <label className="label-field">Patient <RequiredMark /></label>
             <PatientPicker
               value={patientId}
               onChange={setPatientId}
@@ -296,13 +158,15 @@ export default function DoctorBookAppointment() {
             />
             {user?.role !== 'doctor' && (
               <div>
-                <label className="label-field">Doctor</label>
-                <select className="input-field" required value={doctorId} onChange={(e) => setDoctorId(e.target.value)}>
-                  <option value="">Select doctor</option>
-                  {doctors.map((d) => (
-                    <option key={d._id} value={d._id}>{d.name}</option>
-                  ))}
-                </select>
+                <label className="label-field">Doctor <RequiredMark /></label>
+                <Dropdown
+                  required
+                  value={doctorId}
+                  onChange={setDoctorId}
+                  placeholder="Select doctor"
+                  ariaLabel="Doctor"
+                  options={doctors.map((d) => ({ value: String(d._id), label: d.name }))}
+                />
               </div>
             )}
           </div>
@@ -311,18 +175,21 @@ export default function DoctorBookAppointment() {
             <h2 className="text-sm font-semibold text-ink flex items-center gap-2">
               <Calendar className="w-4 h-4 text-accent-600" /> Date & time
             </h2>
-            <Datepicker
-              value={selectedDate}
-              onChange={setSelectedDate}
-              min={getMinDate()}
-              max={getMaxDate()}
-              isDateAllowed={isDayAvailable}
-              required
-            />
+            <div>
+              <label className="label-field">Date <RequiredMark /></label>
+              <Datepicker
+                value={selectedDate}
+                onChange={setSelectedDate}
+                min={getMinDate()}
+                max={getMaxDate()}
+                isDateAllowed={isDayAvailable}
+                required
+              />
+            </div>
             {selectedDate && (
               <div>
                 <p className="text-sm font-medium text-ink mb-2 flex items-center gap-2">
-                  <Clock className="w-4 h-4" /> Slots
+                  <Clock className="w-4 h-4" /> Slots <RequiredMark />
                 </p>
                 <div className="flex flex-wrap gap-2">
                   {allSlots.map((slot) => {
@@ -351,17 +218,12 @@ export default function DoctorBookAppointment() {
             <div className="grid sm:grid-cols-2 gap-4">
               <div>
                 <label className="label-field">Type</label>
-                <select
-                  className="input-field"
+                <Dropdown
                   value={appointmentType}
-                  onChange={(e) => setAppointmentType(e.target.value)}
-                >
-                  {types.map((t) => (
-                    <option key={t} value={t}>
-                      {t}
-                    </option>
-                  ))}
-                </select>
+                  onChange={setAppointmentType}
+                  ariaLabel="Appointment type"
+                  options={types}
+                />
               </div>
               <div>
                 <label className="label-field">Duration (min)</label>
@@ -376,7 +238,7 @@ export default function DoctorBookAppointment() {
               </div>
             </div>
             <div>
-              <label className="label-field">Reason</label>
+              <label className="label-field">Reason <RequiredMark /></label>
               <textarea
                 className="input-field"
                 rows={2}

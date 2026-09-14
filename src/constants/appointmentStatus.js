@@ -50,7 +50,7 @@ export const appointmentStatusConfig = {
     valueColor: 'text-[#b42318]',
   },
   no_show: {
-    label: 'No-show',
+    label: "Didn't arrive",
     badge: 'bg-[#f3f3f4] text-[#52525b] ring-[#d4d4d8]/80',
     calendar: 'bg-[#f4f4f5] border-zinc-200 text-[#52525b]',
     icon: UserX,

@@ -13,12 +13,6 @@ import {
   Bell,
   CheckCircle,
   Clock,
-  GitBranch,
-  IdCard,
-  Receipt,
-  Warehouse,
-  FileText,
-  Megaphone,
 } from 'lucide-react';
 import { ROUTES } from '../constants/routes';
 import { patientDisplayName } from '../utils/display';
@@ -71,7 +65,6 @@ export default function DoctorDashboard() {
           <h2 className="page-title">
             {greeting()}, Dr. {name}
           </h2>
-          <p className="text-sm text-ink-muted mt-1">Clinic Management</p>
         </div>
         <div className="flex flex-wrap gap-2">
           <Link to={ROUTES.doctorPatientNew} className="btn-secondary !min-h-10">
@@ -116,25 +109,6 @@ export default function DoctorDashboard() {
                 <StatCard label="Prescriptions" value={stats.prescriptions?.total ?? 0} />
               </div>
             )}
-          </section>
-
-          <section className="mb-6">
-            <h3 className="text-sm font-semibold text-ink mb-3">Clinic management</h3>
-            <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-6 gap-2">
-              {[
-                [ROUTES.branches, 'Branches', GitBranch],
-                [ROUTES.staff, 'Staff', IdCard],
-                [ROUTES.billing, 'Billing', Receipt],
-                [ROUTES.inventory, 'Inventory', Warehouse],
-                [ROUTES.consent, 'Consent', FileText],
-                [ROUTES.campaigns, 'Campaigns', Megaphone],
-              ].map(([to, label, Icon]) => (
-                <Link key={to} to={to} className="card !p-3 flex items-center gap-2 hover:bg-[#faf8f3]">
-                  <Icon className="w-4 h-4 text-accent-700 shrink-0" />
-                  <span className="text-sm font-medium text-ink">{label}</span>
-                </Link>
-              ))}
-            </div>
           </section>
 
           <div className="grid xl:grid-cols-2 gap-6">

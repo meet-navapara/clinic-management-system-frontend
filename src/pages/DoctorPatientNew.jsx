@@ -7,6 +7,25 @@ import toast from 'react-hot-toast';
 import { ROUTES } from '../constants/routes';
 import { useAuth } from '../context/AuthContext';
 import { normalizeIndianMobile, isValidEmail } from '../utils/validation';
+import Dropdown from '../components/ui/Dropdown';
+import DobDatepicker from '../components/DobDatepicker';
+import Checkbox from '../components/ui/Checkbox';
+import RequiredMark from '../components/ui/RequiredMark';
+
+function Field({ id, label, required, error, className = '', children }) {
+  return (
+    <div className={`min-w-0 w-full flex flex-col ${className}`}>
+      {label != null && (
+        <label htmlFor={id} className="label-field">
+          {label}
+          {required ? <> <RequiredMark /></> : null}
+        </label>
+      )}
+      <div className="min-w-0 w-full">{children}</div>
+      {error ? <p className="text-xs text-red-600 mt-1">{error}</p> : null}
+    </div>
+  );
+}
 
 const RELATIONS = [
   'Father',
@@ -22,6 +41,17 @@ const RELATIONS = [
 ];
 
 const BLOOD_GROUPS = ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-', 'Unknown'];
+
+const AREAS = ['Adajan', 'Vesu', 'Athwa', 'Katargam', 'Varachha', 'Piplod'];
+
+const PATIENT_CATEGORIES = ['Patient', 'Family', 'Corporate'];
+
+const ROOMS = ['OPD', 'Room 1', 'Room 2', 'Room 3', 'Ward'];
+
+const GENDERS = [
+  { value: 'male', label: 'Male' },
+  { value: 'female', label: 'Female' },
+];
 
 const DEFAULT_HISTORY_TAGS = [
   'Vertigo',
@@ -67,10 +97,6 @@ const EMPTY_FORM = {
   occupation: '',
   doctorId: '',
 };
-
-function todayInput() {
-  return format(new Date(), 'yyyy-MM-dd');
-}
 
 export default function DoctorPatientNew() {
   const navigate = useNavigate();
@@ -245,7 +271,7 @@ export default function DoctorPatientNew() {
   };
 
   return (
-    <div className="page-container max-w-6xl">
+    <div className="page-container">
       <div className="mb-4">
         <h1 className="page-title">Patient Registration</h1>
         <p className="text-sm text-ink-muted mt-1">Capture full patient details for clinical records.</p>
@@ -259,531 +285,389 @@ export default function DoctorPatientNew() {
           savePatient('profile');
         }}
       >
-        <fieldset disabled={loading} className="space-y-5 border-0 p-0 m-0 min-w-0">
-          {/* Name */}
-          <div>
-            <p className="label-field mb-2">
-              Name <span className="text-red-600">*</span>
+        <fieldset
+          disabled={loading}
+          className="space-y-5 border-0 p-0 m-0 min-w-0 [&_input.input-field]:h-10 [&_input.input-field]:min-h-10 [&_input.input-field]:py-0 [&_button.input-field]:h-10 [&_button.input-field]:min-h-10 [&_button.input-field]:py-0"
+        >
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-5 items-start">
+            <div className="lg:col-span-2 min-w-0 grid grid-cols-1 sm:grid-cols-2 gap-x-3 gap-y-4 items-start">
+            <p className="label-field sm:col-span-2 mb-0">
+              Name <RequiredMark />
             </p>
-            <div className="grid sm:grid-cols-3 gap-3">
-              <div>
-                <input
-                  id="patient-firstName"
-                  name="firstName"
-                  className="input-field"
-                  placeholder="First Name (required)"
-                  value={form.firstName}
-                  onChange={handleChange}
-                  required
-                />
-                {fieldErrors.firstName && (
-                  <p className="text-xs text-red-600 mt-1">{fieldErrors.firstName}</p>
-                )}
-              </div>
+            <div className="sm:col-span-2 min-w-0 grid grid-cols-1 sm:grid-cols-3 gap-x-3 gap-y-4">
+            <Field id="patient-firstName" error={fieldErrors.firstName}>
+              <input
+                id="patient-firstName"
+                name="firstName"
+                className="input-field w-full"
+                placeholder="First Name (required)"
+                value={form.firstName}
+                onChange={handleChange}
+                required
+              />
+            </Field>
+            <Field id="patient-middleName">
               <input
                 id="patient-middleName"
                 name="middleName"
-                className="input-field"
+                className="input-field w-full"
                 placeholder="Middle Name (optional)"
                 value={form.middleName}
                 onChange={handleChange}
               />
-              <div>
-                <input
-                  id="patient-lastName"
-                  name="lastName"
-                  className="input-field"
-                  placeholder="Last Name (required)"
-                  value={form.lastName}
-                  onChange={handleChange}
+            </Field>
+            <Field id="patient-lastName" error={fieldErrors.lastName}>
+              <input
+                id="patient-lastName"
+                name="lastName"
+                className="input-field w-full"
+                placeholder="Last Name (required)"
+                value={form.lastName}
+                onChange={handleChange}
+                required
+              />
+            </Field>
+            </div>
+
+            <Field id="patient-phone" label="Contact No." required error={fieldErrors.phone}>
+              <input
+                id="patient-phone"
+                name="phone"
+                type="tel"
+                inputMode="numeric"
+                className="input-field w-full"
+                placeholder="+91 9876543210"
+                value={form.phone}
+                onChange={handleChange}
+                required
+              />
+            </Field>
+            <Field id="patient-gender" label="Gender" required error={fieldErrors.gender}>
+              <Dropdown
+                id="patient-gender"
+                value={form.gender}
+                onChange={(value) => setField('gender', value)}
+                options={GENDERS}
+                placeholder="Select Gender"
+                required
+                ariaLabel="Gender"
+              />
+            </Field>
+            <Field label="Profile Image">
+              <div className="flex items-center gap-2 h-10">
+                <div className="h-10 w-10 shrink-0 rounded-full bg-[#efeae2] overflow-hidden flex items-center justify-center ring-1 ring-line">
+                  {form.profilePhoto ? (
+                    <img src={form.profilePhoto} alt="" className="h-full w-full object-cover" />
+                  ) : (
+                    <Camera className="w-4 h-4 text-ink-faint" aria-hidden />
+                  )}
+                </div>
+                <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={onPhoto} />
+                <button
+                  type="button"
+                  className="btn-secondary !h-10 !min-h-10 grow"
+                  onClick={() => fileRef.current?.click()}
+                >
+                  Upload
+                </button>
+              </div>
+            </Field>
+
+            <Field id="patient-address" label="Address">
+              <input
+                id="patient-address"
+                name="address"
+                className="input-field w-full"
+                placeholder="Street / landmark"
+                value={form.address}
+                onChange={handleChange}
+              />
+            </Field>
+            <Field id="patient-city" label="City">
+              <input
+                id="patient-city"
+                name="city"
+                className="input-field w-full"
+                placeholder="City"
+                value={form.city}
+                onChange={handleChange}
+              />
+            </Field>
+            <Field id="patient-area" label="Area">
+              <Dropdown
+                id="patient-area"
+                value={form.area}
+                onChange={(value) => setField('area', value)}
+                options={AREAS}
+                placeholder="Select Area"
+                ariaLabel="Area"
+              />
+            </Field>
+
+            <p className="section-label sm:col-span-2 mb-0 mt-1">
+              Relative&apos;s Information
+            </p>
+            <Field id="patient-emergencyContactName" label="Name">
+              <input
+                id="patient-emergencyContactName"
+                name="emergencyContactName"
+                className="input-field w-full"
+                value={form.emergencyContactName}
+                onChange={handleChange}
+              />
+            </Field>
+            <Field
+              id="patient-emergencyContactPhone"
+              label="Contact"
+              error={fieldErrors.emergencyContactPhone}
+            >
+              <input
+                id="patient-emergencyContactPhone"
+                name="emergencyContactPhone"
+                type="tel"
+                className="input-field w-full"
+                value={form.emergencyContactPhone}
+                onChange={handleChange}
+              />
+            </Field>
+            <Field id="patient-emergencyContactRelationship" label="Relation">
+              <Dropdown
+                id="patient-emergencyContactRelationship"
+                value={form.emergencyContactRelationship}
+                onChange={(value) => setField('emergencyContactRelationship', value)}
+                options={RELATIONS}
+                placeholder="Select Relation"
+                ariaLabel="Relation"
+              />
+            </Field>
+
+            <Field
+              id="patient-secondaryPhone"
+              label="Secondary No."
+              error={fieldErrors.secondaryPhone}
+            >
+              <input
+                id="patient-secondaryPhone"
+                name="secondaryPhone"
+                type="tel"
+                className="input-field w-full"
+                value={form.secondaryPhone}
+                onChange={handleChange}
+              />
+            </Field>
+            <Field id="patient-email" label="Email Id" error={fieldErrors.email}>
+              <input
+                id="patient-email"
+                name="email"
+                type="email"
+                className="input-field w-full"
+                value={form.email}
+                onChange={handleChange}
+              />
+            </Field>
+            <Field id="patient-age" label="Age">
+              <input
+                id="patient-age"
+                name="age"
+                type="number"
+                min="0"
+                max="150"
+                className="input-field w-full"
+                placeholder="In Years"
+                value={form.age}
+                onChange={handleChange}
+              />
+            </Field>
+
+            <Field id="patient-dateOfBirth" label="DOB" error={fieldErrors.dateOfBirth}>
+              <DobDatepicker
+                id="patient-dateOfBirth"
+                value={form.dateOfBirth}
+                onChange={(value) => setField('dateOfBirth', value)}
+              />
+            </Field>
+            <Field label="Creation date">
+              <input className="input-field w-full" value={format(new Date(), 'dd-MM-yyyy')} readOnly />
+            </Field>
+            <Field id="patient-nhId" label="NH ID">
+              <input
+                id="patient-nhId"
+                name="nhId"
+                className="input-field w-full"
+                placeholder="Enter NH ID"
+                value={form.nhId}
+                onChange={handleChange}
+              />
+            </Field>
+
+            <Field id="patient-referredBy" label="Referred By">
+              <input
+                id="patient-referredBy"
+                name="referredBy"
+                className="input-field w-full"
+                placeholder="Doctor Name"
+                value={form.referredBy}
+                onChange={handleChange}
+              />
+            </Field>
+            <Field id="patient-patientCategory" label="Patient Link">
+              <Dropdown
+                id="patient-patientCategory"
+                value={form.patientCategory}
+                onChange={(value) => setField('patientCategory', value)}
+                options={PATIENT_CATEGORIES}
+                placeholder="Select"
+                ariaLabel="Patient link"
+              />
+            </Field>
+            <Field id="patient-linkedPatientName" label="Linked Patient">
+              <input
+                id="patient-linkedPatientName"
+                name="linkedPatientName"
+                className="input-field w-full"
+                placeholder="Patient Name"
+                value={form.linkedPatientName}
+                onChange={handleChange}
+              />
+            </Field>
+
+            <Field id="patient-caseId" label="Case Id">
+              <input
+                id="patient-caseId"
+                name="caseId"
+                className="input-field w-full"
+                placeholder="Case Id"
+                value={form.caseId}
+                onChange={handleChange}
+              />
+            </Field>
+            <Field id="patient-aadharNumber" label="Aadhar Card" error={fieldErrors.aadharNumber}>
+              <input
+                id="patient-aadharNumber"
+                name="aadharNumber"
+                className="input-field w-full"
+                placeholder="Enter aadhar card no."
+                value={form.aadharNumber}
+                onChange={handleChange}
+                inputMode="numeric"
+                maxLength={12}
+              />
+            </Field>
+            <Field id="patient-occupation" label="Occupation">
+              <input
+                id="patient-occupation"
+                name="occupation"
+                className="input-field w-full"
+                value={form.occupation}
+                onChange={handleChange}
+              />
+            </Field>
+            {user?.role !== 'doctor' ? (
+              <Field id="patient-doctorId" label="Assigned doctor" required error={fieldErrors.doctorId}>
+                <Dropdown
+                  id="patient-doctorId"
+                  value={form.doctorId}
+                  onChange={(value) => setField('doctorId', value)}
+                  options={doctors.map((d) => ({
+                    value: String(d._id || d.id),
+                    label: d.name,
+                  }))}
+                  placeholder="Select doctor"
                   required
+                  ariaLabel="Assigned doctor"
                 />
-                {fieldErrors.lastName && (
-                  <p className="text-xs text-red-600 mt-1">{fieldErrors.lastName}</p>
-                )}
-              </div>
-            </div>
-          </div>
+              </Field>
+            ) : null}
 
-          <div className="grid lg:grid-cols-3 gap-5">
-            <div className="lg:col-span-2 space-y-5">
-              <div className="grid sm:grid-cols-2 gap-3">
-                <div>
-                  <label htmlFor="patient-phone" className="label-field">
-                    Contact No. <span className="text-red-600">*</span>
-                  </label>
-                  <input
-                    id="patient-phone"
-                    name="phone"
-                    type="tel"
-                    inputMode="numeric"
-                    className="input-field"
-                    placeholder="+91 9876543210"
-                    value={form.phone}
-                    onChange={handleChange}
-                    required
-                  />
-                  {fieldErrors.phone && (
-                    <p className="text-xs text-red-600 mt-1">{fieldErrors.phone}</p>
-                  )}
-                </div>
-                <div>
-                  <p className="label-field mb-2">
-                    Gender <span className="text-red-600">*</span>
-                  </p>
-                  <div className="flex flex-wrap gap-4 min-h-10 items-center">
-                    {['male', 'female'].map((g) => (
-                      <label key={g} className="inline-flex items-center gap-2 text-sm capitalize cursor-pointer">
-                        <input
-                          type="radio"
-                          name="gender"
-                          value={g}
-                          checked={form.gender === g}
-                          onChange={handleChange}
-                        />
-                        {g}
-                      </label>
-                    ))}
-                  </div>
-                  {fieldErrors.gender && (
-                    <p className="text-xs text-red-600 mt-1">{fieldErrors.gender}</p>
-                  )}
-                </div>
-              </div>
+            <Field label="SMS" className="sm:col-start-1 lg:col-start-1">
+              <Checkbox name="sendSms" checked={form.sendSms} onChange={handleChange}>
+                Send SMS to patient
+              </Checkbox>
+            </Field>
+            <Field label="Admission">
+              <Checkbox name="admitPatient" checked={form.admitPatient} onChange={handleChange}>
+                Admit this patient
+              </Checkbox>
+            </Field>
+            <Field id="patient-room" label="Room">
+              <Dropdown
+                id="patient-room"
+                value={form.room}
+                onChange={(value) => setField('room', value)}
+                options={ROOMS}
+                placeholder="Select"
+                ariaLabel="Room"
+              />
+            </Field>
 
-              <div>
-                <label htmlFor="patient-address" className="label-field">
-                  Address
-                </label>
-                <div className="grid sm:grid-cols-3 gap-3">
-                  <textarea
-                    id="patient-address"
-                    name="address"
-                    className="input-field sm:col-span-1"
-                    rows={2}
-                    placeholder="Street / landmark"
-                    value={form.address}
-                    onChange={handleChange}
-                  />
-                  <input
-                    id="patient-city"
-                    name="city"
-                    className="input-field"
-                    placeholder="City"
-                    value={form.city}
-                    onChange={handleChange}
-                  />
-                  <input
-                    id="patient-area"
-                    name="area"
-                    className="input-field"
-                    placeholder="Select Area"
-                    value={form.area}
-                    onChange={handleChange}
-                    list="patient-area-list"
-                  />
-                  <datalist id="patient-area-list">
-                    <option value="Adajan" />
-                    <option value="Vesu" />
-                    <option value="Athwa" />
-                    <option value="Katargam" />
-                    <option value="Varachha" />
-                    <option value="Piplod" />
-                  </datalist>
-                </div>
-              </div>
-
-              <div>
-                <p className="section-label mb-2">Relative&apos;s Information</p>
-                <div className="grid sm:grid-cols-3 gap-3">
-                  <div>
-                    <label htmlFor="patient-emergencyContactName" className="label-field">
-                      Name
-                    </label>
-                    <input
-                      id="patient-emergencyContactName"
-                      name="emergencyContactName"
-                      className="input-field"
-                      value={form.emergencyContactName}
-                      onChange={handleChange}
-                    />
-                  </div>
-                  <div>
-                    <label htmlFor="patient-emergencyContactPhone" className="label-field">
-                      Contact
-                    </label>
-                    <input
-                      id="patient-emergencyContactPhone"
-                      name="emergencyContactPhone"
-                      type="tel"
-                      className="input-field"
-                      value={form.emergencyContactPhone}
-                      onChange={handleChange}
-                    />
-                    {fieldErrors.emergencyContactPhone && (
-                      <p className="text-xs text-red-600 mt-1">{fieldErrors.emergencyContactPhone}</p>
-                    )}
-                  </div>
-                  <div>
-                    <label htmlFor="patient-emergencyContactRelationship" className="label-field">
-                      Relation
-                    </label>
-                    <select
-                      id="patient-emergencyContactRelationship"
-                      name="emergencyContactRelationship"
-                      className="input-field"
-                      value={form.emergencyContactRelationship}
-                      onChange={handleChange}
-                    >
-                      <option value="">Select Relation</option>
-                      {RELATIONS.map((r) => (
-                        <option key={r} value={r}>
-                          {r}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                </div>
-              </div>
-
-              <div className="grid sm:grid-cols-2 gap-4">
-                <div>
-                  <p className="label-field mb-2">Profile Image</p>
-                  <div className="flex items-center gap-3">
-                    <div className="h-16 w-16 rounded-full bg-[#efeae2] overflow-hidden flex items-center justify-center ring-1 ring-line">
-                      {form.profilePhoto ? (
-                        <img src={form.profilePhoto} alt="" className="h-full w-full object-cover" />
-                      ) : (
-                        <Camera className="w-5 h-5 text-ink-faint" aria-hidden />
-                      )}
-                    </div>
-                    <div>
-                      <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={onPhoto} />
-                      <button
-                        type="button"
-                        className="btn-secondary !min-h-9"
-                        onClick={() => fileRef.current?.click()}
-                      >
-                        Upload
-                      </button>
-                    </div>
-                  </div>
-                </div>
-                <div className="grid gap-3">
-                  <div>
-                    <label htmlFor="patient-secondaryPhone" className="label-field">
-                      Secondary No.
-                    </label>
-                    <input
-                      id="patient-secondaryPhone"
-                      name="secondaryPhone"
-                      type="tel"
-                      className="input-field"
-                      value={form.secondaryPhone}
-                      onChange={handleChange}
-                    />
-                    {fieldErrors.secondaryPhone && (
-                      <p className="text-xs text-red-600 mt-1">{fieldErrors.secondaryPhone}</p>
-                    )}
-                  </div>
-                  <div>
-                    <label htmlFor="patient-email" className="label-field">
-                      Email Id
-                    </label>
-                    <input
-                      id="patient-email"
-                      name="email"
-                      type="email"
-                      className="input-field"
-                      value={form.email}
-                      onChange={handleChange}
-                    />
-                    {fieldErrors.email && (
-                      <p className="text-xs text-red-600 mt-1">{fieldErrors.email}</p>
-                    )}
-                  </div>
-                </div>
-              </div>
-
-              <div className="grid sm:grid-cols-2 gap-3">
-                <div>
-                  <label htmlFor="patient-age" className="label-field">
-                    Age
-                  </label>
-                  <input
-                    id="patient-age"
-                    name="age"
-                    type="number"
-                    min="0"
-                    max="150"
-                    className="input-field"
-                    placeholder="In Years"
-                    value={form.age}
-                    onChange={handleChange}
-                  />
-                </div>
-                <div>
-                  <label htmlFor="patient-dateOfBirth" className="label-field">
-                    DOB
-                  </label>
-                  <input
-                    id="patient-dateOfBirth"
-                    name="dateOfBirth"
-                    type="date"
-                    className="input-field"
-                    value={form.dateOfBirth}
-                    onChange={handleChange}
-                    max={todayInput()}
-                  />
-                  {fieldErrors.dateOfBirth && (
-                    <p className="text-xs text-red-600 mt-1">{fieldErrors.dateOfBirth}</p>
-                  )}
-                </div>
-                <div>
-                  <label className="label-field">Creation date</label>
-                  <input className="input-field" value={format(new Date(), 'dd-MM-yyyy')} readOnly />
-                </div>
-                <div>
-                  <label htmlFor="patient-nhId" className="label-field">
-                    NH ID
-                  </label>
-                  <input
-                    id="patient-nhId"
-                    name="nhId"
-                    className="input-field"
-                    placeholder="Enter NH ID"
-                    value={form.nhId}
-                    onChange={handleChange}
-                  />
-                </div>
-                <div>
-                  <label htmlFor="patient-referredBy" className="label-field">
-                    Referred By
-                  </label>
-                  <input
-                    id="patient-referredBy"
-                    name="referredBy"
-                    className="input-field"
-                    placeholder="Doctor Name"
-                    value={form.referredBy}
-                    onChange={handleChange}
-                  />
-                </div>
-                <div>
-                  <label htmlFor="patient-patientCategory" className="label-field">
-                    Patient Link
-                  </label>
-                  <div className="grid grid-cols-2 gap-2">
-                    <select
-                      id="patient-patientCategory"
-                      name="patientCategory"
-                      className="input-field"
-                      value={form.patientCategory}
-                      onChange={handleChange}
-                    >
-                      <option value="Patient">Patient</option>
-                      <option value="Family">Family</option>
-                      <option value="Corporate">Corporate</option>
-                    </select>
-                    <input
-                      id="patient-linkedPatientName"
-                      name="linkedPatientName"
-                      className="input-field"
-                      placeholder="Patient Name"
-                      value={form.linkedPatientName}
-                      onChange={handleChange}
-                    />
-                  </div>
-                </div>
-                <div>
-                  <label htmlFor="patient-caseId" className="label-field">
-                    Case Id
-                  </label>
-                  <input
-                    id="patient-caseId"
-                    name="caseId"
-                    className="input-field"
-                    placeholder="Case Id"
-                    value={form.caseId}
-                    onChange={handleChange}
-                  />
-                </div>
-                <div>
-                  <label htmlFor="patient-aadharNumber" className="label-field">
-                    Aadhar Card
-                  </label>
-                  <input
-                    id="patient-aadharNumber"
-                    name="aadharNumber"
-                    className="input-field"
-                    placeholder="Enter aadhar card no."
-                    value={form.aadharNumber}
-                    onChange={handleChange}
-                    inputMode="numeric"
-                    maxLength={12}
-                  />
-                  {fieldErrors.aadharNumber && (
-                    <p className="text-xs text-red-600 mt-1">{fieldErrors.aadharNumber}</p>
-                  )}
-                </div>
-              </div>
-
-              {user?.role !== 'doctor' && (
-                <div>
-                  <label htmlFor="patient-doctorId" className="label-field">
-                    Assigned doctor <span className="text-red-600">*</span>
-                  </label>
-                  <select
-                    id="patient-doctorId"
-                    name="doctorId"
-                    className="input-field"
-                    value={form.doctorId}
-                    onChange={handleChange}
-                    required
-                  >
-                    <option value="">Select doctor</option>
-                    {doctors.map((d) => (
-                      <option key={d._id || d.id} value={d._id || d.id}>
-                        {d.name}
-                      </option>
-                    ))}
-                  </select>
-                  {fieldErrors.doctorId && (
-                    <p className="text-xs text-red-600 mt-1">{fieldErrors.doctorId}</p>
-                  )}
-                </div>
-              )}
+            <Field id="patient-bloodGroup" label="Blood Group">
+              <Dropdown
+                id="patient-bloodGroup"
+                value={form.bloodGroup}
+                onChange={(value) => setField('bloodGroup', value)}
+                options={BLOOD_GROUPS}
+                placeholder="Select Blood Group"
+                ariaLabel="Blood group"
+              />
+            </Field>
+            <Field id="patient-otherHistory" label="Other History">
+              <input
+                id="patient-otherHistory"
+                name="otherHistory"
+                className="input-field w-full"
+                value={form.otherHistory}
+                onChange={handleChange}
+              />
+            </Field>
             </div>
 
-            {/* Right column */}
-            <div className="space-y-4">
-              <div className="space-y-2">
-                <label className="inline-flex items-center gap-2 text-sm cursor-pointer">
+            <aside className="min-w-0 lg:sticky lg:top-4">
+              <div className="rounded-xl border border-line bg-[#faf8f3] p-4 space-y-3">
+                <p className="section-label mb-0">Medical History</p>
+                <Field label="Filter">
                   <input
-                    type="checkbox"
-                    name="sendSms"
-                    checked={form.sendSms}
-                    onChange={handleChange}
+                    className="input-field w-full"
+                    placeholder="Type to filter"
+                    value={historyFilter}
+                    onChange={(e) => setHistoryFilter(e.target.value)}
                   />
-                  Send SMS
-                </label>
-                <label className="inline-flex items-center gap-2 text-sm cursor-pointer">
-                  <input
-                    type="checkbox"
-                    name="admitPatient"
-                    checked={form.admitPatient}
-                    onChange={handleChange}
-                  />
-                  Admit this patient
-                </label>
-              </div>
-
-              <div>
-                <label htmlFor="patient-room" className="label-field">
-                  Room
-                </label>
-                <select
-                  id="patient-room"
-                  name="room"
-                  className="input-field"
-                  value={form.room}
-                  onChange={handleChange}
-                >
-                  <option value="">Select</option>
-                  <option value="OPD">OPD</option>
-                  <option value="Room 1">Room 1</option>
-                  <option value="Room 2">Room 2</option>
-                  <option value="Room 3">Room 3</option>
-                  <option value="Ward">Ward</option>
-                </select>
-              </div>
-
-              <div>
-                <label htmlFor="patient-bloodGroup" className="label-field">
-                  Blood Group
-                </label>
-                <select
-                  id="patient-bloodGroup"
-                  name="bloodGroup"
-                  className="input-field"
-                  value={form.bloodGroup}
-                  onChange={handleChange}
-                >
-                  <option value="">Select Blood Group</option>
-                  {BLOOD_GROUPS.map((bg) => (
-                    <option key={bg} value={bg}>
-                      {bg}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div>
-                <p className="label-field mb-2">Medical History</p>
-                <input
-                  className="input-field mb-2"
-                  placeholder="Type to filter or add new"
-                  value={historyFilter}
-                  onChange={(e) => setHistoryFilter(e.target.value)}
-                />
-                <div className="max-h-40 overflow-y-auto rounded-lg border border-line bg-white p-2 space-y-1">
+                </Field>
+                <Field label="Custom tag">
+                  <div className="flex gap-2 min-w-0">
+                    <input
+                      className="input-field w-full min-w-0 grow"
+                      placeholder="Add custom history"
+                      value={customTag}
+                      onChange={(e) => setCustomTag(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          e.preventDefault();
+                          addCustomTag();
+                        }
+                      }}
+                    />
+                    <button type="button" className="btn-secondary shrink-0 !h-10 !min-h-10" onClick={addCustomTag}>
+                      Add
+                    </button>
+                  </div>
+                </Field>
+                <div className="max-h-72 overflow-y-auto rounded-lg border border-line bg-white p-3 flex flex-wrap gap-2">
                   {historyOptions.map((tag) => (
-                    <label key={tag} className="flex items-center gap-2 text-sm px-1 py-1 cursor-pointer hover:bg-[#f7f4ef] rounded">
-                      <input
-                        type="checkbox"
-                        checked={form.historyTags.includes(tag)}
-                        onChange={() => toggleHistoryTag(tag)}
-                      />
+                    <Checkbox
+                      key={tag}
+                      variant="chip"
+                      checked={form.historyTags.includes(tag)}
+                      onChange={() => toggleHistoryTag(tag)}
+                    >
                       {tag}
-                    </label>
+                    </Checkbox>
                   ))}
-                </div>
-                <div className="flex gap-2 mt-2">
-                  <input
-                    className="input-field"
-                    placeholder="Add custom history"
-                    value={customTag}
-                    onChange={(e) => setCustomTag(e.target.value)}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter') {
-                        e.preventDefault();
-                        addCustomTag();
-                      }
-                    }}
-                  />
-                  <button type="button" className="btn-secondary shrink-0" onClick={addCustomTag}>
-                    Add
-                  </button>
+                  {historyOptions.length === 0 ? (
+                    <p className="text-sm text-ink-muted">No matching history tags.</p>
+                  ) : null}
                 </div>
               </div>
-
-              <div>
-                <label htmlFor="patient-otherHistory" className="label-field">
-                  Other History
-                </label>
-                <textarea
-                  id="patient-otherHistory"
-                  name="otherHistory"
-                  className="input-field"
-                  rows={3}
-                  value={form.otherHistory}
-                  onChange={handleChange}
-                />
-              </div>
-
-              <div>
-                <label htmlFor="patient-occupation" className="label-field">
-                  Occupation
-                </label>
-                <input
-                  id="patient-occupation"
-                  name="occupation"
-                  className="input-field"
-                  value={form.occupation}
-                  onChange={handleChange}
-                />
-              </div>
-            </div>
+            </aside>
           </div>
 
           <div className="pt-2 border-t border-line flex flex-wrap gap-2">

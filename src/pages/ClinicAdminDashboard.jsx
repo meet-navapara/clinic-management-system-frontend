@@ -10,13 +10,24 @@ import EmptyState from '../components/ui/EmptyState';
 import { SkeletonRows } from '../components/ui/Skeleton';
 import { ApprovalBadge } from '../components/ui/StatusBadge';
 
-const FILTERS = ['pending', 'approved', 'rejected', 'suspended', 'all'];
+const FILTERS = [
+  { id: 'pending', label: 'pending' },
+  { id: 'approved', label: 'approved' },
+  { id: 'rejected', label: 'rejected' },
+  { id: 'suspended', label: 'suspended' },
+  { id: 'staff', label: 'disabled staff' },
+  { id: 'all', label: 'all doctors' },
+];
 
 export default function ClinicAdminDashboard() {
   const [searchParams, setSearchParams] = useSearchParams();
   const [stats, setStats] = useState(null);
   const [doctors, setDoctors] = useState([]);
-  const filter = FILTERS.includes(searchParams.get('status')) ? searchParams.get('status') : 'pending';
+  const [staff, setStaff] = useState([]);
+  const filter = FILTERS.some((item) => item.id === searchParams.get('status'))
+    ? searchParams.get('status')
+    : 'pending';
+  const isStaffFilter = filter === 'staff';
   const [search, setSearch] = useState('');
   const [loading, setLoading] = useState(true);
   const [updatingId, setUpdatingId] = useState(null);
@@ -44,13 +55,31 @@ export default function ClinicAdminDashboard() {
     }
   };
 
+  const loadStaff = async (q = search) => {
+    try {
+      const params = {};
+      if (q.trim()) params.search = q.trim();
+      const res = await api.get('/admin/staff', { params });
+      setStaff(res.data.staff || []);
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Could not load disabled staff.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const loadList = (status = filter, q = search) => {
+    if (status === 'staff') return loadStaff(q);
+    return loadDoctors(status, q);
+  };
+
   useEffect(() => {
     loadStats();
   }, []);
 
   useEffect(() => {
     setLoading(true);
-    loadDoctors(filter, search);
+    loadList(filter, search);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [filter]);
 
@@ -59,16 +88,20 @@ export default function ClinicAdminDashboard() {
     try {
       const res = await api.patch(`/admin/doctors/${id}/approval`, { status });
       toast.success(`Doctor ${status}.`);
-      const updated = res.data.doctor;
-      setDoctors((prev) => {
-        if (filter !== 'all' && filter !== status) {
-          return prev.filter((d) => String(d._id || d.id) !== String(id));
-        }
-        return prev.map((d) =>
-          String(d._id || d.id) === String(id) ? { ...d, ...updated } : d
-        );
-      });
-      await Promise.all([loadDoctors(filter, search), loadStats()]);
+      await Promise.all([loadList(filter, search), loadStats()]);
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Update failed.');
+    } finally {
+      setUpdatingId(null);
+    }
+  };
+
+  const setStaffApproval = async (id, status) => {
+    setUpdatingId(id);
+    try {
+      await api.patch(`/admin/staff/${id}/approval`, { status });
+      toast.success(status === 'approved' ? 'Staff approved.' : 'Staff kept disabled.');
+      await Promise.all([loadList(filter, search), loadStats()]);
     } catch (err) {
       toast.error(err.response?.data?.message || 'Update failed.');
     } finally {
@@ -77,33 +110,37 @@ export default function ClinicAdminDashboard() {
   };
 
   const d = stats?.doctors || {};
+  const disabledStaffCount = stats?.staff?.disabled ?? '—';
 
   return (
     <div className="page-container">
       <div className="mb-6">
         <p className="section-label mb-1">Platform</p>
         <h2 className="page-title">Super Admin</h2>
-        <p className="text-sm text-ink-muted mt-1">Doctor registration requests and account status.</p>
+        <p className="text-sm text-ink-muted mt-1">
+          Doctor registrations, and clinic staff who were disabled and need approval to work again.
+        </p>
       </div>
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
+      <div className="grid grid-cols-2 lg:grid-cols-5 gap-3 mb-6">
         <StatCard label="Pending approvals" value={d.pending ?? '—'} />
         <StatCard label="Approved doctors" value={d.approved ?? '—'} />
         <StatCard label="Rejected" value={d.rejected ?? '—'} />
+        <StatCard label="Disabled staff" value={disabledStaffCount} />
         <StatCard label="All doctors" value={d.total ?? '—'} />
       </div>
 
       <div className="flex flex-col sm:flex-row gap-3 mb-4">
         <div className="flex flex-wrap gap-2 flex-1">
-          {FILTERS.map((key) => (
+          {FILTERS.map((item) => (
             <button
-              key={key}
+              key={item.id}
               type="button"
-              onClick={() => setSearchParams(key === 'pending' ? {} : { status: key })}
+              onClick={() => setSearchParams(item.id === 'pending' ? {} : { status: item.id })}
               className={`tab-chip ${
-                filter === key ? 'bg-ink text-white' : 'bg-white text-ink-muted ring-1 ring-line'
+                filter === item.id ? 'bg-ink text-white' : 'bg-white text-ink-muted ring-1 ring-line'
               }`}
             >
-              {key}
+              {item.label}
             </button>
           ))}
         </div>
@@ -112,13 +149,13 @@ export default function ClinicAdminDashboard() {
           onSubmit={(e) => {
             e.preventDefault();
             setLoading(true);
-            loadDoctors(filter, search);
+            loadList(filter, search);
           }}
         >
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-ink-faint" />
           <input
             className="input-field !pl-9"
-            placeholder="Search doctors"
+            placeholder={isStaffFilter ? 'Search staff' : 'Search doctors'}
             value={search}
             onChange={(e) => setSearch(e.target.value)}
           />
@@ -127,6 +164,87 @@ export default function ClinicAdminDashboard() {
 
       {loading ? (
         <SkeletonRows />
+      ) : isStaffFilter ? (
+        staff.length === 0 ? (
+          <EmptyState title="No disabled staff" description="Staff disabled in a clinic will appear here for approval." />
+        ) : (
+          <>
+            <div className="hidden md:block card !p-0 overflow-hidden">
+              <div className="data-table-wrap">
+                <table className="data-table">
+                  <thead>
+                    <tr>
+                      <th>Staff</th>
+                      <th>Clinic</th>
+                      <th>Email</th>
+                      <th>Status</th>
+                      <th />
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {staff.map((row) => {
+                      const id = row._id || row.id;
+                      return (
+                        <tr key={id}>
+                          <td>
+                            <p className="font-medium text-ink">{row.name}</p>
+                            <p className="text-xs text-ink-muted mt-0.5 capitalize">
+                              {row.staffTypeLabel || row.staffType || row.role}
+                            </p>
+                          </td>
+                          <td className="text-ink-muted">{row.clinicName || '—'}</td>
+                          <td className="text-ink-muted">{row.email}</td>
+                          <td>
+                            <ApprovalBadge status={row.staffStatus === 'active' ? 'approved' : 'suspended'} />
+                          </td>
+                          <td>
+                            <div className="flex flex-wrap justify-end gap-2">
+                              <button
+                                type="button"
+                                disabled={updatingId === id}
+                                className="btn-primary !min-h-8 !py-1 !px-2.5 text-xs"
+                                onClick={() => setStaffApproval(id, 'approved')}
+                              >
+                                Approve
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+            <div className="md:hidden space-y-2">
+              {staff.map((row) => {
+                const id = row._id || row.id;
+                return (
+                  <article key={id} className="card !p-4">
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="min-w-0">
+                        <p className="font-semibold text-ink">{row.name}</p>
+                        <p className="text-sm text-ink-muted mt-0.5 truncate">{row.email}</p>
+                        <p className="text-xs text-ink-faint mt-1 capitalize">
+                          {row.staffTypeLabel || row.staffType} · {row.clinicName || '—'}
+                        </p>
+                      </div>
+                      <ApprovalBadge status={row.staffStatus === 'active' ? 'approved' : 'suspended'} />
+                    </div>
+                    <button
+                      type="button"
+                      disabled={updatingId === id}
+                      className="btn-primary mt-3 w-full"
+                      onClick={() => setStaffApproval(id, 'approved')}
+                    >
+                      Approve
+                    </button>
+                  </article>
+                );
+              })}
+            </div>
+          </>
+        )
       ) : doctors.length === 0 ? (
         <EmptyState title="No doctors in this filter." />
       ) : (

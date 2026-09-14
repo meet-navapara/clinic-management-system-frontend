@@ -115,7 +115,12 @@ export default function BillingList() {
                       <td>{inv.patientId?.name || '—'}</td>
                       <td>{inv.invoiceDate && isValid(new Date(inv.invoiceDate)) ? format(new Date(inv.invoiceDate), 'dd MMM yyyy') : '—'}</td>
                       <td><Money value={inv.total} /></td>
-                      <td><Money value={inv.paidAmount} /></td>
+                      <td>
+                        <Money value={inv.paidAmount} />
+                        {Number(inv.refundedAmount) > 0 ? (
+                          <p className="text-xs text-ink-muted">Refunded <Money value={inv.refundedAmount} /></p>
+                        ) : null}
+                      </td>
                       <td><Money value={inv.dueAmount} /></td>
                       <td><Badge value={inv.paymentStatus} /></td>
                     </tr>

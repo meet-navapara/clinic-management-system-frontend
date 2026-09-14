@@ -16,10 +16,15 @@ export function ApprovalBadge({ status }) {
     approved: 'bg-[#eef6f1] text-[#2d5a40] ring-[#c5ddd0]/80',
     rejected: 'bg-[#f8eeee] text-[#8a3a32] ring-[#e4c9c6]/80',
     suspended: 'bg-[#f3f3f4] text-[#52525b] ring-[#d4d4d8]/80',
+    inactive: 'bg-[#f3f3f4] text-[#52525b] ring-[#d4d4d8]/80',
+  };
+  const labels = {
+    inactive: 'Disabled',
+    suspended: 'Disabled',
   };
   return (
     <span className={`status-badge capitalize ${map[status] || map.pending}`}>
-      {status || 'pending'}
+      {labels[status] || status || 'pending'}
     </span>
   );
 }

@@ -4,6 +4,8 @@ import api from '../utils/api';
 import toast from 'react-hot-toast';
 import { User, Mail, Phone, Save, Camera } from 'lucide-react';
 import UserAvatar from '../components/UserAvatar';
+import Checkbox from '../components/ui/Checkbox';
+import RequiredMark from '../components/ui/RequiredMark';
 
 const DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
 const SLOTS = ['09:00', '10:00', '11:00', '12:00', '14:00', '15:00', '16:00', '17:00', '18:00', '19:00', '20:00', '21:00'];
@@ -164,7 +166,7 @@ export default function Profile() {
         </div>
       )}
 
-      <form onSubmit={handleSubmit} className="card max-w-3xl">
+      <form onSubmit={handleSubmit} className="card">
         <fieldset disabled={loading} className="space-y-4 border-0 p-0 m-0">
           {(section === 'personal' || !isDoctor) && (
             <>
@@ -196,29 +198,32 @@ export default function Profile() {
             </div>
           </div>
 
+          <div className="grid sm:grid-cols-2 gap-4">
           <div>
             <label className="label-field">
-              <User className="w-4 h-4 inline mr-1" /> Name
+              <User className="w-4 h-4 inline mr-1" /> Name <RequiredMark />
             </label>
             <input name="name" className="input-field" value={form.name} onChange={handleChange} required />
           </div>
           <div>
             <label className="label-field">
-              <Phone className="w-4 h-4 inline mr-1" /> Phone
+              <Phone className="w-4 h-4 inline mr-1" /> Phone <RequiredMark />
             </label>
             <input name="phone" className="input-field" value={form.phone} onChange={handleChange} required />
           </div>
-          <div>
+          <div className="sm:col-span-2">
             <label className="label-field">
               <Mail className="w-4 h-4 inline mr-1" /> Email
             </label>
             <input className="input-field" value={user?.email || ''} disabled />
+          </div>
           </div>
             </>
           )}
 
           {isDoctor && section === 'practice' && (
             <>
+              <div className="grid sm:grid-cols-2 gap-4">
               <div>
                 <label className="label-field">Specialization</label>
                 <input name="specialization" className="input-field" value={form.specialization} onChange={handleChange} />
@@ -235,7 +240,7 @@ export default function Profile() {
                 <label className="label-field">Clinic / practice name</label>
                 <input name="clinicName" className="input-field" value={form.clinicName} onChange={handleChange} />
               </div>
-              <div>
+              <div className="sm:col-span-2">
                 <label className="label-field">Clinic address</label>
                 <input name="clinicAddress" className="input-field" value={form.clinicAddress} onChange={handleChange} />
               </div>
@@ -243,9 +248,10 @@ export default function Profile() {
                 <label className="label-field">City</label>
                 <input name="city" className="input-field" value={form.city} onChange={handleChange} />
               </div>
-              <div>
+              <div className="sm:col-span-2">
                 <label className="label-field">Bio</label>
                 <textarea name="bio" className="input-field" rows={3} value={form.bio} onChange={handleChange} />
+              </div>
               </div>
             </>
           )}
@@ -313,16 +319,14 @@ export default function Profile() {
                   onChange={handleChange}
                 />
               </div>
-              <label className="flex items-center gap-2 text-sm text-ink">
-                <input
-                  type="checkbox"
-                  checked={form.sendConfirmationReminder}
-                  onChange={(e) =>
-                    setForm({ ...form, sendConfirmationReminder: e.target.checked })
-                  }
-                />
+              <Checkbox
+                checked={form.sendConfirmationReminder}
+                onChange={(e) =>
+                  setForm({ ...form, sendConfirmationReminder: e.target.checked })
+                }
+              >
                 Send confirmation when appointment is booked
-              </label>
+              </Checkbox>
             </>
           )}
 

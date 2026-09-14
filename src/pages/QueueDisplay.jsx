@@ -2,6 +2,8 @@ import { useEffect, useState } from 'react';
 import api from '../utils/api';
 import { useBranch } from '../context/BranchContext';
 import { useAuth } from '../context/AuthContext';
+import BackButton from '../components/ui/BackButton';
+import { ROUTES } from '../constants/routes';
 
 export default function QueueDisplay() {
   const { user } = useAuth();
@@ -24,7 +26,10 @@ export default function QueueDisplay() {
 
   if (needsBranch) {
     return (
-      <div className="min-h-dvh bg-ink text-white flex flex-col items-center justify-center px-6 text-center">
+      <div className="min-h-dvh bg-ink text-white flex flex-col items-center justify-center px-6 text-center relative">
+        <div className="absolute top-3 left-3 sm:top-4 sm:left-4">
+          <BackButton to={ROUTES.queue} variant="onDark" />
+        </div>
         <p className="uppercase tracking-[0.3em] text-accent-400 text-sm mb-4">Queue display</p>
         <p className="text-2xl sm:text-3xl font-semibold max-w-md">Select a branch in the app header first</p>
         <p className="mt-4 text-white/60 max-w-sm">TV display shows one branch queue at a time.</p>
@@ -35,7 +40,10 @@ export default function QueueDisplay() {
   const now = display?.nowServing;
 
   return (
-    <div className="min-h-dvh bg-ink text-white flex flex-col items-center justify-center px-6 text-center">
+    <div className="min-h-dvh bg-ink text-white flex flex-col items-center justify-center px-6 text-center relative">
+      <div className="absolute top-3 left-3 sm:top-4 sm:left-4">
+        <BackButton to={ROUTES.queue} variant="onDark" />
+      </div>
       <p className="uppercase tracking-[0.3em] text-accent-400 text-sm mb-4">
         {display?.title || current?.displayTitle || current?.name || 'Now serving'}
       </p>

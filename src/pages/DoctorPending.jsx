@@ -116,7 +116,7 @@ export default function DoctorPending() {
   const Icon = view.icon;
 
   return (
-    <AuthPageLayout>
+    <AuthPageLayout backTo={ROUTES.login}>
       <div className="text-center mb-3 sm:mb-5">
         <AuthPageLogo className="mb-3 sm:mb-4" />
         <h1 className="text-lg sm:text-2xl font-bold text-gray-900">{view.title}</h1>

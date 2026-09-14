@@ -17,10 +17,10 @@ import {
   GitBranch,
   IdCard,
   ListOrdered,
+  UserX,
   Megaphone,
   FileText,
   Printer,
-  Search,
   IndianRupee,
   ClipboardList,
 } from 'lucide-react';
@@ -46,6 +46,7 @@ function getNavLinks(user) {
     return [
       { to: ROUTES.clinicAdminDashboard, label: 'Dashboard', icon: LayoutDashboard, end: true },
       { to: `${ROUTES.clinicAdminDashboard}?status=pending`, label: 'Doctor Approvals', icon: Users, end: false },
+      { to: `${ROUTES.clinicAdminDashboard}?status=staff`, label: 'Disabled staff', icon: UserX, end: false },
       { to: `${ROUTES.clinicAdminDashboard}?status=all`, label: 'Doctors', icon: IdCard, end: false },
       { to: ROUTES.profile, label: 'Profile', icon: User, end: true },
     ];
@@ -68,7 +69,6 @@ function getNavLinks(user) {
       { to: ROUTES.consent, label: 'Consent Forms', icon: FileText, end: true },
       { to: ROUTES.campaigns, label: 'Campaigns', icon: Megaphone, end: true },
       { to: ROUTES.printSettings, label: 'Print Settings', icon: Printer, end: true },
-      { to: ROUTES.search, label: 'Search', icon: Search, end: true },
       { to: ROUTES.doctorInbox, label: 'Inbox', icon: Inbox, end: true, badge: 'inbox' },
       { to: ROUTES.profile, label: 'Profile', icon: User, end: true },
     ];
@@ -89,7 +89,6 @@ function getNavLinks(user) {
     if (can(user, P.CONSENT_CAPTURE) || can(user, P.CONSENT_TEMPLATES)) links.push({ to: ROUTES.consent, label: 'Consent Forms', icon: FileText, end: true });
     if (can(user, P.CAMPAIGNS_MANAGE)) links.push({ to: ROUTES.campaigns, label: 'Campaigns', icon: Megaphone, end: true });
     if (can(user, P.PRINT_SETTINGS)) links.push({ to: ROUTES.printSettings, label: 'Print Settings', icon: Printer, end: true });
-    if (can(user, P.SEARCH)) links.push({ to: ROUTES.search, label: 'Search', icon: Search, end: true });
     links.push({ to: ROUTES.profile, label: 'Profile', icon: User, end: true });
     return links;
   }

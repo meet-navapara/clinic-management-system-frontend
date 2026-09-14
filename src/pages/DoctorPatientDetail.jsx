@@ -13,9 +13,12 @@ import toast from 'react-hot-toast';
 import PageLoader from '../components/PageLoader';
 import { patientDisplayName, formatPatientCode } from '../utils/display';
 import { ROUTES } from '../constants/routes';
+import Dropdown from '../components/ui/Dropdown';
+import DobDatepicker from '../components/DobDatepicker';
 import UserAvatar from '../components/UserAvatar';
 import StatusBadge from '../components/ui/StatusBadge';
 import EmptyState from '../components/ui/EmptyState';
+import RequiredMark from '../components/ui/RequiredMark';
 import { normalizeIndianMobile, isValidEmail } from '../utils/validation';
 
 const TABS = [
@@ -241,13 +244,13 @@ export default function DoctorPatientDetail() {
         <form onSubmit={saveProfile} className="card space-y-4">
           <div className="grid sm:grid-cols-2 gap-3">
             {[
-              ['firstName', 'First name'],
-              ['lastName', 'Last name'],
+              ['firstName', 'First name', 'text', true],
+              ['lastName', 'Last name', 'text', true],
               ['preferredName', 'Preferred name'],
-              ['phone', 'Phone', 'tel'],
+              ['phone', 'Phone', 'tel', true],
               ['email', 'Email', 'email'],
-              ['dateOfBirth', 'Date of birth', 'date'],
-              ['gender', 'Gender', 'select'],
+              ['dateOfBirth', 'Date of birth', 'dob'],
+              ['gender', 'Gender', 'select', true],
               ['address', 'Address'],
               ['city', 'City'],
               ['state', 'State'],
@@ -255,22 +258,34 @@ export default function DoctorPatientDetail() {
               ['emergencyContactName', 'Emergency contact'],
               ['emergencyContactRelationship', 'Relationship'],
               ['emergencyContactPhone', 'Emergency phone', 'tel'],
-            ].map(([key, label, type]) => (
+            ].map(([key, label, type, required]) => (
               <label key={key} htmlFor={`edit-${key}`} className="block text-sm">
-                <span className="text-gray-600 font-medium">{label}</span>
+                <span className="text-gray-600 font-medium">
+                  {label} {required ? <RequiredMark /> : null}
+                </span>
                 {type === 'select' ? (
-                  <select
+                  <Dropdown
                     id={`edit-${key}`}
-                    className="input-field mt-1"
+                    className="mt-1"
+                    required={required}
                     value={form[key]}
-                    onChange={(e) => setForm({ ...form, [key]: e.target.value })}
-                  >
-                    <option value="">—</option>
-                    <option value="female">Female</option>
-                    <option value="male">Male</option>
-                    <option value="other">Other</option>
-                    <option value="prefer_not_to_say">Prefer not to say</option>
-                  </select>
+                    onChange={(next) => setForm({ ...form, [key]: next })}
+                    placeholder="—"
+                    ariaLabel={label}
+                    options={[
+                      { value: 'female', label: 'Female' },
+                      { value: 'male', label: 'Male' },
+                      { value: 'other', label: 'Other' },
+                      { value: 'prefer_not_to_say', label: 'Prefer not to say' },
+                    ]}
+                  />
+                ) : type === 'dob' ? (
+                  <DobDatepicker
+                    id={`edit-${key}`}
+                    className="mt-1 w-full"
+                    value={form[key]}
+                    onChange={(next) => setForm({ ...form, [key]: next })}
+                  />
                 ) : (
                   <input
                     id={`edit-${key}`}
@@ -278,6 +293,7 @@ export default function DoctorPatientDetail() {
                     inputMode={type === 'tel' ? 'numeric' : undefined}
                     className="input-field mt-1"
                     value={form[key]}
+                    required={required}
                     onChange={(e) => setForm({ ...form, [key]: e.target.value })}
                   />
                 )}
@@ -433,7 +449,7 @@ export default function DoctorPatientDetail() {
         <div className="space-y-4">
           <form onSubmit={addNote} className="card space-y-3">
             <label className="block text-sm">
-              <span className="font-medium text-ink">Add note</span>
+              <span className="font-medium text-ink">Add note <RequiredMark /></span>
               <textarea
                 className="input-field mt-1 min-h-[90px]"
                 value={noteBody}
@@ -482,6 +498,9 @@ export default function DoctorPatientDetail() {
                 </div>
                 <div className="text-right text-sm">
                   <p>₹{inv.total} · paid ₹{inv.paidAmount}</p>
+                  {Number(inv.refundedAmount) > 0 ? (
+                    <p className="text-ink-muted">refunded ₹{inv.refundedAmount}</p>
+                  ) : null}
                   <p className="text-ink-muted capitalize">{inv.paymentStatus?.replace('_', ' ')}</p>
                 </div>
               </Link>

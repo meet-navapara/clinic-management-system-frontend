@@ -20,3 +20,20 @@ export function isValidEmail(input) {
   if (!input) return true;
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(input).trim());
 }
+
+export function validateLoginFields({ email, password }) {
+  const errors = {};
+  const trimmedEmail = String(email || '').trim();
+  if (!trimmedEmail) errors.email = 'Email is required.';
+  else if (!isValidEmail(trimmedEmail)) errors.email = 'Valid email is required.';
+  if (!password) errors.password = 'Password is required.';
+  return errors;
+}
+
+export const STRONG_PASSWORD_MESSAGE =
+  'Password must contain at least one uppercase letter, one lowercase letter, one digit, and one special character.';
+
+export function meetsPasswordComplexity(password) {
+  const value = String(password || '');
+  return /[A-Z]/.test(value) && /[a-z]/.test(value) && /\d/.test(value) && /[^A-Za-z0-9]/.test(value);
+}

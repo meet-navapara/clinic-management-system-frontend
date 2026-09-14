@@ -153,7 +153,7 @@ export default function DoctorCalendar() {
       : `${format(range.from, 'MMM d')} – ${format(range.to, 'MMM d, yyyy')}`;
 
   return (
-    <div className="flex flex-1 flex-col min-h-[calc(100dvh-3.5rem)] w-full max-w-app mx-auto px-4 sm:px-6 lg:px-8 pt-3 pb-5">
+    <div className="page-container !py-3 min-h-[calc(100dvh-3.5rem)]">
       <div className="mb-3 shrink-0">
         <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[#8a929c] leading-none">Practice</p>
         <h1 className="mt-0.5 text-[28px] sm:text-[30px] font-semibold tracking-tight text-[#1c2430] leading-none">

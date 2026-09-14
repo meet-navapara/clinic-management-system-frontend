@@ -2,7 +2,6 @@ import { useState, useEffect, useCallback } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { format, isValid } from 'date-fns';
 import {
-  ArrowLeft,
   CheckCircle,
   Phone,
   Mail,
@@ -14,6 +13,7 @@ import {
 import api from '../utils/api';
 import toast from 'react-hot-toast';
 import Datepicker from '../components/Datepicker';
+import RequiredMark from '../components/ui/RequiredMark';
 import { useAuth } from '../context/AuthContext';
 import { ACTIVE_APPOINTMENT_STATUSES } from '../constants/appointmentStatus';
 import { ROUTES } from '../constants/routes';
@@ -178,14 +178,6 @@ export default function DoctorAppointmentDetail() {
 
   return (
     <div className="page-container">
-      <button
-        type="button"
-        onClick={() => navigate(-1)}
-        className="btn-ghost !min-h-9 !px-0 mb-3 text-ink-muted"
-      >
-        <ArrowLeft className="w-4 h-4" /> Back
-      </button>
-
       <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 mb-5">
         <div>
           <div className="flex flex-wrap items-center gap-2 mb-1">
@@ -318,9 +310,10 @@ export default function DoctorAppointmentDetail() {
               type="button"
               className="btn-secondary"
               disabled={busy}
+              title="Patient was expected but did not come. This visit is closed."
               onClick={() => updateStatus('no_show', true)}
             >
-              <UserX className="w-4 h-4" /> No-show
+              <UserX className="w-4 h-4" /> Didn't arrive
             </button>
             <button
               type="button"
@@ -334,7 +327,10 @@ export default function DoctorAppointmentDetail() {
 
           {rescheduleOpen && (
             <form onSubmit={handleReschedule} className="mt-4 pt-4 border-t border-line space-y-3">
-              <Datepicker value={rescheduleDate} onChange={setRescheduleDate} required />
+              <div>
+                <label className="label-field">New date <RequiredMark /></label>
+                <Datepicker value={rescheduleDate} onChange={setRescheduleDate} required />
+              </div>
               {rescheduleDate && (
                 <div className="flex flex-wrap gap-2">
                   {slots.length === 0 ? (

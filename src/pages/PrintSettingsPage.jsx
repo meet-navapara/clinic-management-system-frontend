@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import api from '../utils/api';
 import toast from 'react-hot-toast';
 import PageHeader from '../components/ui/PageHeader';
+import Dropdown from '../components/ui/Dropdown';
 
 export default function PrintSettingsPage() {
   const [form, setForm] = useState(null);
@@ -20,8 +21,8 @@ export default function PrintSettingsPage() {
   };
 
   if (!form) return <div className="page-container">Loading…</div>;
-  const field = (k, label, ta) => (
-    <div key={k}>
+  const field = (k, label, { ta = false, span = '' } = {}) => (
+    <div key={k} className={span}>
       <label className="label-field">{label}</label>
       {ta ? (
         <textarea className="input-field" rows={3} value={form[k] || ''} onChange={(e) => setForm({ ...form, [k]: e.target.value })} />
@@ -32,28 +33,38 @@ export default function PrintSettingsPage() {
   );
 
   return (
-    <div className="page-container max-w-2xl">
+    <div className="page-container">
       <PageHeader title="Print settings" description="Used on invoices, receipts, prescriptions and consent forms." />
-      <form onSubmit={save} className="card space-y-3">
+      <form onSubmit={save} className="card grid sm:grid-cols-2 gap-3">
         {field('clinicName', 'Clinic name')}
-        {field('address', 'Address', true)}
         {field('phone', 'Phone')}
         {field('email', 'Email')}
         {field('website', 'Website')}
+        {field('address', 'Address', { ta: true, span: 'sm:col-span-2' })}
         {field('registrationNumber', 'Registration number')}
         {field('gstNumber', 'GST / tax number')}
         {field('taxLabel', 'Tax label')}
-        {field('headerText', 'Header text')}
-        {field('footerText', 'Footer text')}
-        {field('terms', 'Terms', true)}
-        {field('logo', 'Logo URL or data URI', true)}
-        <label className="label-field">Paper</label>
-        <select className="input-field" value={form.paperSize || 'A4'} onChange={(e) => setForm({ ...form, paperSize: e.target.value })}>
-          <option>A4</option>
-          <option>A5</option>
-          <option value="receipt">Receipt</option>
-        </select>
-        <button type="submit" className="btn-primary">Save</button>
+        {field('headerText', 'Header text', { span: 'sm:col-span-2' })}
+        {field('footerText', 'Footer text', { span: 'sm:col-span-2' })}
+        {field('terms', 'Terms', { ta: true, span: 'sm:col-span-2' })}
+        {field('logo', 'Logo URL or data URI', { ta: true, span: 'sm:col-span-2' })}
+        <div className="sm:col-span-2">
+          <label className="label-field">Paper</label>
+          <Dropdown
+            className="max-w-xs"
+            value={form.paperSize || 'A4'}
+            onChange={(paperSize) => setForm({ ...form, paperSize })}
+            ariaLabel="Paper"
+            options={[
+              { value: 'A4', label: 'A4' },
+              { value: 'A5', label: 'A5' },
+              { value: 'receipt', label: 'Receipt' },
+            ]}
+          />
+        </div>
+        <div className="sm:col-span-2">
+          <button type="submit" className="btn-primary">Save</button>
+        </div>
       </form>
     </div>
   );

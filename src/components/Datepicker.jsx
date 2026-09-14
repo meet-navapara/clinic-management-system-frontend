@@ -1,4 +1,5 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import {
   addMonths,
   eachDayOfInterval,
@@ -14,11 +15,33 @@ import {
   subMonths,
 } from 'date-fns';
 import { Calendar, ChevronLeft, ChevronRight } from 'lucide-react';
+import Dropdown from './ui/Dropdown';
+
+const MONTHS = [
+  'January',
+  'February',
+  'March',
+  'April',
+  'May',
+  'June',
+  'July',
+  'August',
+  'September',
+  'October',
+  'November',
+  'December',
+];
 
 const parseDateValue = (value) => {
   if (!value) return null;
   const parsed = parse(value, 'yyyy-MM-dd', new Date());
   return isValid(parsed) ? parsed : null;
+};
+
+const yearFromBound = (bound, fallback) => {
+  if (!bound) return fallback;
+  const parsed = parseDateValue(bound);
+  return parsed ? parsed.getFullYear() : fallback;
 };
 
 export default function Datepicker({
@@ -30,12 +53,27 @@ export default function Datepicker({
   disabled = false,
   placeholder = 'Select a date',
   className = '',
+  id,
   isDateAllowed,
   onInvalidSelect,
 }) {
   const [open, setOpen] = useState(false);
   const [viewMonth, setViewMonth] = useState(() => parseDateValue(value) || new Date());
+  const [panelPos, setPanelPos] = useState(null);
   const containerRef = useRef(null);
+  const buttonRef = useRef(null);
+  const panelRef = useRef(null);
+
+  const years = useMemo(() => {
+    const now = new Date().getFullYear();
+    const minYear = yearFromBound(min, now - 120);
+    const maxYear = yearFromBound(max, now + 10);
+    const start = Math.min(minYear, maxYear);
+    const end = Math.max(minYear, maxYear);
+    const list = [];
+    for (let year = end; year >= start; year -= 1) list.push(year);
+    return list;
+  }, [min, max]);
 
   useEffect(() => {
     const selected = parseDateValue(value);
@@ -43,17 +81,47 @@ export default function Datepicker({
   }, [value]);
 
   useEffect(() => {
-    const handleClickOutside = (event) => {
-      if (containerRef.current && !containerRef.current.contains(event.target)) {
-        setOpen(false);
-      }
+    if (!open) return undefined;
+
+    const placePanel = () => {
+      const rect = buttonRef.current?.getBoundingClientRect();
+      if (!rect) return;
+      const width = Math.max(rect.width, 280);
+      const left = Math.min(Math.max(8, rect.left), window.innerWidth - width - 8);
+      const estimatedHeight = 320;
+      const openUp = rect.bottom + estimatedHeight > window.innerHeight && rect.top > estimatedHeight;
+      setPanelPos({
+        top: openUp ? undefined : rect.bottom + 6,
+        bottom: openUp ? window.innerHeight - rect.top + 6 : undefined,
+        left,
+        width,
+      });
     };
 
-    if (open) {
-      document.addEventListener('mousedown', handleClickOutside);
-    }
+    placePanel();
 
-    return () => document.removeEventListener('mousedown', handleClickOutside);
+    const handlePointerDown = (event) => {
+      const target = event.target;
+      if (containerRef.current?.contains(target) || panelRef.current?.contains(target)) return;
+      if (target.closest?.('[data-dropdown-panel]')) return;
+      setOpen(false);
+    };
+
+    const handleKey = (event) => {
+      if (event.key === 'Escape') setOpen(false);
+    };
+
+    window.addEventListener('resize', placePanel);
+    window.addEventListener('scroll', placePanel, true);
+    document.addEventListener('mousedown', handlePointerDown);
+    document.addEventListener('keydown', handleKey);
+
+    return () => {
+      window.removeEventListener('resize', placePanel);
+      window.removeEventListener('scroll', placePanel, true);
+      document.removeEventListener('mousedown', handlePointerDown);
+      document.removeEventListener('keydown', handleKey);
+    };
   }, [open]);
 
   const isDateDisabled = (date) => {
@@ -82,48 +150,53 @@ export default function Datepicker({
   const selectedDate = parseDateValue(value);
   const today = new Date();
 
-  return (
-    <div ref={containerRef} className={`relative ${className}`}>
-      <button
-        type="button"
-        disabled={disabled}
-        onClick={() => setOpen((prev) => !prev)}
-        className={`input-field flex items-center justify-between gap-3 text-left bg-white ${
-          disabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer hover:border-[#d4af37]/60'
-        } ${open ? 'ring-2 ring-[#d4af37] border-transparent' : ''}`}
-      >
-        <span className={value ? 'text-gray-900' : 'text-gray-400'}>
-          {selectedDate ? format(selectedDate, 'EEE, d MMM yyyy') : placeholder}
-        </span>
-        <Calendar className="w-4 h-4 text-[#a8841f] shrink-0" />
-      </button>
-
-      {required && (
-        <input
-          tabIndex={-1}
-          className="sr-only"
-          value={value}
-          onChange={() => {}}
-          required
-        />
-      )}
-
-      {open && !disabled && (
-        <div className="absolute z-50 mt-1.5 w-full min-w-[260px] bg-white rounded-lg border border-[#e8e0d4] shadow-xl p-2.5 left-0">
-          <div className="flex items-center justify-between mb-2">
+  const calendar = open && !disabled && panelPos
+    ? createPortal(
+        <div
+          ref={panelRef}
+          className="fixed z-[80] bg-white rounded-lg border border-[#e8e0d4] shadow-xl p-2.5"
+          style={{
+            top: panelPos.top,
+            bottom: panelPos.bottom,
+            left: panelPos.left,
+            width: panelPos.width,
+          }}
+        >
+          <div className="flex items-center gap-1.5 mb-2">
             <button
               type="button"
               onClick={() => setViewMonth((prev) => subMonths(prev, 1))}
-              className="p-1 rounded-md text-gray-500 hover:bg-[#faf7f2] hover:text-[#a8841f] transition-colors"
+              className="p-1 rounded-md text-gray-500 hover:bg-[#faf7f2] hover:text-[#a8841f] transition-colors shrink-0"
               aria-label="Previous month"
             >
               <ChevronLeft className="w-4 h-4" />
             </button>
-            <p className="text-xs font-semibold text-gray-900">{format(viewMonth, 'MMMM yyyy')}</p>
+            <Dropdown
+              size="sm"
+              className="flex-1"
+              ariaLabel="Month"
+              value={String(viewMonth.getMonth())}
+              onChange={(next) => {
+                setViewMonth((prev) => new Date(prev.getFullYear(), Number(next), 1));
+              }}
+              options={MONTHS.map((label, index) => ({ value: String(index), label }))}
+            />
+            <Dropdown
+              size="sm"
+              className="w-[5.75rem] shrink-0"
+              searchable
+              searchPlaceholder="Year"
+              ariaLabel="Year"
+              value={String(viewMonth.getFullYear())}
+              onChange={(next) => {
+                setViewMonth((prev) => new Date(Number(next), prev.getMonth(), 1));
+              }}
+              options={years.map((year) => ({ value: String(year), label: String(year) }))}
+            />
             <button
               type="button"
               onClick={() => setViewMonth((prev) => addMonths(prev, 1))}
-              className="p-1 rounded-md text-gray-500 hover:bg-[#faf7f2] hover:text-[#a8841f] transition-colors"
+              className="p-1 rounded-md text-gray-500 hover:bg-[#faf7f2] hover:text-[#a8841f] transition-colors shrink-0"
               aria-label="Next month"
             >
               <ChevronRight className="w-4 h-4" />
@@ -151,7 +224,7 @@ export default function Datepicker({
                   type="button"
                   disabled={disabledDay}
                   onClick={() => handleSelect(day)}
-                  className={`h-7 w-full rounded-md text-xs font-medium transition-all ${
+                  className={`h-8 w-full rounded-md text-xs font-medium transition-all ${
                     isSelected
                       ? 'text-[#1c1814] shadow-md'
                       : disabledDay
@@ -174,8 +247,42 @@ export default function Datepicker({
               );
             })}
           </div>
-        </div>
+        </div>,
+        document.body
+      )
+    : null;
+
+  return (
+    <div ref={containerRef} className={`relative ${className}`}>
+      <button
+        ref={buttonRef}
+        type="button"
+        id={id}
+        disabled={disabled}
+        aria-haspopup="dialog"
+        aria-expanded={open}
+        onClick={() => setOpen((prev) => !prev)}
+        className={`input-field box-border !h-10 !min-h-10 !py-0 flex items-center justify-between gap-3 text-left bg-white ${
+          disabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer hover:border-[#d4af37]/60'
+        } ${open ? 'ring-2 ring-[#d4af37] border-transparent' : ''}`}
+      >
+        <span className={value ? 'text-gray-900' : 'text-gray-400'}>
+          {selectedDate ? format(selectedDate, 'EEE, d MMM yyyy') : placeholder}
+        </span>
+        <Calendar className="w-4 h-4 text-[#a8841f] shrink-0" />
+      </button>
+
+      {required && (
+        <input
+          tabIndex={-1}
+          className="sr-only"
+          value={value}
+          onChange={() => {}}
+          required
+        />
       )}
+
+      {calendar}
     </div>
   );
 }

@@ -58,18 +58,40 @@ export function getPageMeta(pathname) {
   if (pathname === ROUTES.deskDashboard) return { title: 'Front desk', crumb: 'Clinic', hideTitle: true };
   if (pathname === ROUTES.doctorCalendar) return { title: 'Calendar', crumb: 'Practice', hideTitle: true };
   if (pathname === ROUTES.doctorPatients) return { title: 'Patients', crumb: 'Practice' };
-  if (pathname === ROUTES.doctorPatientNew) return { title: 'Add patient', crumb: 'Patients' };
-  if (pathname.startsWith('/doctor/patients/')) return { title: 'Patient record', crumb: 'Patients' };
-  if (pathname === ROUTES.doctorBook) return { title: 'Schedule visit', crumb: 'Appointments' };
-  if (pathname.startsWith('/doctor/appointments/')) return { title: 'Appointment', crumb: 'Calendar' };
-  if (pathname.startsWith('/consult/')) return { title: 'Consultation', crumb: 'Clinical' };
+  if (pathname === ROUTES.doctorPatientNew) {
+    return { title: 'Add patient', crumb: 'Patients', backTo: ROUTES.doctorPatients };
+  }
+  if (pathname.startsWith('/doctor/patients/')) {
+    return { title: 'Patient record', crumb: 'Patients', backTo: ROUTES.doctorPatients };
+  }
+  if (pathname === ROUTES.doctorBook) {
+    return { title: 'Schedule visit', crumb: 'Appointments', backTo: ROUTES.doctorCalendar };
+  }
+  if (pathname.startsWith('/doctor/appointments/')) {
+    return { title: 'Appointment', crumb: 'Calendar', backTo: ROUTES.doctorCalendar };
+  }
+  if (pathname.startsWith('/consult/')) {
+    const appointmentId = pathname.split('/')[2];
+    return {
+      title: 'Consultation',
+      crumb: 'Clinical',
+      backTo: appointmentId ? ROUTES.doctorAppointmentDetail(appointmentId) : ROUTES.doctorCalendar,
+    };
+  }
   if (pathname === ROUTES.doctorInbox) return { title: 'Inbox', crumb: 'Practice' };
   if (pathname === ROUTES.doctorNotifications) return { title: 'Reminders', crumb: 'Practice' };
   if (pathname === ROUTES.profile) return { title: 'Settings', crumb: 'Account' };
   if (pathname === ROUTES.clinicAdminDashboard) return { title: 'Super Admin', crumb: 'Platform' };
-  if (pathname.startsWith('/admin/doctors/')) return { title: 'Doctor', crumb: 'Admin' };
-  if (pathname === ROUTES.billing || pathname === ROUTES.billingNew) return { title: 'Billing', crumb: 'Finance' };
-  if (pathname.startsWith('/billing/')) return { title: 'Invoice', crumb: 'Billing' };
+  if (pathname.startsWith('/admin/doctors/')) {
+    return { title: 'Doctor', crumb: 'Admin', backTo: ROUTES.clinicAdminDashboard };
+  }
+  if (pathname === ROUTES.billing) return { title: 'Billing', crumb: 'Finance' };
+  if (pathname === ROUTES.billingNew) {
+    return { title: 'New invoice', crumb: 'Billing', backTo: ROUTES.billing };
+  }
+  if (pathname.startsWith('/billing/')) {
+    return { title: 'Invoice', crumb: 'Billing', backTo: ROUTES.billing };
+  }
   if (pathname === ROUTES.revenue) return { title: 'Revenue', crumb: 'Finance' };
   if (pathname === ROUTES.branches) return { title: 'Branches', crumb: 'Clinic' };
   if (pathname === ROUTES.staff) return { title: 'Staff', crumb: 'Clinic' };
@@ -78,10 +100,12 @@ export function getPageMeta(pathname) {
   if (pathname === ROUTES.templates) return { title: 'Clinical templates', crumb: 'Clinical' };
   if (pathname === ROUTES.consent) return { title: 'Consent forms', crumb: 'Clinical' };
   if (pathname === ROUTES.queue) return { title: 'Patient queue', crumb: 'Front desk' };
-  if (pathname === ROUTES.campaigns || pathname === ROUTES.campaignNew) return { title: 'Campaigns', crumb: 'Marketing' };
-  if (pathname.startsWith('/campaigns/')) return { title: 'Campaign', crumb: 'Marketing' };
+  if (pathname === ROUTES.campaigns) return { title: 'Campaigns', crumb: 'Marketing' };
+  if (pathname === ROUTES.campaignNew || pathname.startsWith('/campaigns/')) {
+    return { title: 'Campaign', crumb: 'Marketing', backTo: ROUTES.campaigns };
+  }
   if (pathname === ROUTES.printSettings) return { title: 'Print settings', crumb: 'Clinic' };
-  if (pathname === ROUTES.search) return { title: 'Search', crumb: 'Clinic' };
+  if (pathname === ROUTES.search) return { title: 'Search', crumb: 'Clinic', backTo: -1 };
   return { title: 'Clinic', crumb: '' };
 }
 

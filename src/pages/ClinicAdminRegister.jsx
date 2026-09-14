@@ -10,6 +10,7 @@ import AuthPageLayout from '../components/AuthPageLayout';
 import PasswordInput from '../components/PasswordInput';
 import PageLoader from '../components/PageLoader';
 import { ROUTES } from '../constants/routes';
+import RequiredMark from '../components/ui/RequiredMark';
 
 export default function ClinicAdminRegister() {
   const [form, setForm] = useState({
@@ -55,7 +56,7 @@ export default function ClinicAdminRegister() {
 
   if (checking) {
     return (
-      <AuthPageLayout>
+      <AuthPageLayout backTo={ROUTES.home}>
         <PageLoader message="Checking setup status..." compact />
       </AuthPageLayout>
     );
@@ -63,7 +64,7 @@ export default function ClinicAdminRegister() {
 
   if (clinicAdminExists) {
     return (
-      <AuthPageLayout>
+      <AuthPageLayout backTo={ROUTES.home}>
         <AuthPageLogo className="mb-3 sm:mb-4 mx-auto flex" />
         <div className="card text-center !p-3.5 sm:!p-6">
           <Building2 className="w-12 h-12 text-[#a8841f] mx-auto mb-4" />
@@ -80,7 +81,7 @@ export default function ClinicAdminRegister() {
   }
 
   return (
-    <AuthPageLayout maxWidth="max-w-lg">
+    <AuthPageLayout maxWidth="max-w-lg" backTo={ROUTES.home}>
       <div className="text-center mb-3 sm:mb-5">
         <AuthPageLogo className="mb-3 sm:mb-4" />
         <h1 className="text-lg sm:text-2xl font-bold text-gray-900">Super Admin Setup</h1>
@@ -93,7 +94,7 @@ export default function ClinicAdminRegister() {
         <form onSubmit={handleSubmit} className="space-y-4">
           <fieldset disabled={loading} className="space-y-4 border-0 p-0 m-0 min-w-0">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Admin Setup Key</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Admin Setup Key <RequiredMark /></label>
               <PasswordInput
                 name="setupKey"
                 icon={KeyRound}
@@ -107,7 +108,7 @@ export default function ClinicAdminRegister() {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Full Name</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Full Name <RequiredMark /></label>
               <div className="relative">
                 <User className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
                 <input
@@ -123,7 +124,7 @@ export default function ClinicAdminRegister() {
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Email <RequiredMark /></label>
                 <div className="relative">
                   <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
                   <input
@@ -138,7 +139,7 @@ export default function ClinicAdminRegister() {
                 </div>
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Phone</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Phone <RequiredMark /></label>
                 <div className="relative">
                   <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
                   <input
@@ -154,7 +155,7 @@ export default function ClinicAdminRegister() {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Password</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Password <RequiredMark /></label>
               <PasswordInput
                 name="password"
                 iconClassName="w-5 h-5"

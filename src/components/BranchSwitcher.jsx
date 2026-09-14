@@ -1,6 +1,8 @@
+import { GitBranch } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useBranch } from '../context/BranchContext';
 import { isStaffUser } from '../constants/permissions';
+import Dropdown from './ui/Dropdown';
 
 export default function BranchSwitcher({ compact }) {
   const { user } = useAuth();
@@ -21,22 +23,23 @@ export default function BranchSwitcher({ compact }) {
   }
 
   if (!branches.length) return null;
+
+  const options = [
+    { value: '', label: 'All branches' },
+    ...branches.map((b) => ({ value: String(b._id), label: b.name })),
+  ];
+
   return (
-    <label className={`min-w-0 ${compact ? '' : 'block'}`}>
-      {!compact && <span className="sr-only">Branch</span>}
-      <select
-        className="input-field !min-h-9 !py-1 !text-xs sm:!text-sm max-w-[11rem] sm:max-w-[14rem]"
-        value={branchId}
-        onChange={(e) => setBranchId(e.target.value)}
-        aria-label="Select branch"
-      >
-        <option value="">All branches</option>
-        {branches.map((b) => (
-          <option key={b._id} value={b._id}>
-            {b.name}
-          </option>
-        ))}
-      </select>
-    </label>
+    <Dropdown
+      value={branchId}
+      onChange={setBranchId}
+      options={options}
+      placeholder="Select branch"
+      ariaLabel="Select branch"
+      size={compact ? 'sm' : 'md'}
+      align="right"
+      icon={GitBranch}
+      className={compact ? '!w-[11rem] sm:!w-[14rem] shrink-0' : 'w-full'}
+    />
   );
 }

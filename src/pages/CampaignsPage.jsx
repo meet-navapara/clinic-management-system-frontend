@@ -3,10 +3,12 @@ import { Link, useNavigate, useParams } from 'react-router-dom';
 import api from '../utils/api';
 import toast from 'react-hot-toast';
 import PageHeader from '../components/ui/PageHeader';
+import Dropdown from '../components/ui/Dropdown';
 import EmptyState from '../components/ui/EmptyState';
 import Badge from '../components/ui/Badge';
 import { ROUTES } from '../constants/routes';
 import { useBranch } from '../context/BranchContext';
+import RequiredMark from '../components/ui/RequiredMark';
 
 export function CampaignsPage() {
   const { branchId } = useBranch();
@@ -93,19 +95,39 @@ export function CampaignEditor() {
   }, [id]);
 
   return (
-    <div className="page-container max-w-2xl">
+    <div className="page-container">
       <PageHeader title={isNew ? 'New campaign' : 'Campaign'} />
       <form onSubmit={save} className="card space-y-3">
-        <input className="input-field" required placeholder="Campaign name" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
-        <select className="input-field" value={form.channel} onChange={(e) => setForm({ ...form, channel: e.target.value })}>
-          <option value="whatsapp">WhatsApp</option>
-          <option value="sms">SMS (log only unless a provider is configured)</option>
-          <option value="email">Email (log only unless a provider is configured)</option>
-        </select>
-        <select className="input-field" value={form.audienceType} onChange={(e) => setForm({ ...form, audienceType: e.target.value })}>
-          {['all', 'new', 'inactive', 'followup', 'doctor', 'branch', 'selected'].map((a) => <option key={a} value={a}>{a}</option>)}
-        </select>
-        <textarea className="input-field" rows={5} required placeholder="Message" value={form.message} onChange={(e) => setForm({ ...form, message: e.target.value })} />
+        <div>
+          <label className="label-field">Campaign name <RequiredMark /></label>
+          <input className="input-field" required placeholder="Campaign name" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
+        </div>
+        <div>
+          <label className="label-field">Channel <RequiredMark /></label>
+          <Dropdown
+          value={form.channel}
+          onChange={(channel) => setForm({ ...form, channel })}
+          ariaLabel="Channel"
+          options={[
+            { value: 'whatsapp', label: 'WhatsApp' },
+            { value: 'sms', label: 'SMS (log only unless a provider is configured)' },
+            { value: 'email', label: 'Email (log only unless a provider is configured)' },
+          ]}
+          />
+        </div>
+        <div>
+          <label className="label-field">Audience <RequiredMark /></label>
+          <Dropdown
+          value={form.audienceType}
+          onChange={(audienceType) => setForm({ ...form, audienceType })}
+          ariaLabel="Audience"
+          options={['all', 'new', 'inactive', 'followup', 'doctor', 'branch', 'selected']}
+          />
+        </div>
+        <div>
+          <label className="label-field">Message <RequiredMark /></label>
+          <textarea className="input-field" rows={5} required placeholder="Message" value={form.message} onChange={(e) => setForm({ ...form, message: e.target.value })} />
+        </div>
         <div className="flex flex-wrap gap-2">
           <button type="submit" className="btn-secondary">Save draft</button>
           <button type="button" className="btn-secondary" onClick={doPreview}>Preview recipients</button>

@@ -17,7 +17,7 @@ export default function DeskDashboard() {
   const { user } = useAuth();
   const { branchId } = useBranch();
   const [appts, setAppts] = useState([]);
-  const [queue, setQueue] = useState([]);
+  const [queue, setQueue] = useState({ tickets: [], waitingCount: 0, total: 0 });
   const [outstanding, setOutstanding] = useState([]);
 
   useEffect(() => {
@@ -26,7 +26,16 @@ export default function DeskDashboard() {
       api.get('/appointments/my', { params: { date: today } }).then((res) => setAppts(res.data.appointments || [])).catch(() => {});
     }
     if (can(user, P.QUEUE_MANAGE)) {
-      api.get('/queue').then((res) => setQueue(res.data.tickets || [])).catch(() => {});
+      api
+        .get('/queue', { params: { limit: 8 } })
+        .then((res) =>
+          setQueue({
+            tickets: res.data.tickets || [],
+            waitingCount: res.data.waitingCount || 0,
+            total: res.data.total || 0,
+          })
+        )
+        .catch(() => {});
     }
     if (can(user, P.BILLING_VIEW)) {
       api.get('/billing', { params: { status: 'unpaid', limit: 8 } }).then((res) => setOutstanding(res.data.invoices || [])).catch(() => {});
@@ -41,8 +50,8 @@ export default function DeskDashboard() {
       </div>
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
         {can(user, P.APPOINTMENTS_VIEW) && <StatCard label="Today" value={appts.length} icon={Calendar} />}
-        {can(user, P.QUEUE_MANAGE) && <StatCard label="Waiting" value={queue.filter((t) => t.status === 'waiting').length} icon={ListOrdered} />}
-        {can(user, P.QUEUE_MANAGE) && <StatCard label="Checked in" value={queue.length} icon={Users} />}
+        {can(user, P.QUEUE_MANAGE) && <StatCard label="Waiting" value={queue.waitingCount} icon={ListOrdered} />}
+        {can(user, P.QUEUE_MANAGE) && <StatCard label="Checked in" value={queue.total} icon={Users} />}
         {can(user, P.BILLING_VIEW) && <StatCard label="Unpaid bills" value={outstanding.length} icon={Receipt} />}
       </div>
       <div className="flex flex-wrap gap-2 mb-6">
@@ -55,7 +64,7 @@ export default function DeskDashboard() {
         {can(user, P.QUEUE_MANAGE) && (
         <section>
           <h3 className="text-sm font-semibold mb-3">Waiting queue</h3>
-          {!queue.length ? <EmptyState title="No one waiting" /> : queue.slice(0, 8).map((t) => (
+          {!queue.tickets.length ? <EmptyState title="No one waiting" /> : queue.tickets.map((t) => (
             <div key={t._id} className="card !p-3 mb-2 flex justify-between">
               <span className="font-medium">#{t.tokenLabel} {t.patientId?.name}</span>
               <Badge value={t.status} />

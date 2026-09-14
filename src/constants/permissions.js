@@ -49,7 +49,6 @@ export const STAFF_TYPE_PERMISSIONS = {
     P.BILLING_MANAGE,
     P.QUEUE_MANAGE,
     P.CONSENT_CAPTURE,
-    P.SEARCH,
   ],
   nurse: [
     P.PATIENTS_VIEW,
@@ -57,11 +56,10 @@ export const STAFF_TYPE_PERMISSIONS = {
     P.QUEUE_MANAGE,
     P.CONSENT_CAPTURE,
     P.MEDICINE_USE,
-    P.SEARCH,
   ],
-  assistant: [P.PATIENTS_VIEW, P.APPOINTMENTS_VIEW, P.QUEUE_MANAGE, P.SEARCH],
-  accountant: [P.BILLING_VIEW, P.BILLING_MANAGE, P.REVENUE_ALL, P.SEARCH],
-  other: [P.SEARCH],
+  assistant: [P.PATIENTS_VIEW, P.APPOINTMENTS_VIEW, P.QUEUE_MANAGE],
+  accountant: [P.BILLING_VIEW, P.BILLING_MANAGE, P.REVENUE_ALL],
+  other: [],
 };
 
 /** Modules shown when a Doctor assigns staff access. View/Manage map to existing permission keys. */
@@ -81,7 +79,6 @@ export const ACCESS_MODULES = [
   { id: 'consult', label: 'Consultations', view: P.CONSULTATION },
   { id: 'rx', label: 'Prescriptions', view: P.PRESCRIPTION },
   { id: 'print', label: 'Print / Clinic Settings', view: P.PRINT_SETTINGS },
-  { id: 'search', label: 'Search', view: P.SEARCH },
 ];
 
 export function isStaffUser(user) {

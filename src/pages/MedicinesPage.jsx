@@ -4,32 +4,13 @@ import api from '../utils/api';
 import toast from 'react-hot-toast';
 import PageHeader from '../components/ui/PageHeader';
 import EmptyState from '../components/ui/EmptyState';
-import Modal from '../components/ui/Modal';
 import Pagination from '../components/ui/Pagination';
+import MedicineFormModal from '../components/MedicineFormModal';
 import { SkeletonRows } from '../components/ui/Skeleton';
 import { can, P } from '../constants/permissions';
 import { useAuth } from '../context/AuthContext';
 import { useBranch } from '../context/BranchContext';
 import { confirmAction } from '../utils/display';
-
-const EMPTY_FORM = {
-  name: '',
-  type: '',
-  strength: '',
-  strengthUnit: '',
-  salt: '',
-  company: '',
-  durationValue: '',
-  durationType: 'day(s)',
-  dosageMorning: '',
-  dosageNoon: '',
-  dosageNight: '',
-  beforeFood: false,
-  afterFood: false,
-  instructions: '',
-};
-
-const DURATION_TYPES = ['day(s)', 'week(s)', 'month(s)'];
 
 function strengthLabel(m) {
   const parts = [m.strength, m.strengthUnit].filter(Boolean);
@@ -38,66 +19,6 @@ function strengthLabel(m) {
 
 function typeLabel(m) {
   return String(m.dosageForm || '').toUpperCase() || '—';
-}
-
-function parseDuration(defaultDuration = '') {
-  const raw = String(defaultDuration || '').trim();
-  if (!raw) return { durationValue: '', durationType: 'day(s)' };
-  const match = raw.match(/^(\S+)\s+(.+)$/);
-  if (!match) return { durationValue: raw, durationType: 'day(s)' };
-  const type = DURATION_TYPES.includes(match[2]) ? match[2] : 'day(s)';
-  return { durationValue: match[1], durationType: type };
-}
-
-function stripFoodPrefix(instructions = '') {
-  return String(instructions || '')
-    .replace(/^Before food\.\s*After food\.\s*/i, '')
-    .replace(/^After food\.\s*Before food\.\s*/i, '')
-    .replace(/^Before food\.?\s*/i, '')
-    .replace(/^After food\.?\s*/i, '')
-    .trim();
-}
-
-function medicineToForm(m) {
-  const duration = parseDuration(m.defaultDuration);
-  return {
-    name: m.name || '',
-    type: m.dosageForm || '',
-    strength: m.strength || '',
-    strengthUnit: m.strengthUnit || '',
-    salt: m.genericName || '',
-    company: m.manufacturer || '',
-    durationValue: duration.durationValue,
-    durationType: duration.durationType,
-    dosageMorning: m.dosageMorning || '',
-    dosageNoon: m.dosageNoon || '',
-    dosageNight: m.dosageNight || '',
-    beforeFood: Boolean(m.beforeFood),
-    afterFood: Boolean(m.afterFood),
-    instructions: stripFoodPrefix(m.instructions),
-  };
-}
-
-function buildPayload(form) {
-  return {
-    name: form.name.trim(),
-    type: form.type.trim(),
-    dosageForm: form.type.trim(),
-    strength: form.strength.trim(),
-    strengthUnit: form.strengthUnit.trim(),
-    salt: form.salt.trim(),
-    genericName: form.salt.trim(),
-    company: form.company.trim(),
-    manufacturer: form.company.trim(),
-    durationValue: form.durationValue.trim(),
-    durationType: form.durationType,
-    dosageMorning: form.dosageMorning.trim(),
-    dosageNoon: form.dosageNoon.trim(),
-    dosageNight: form.dosageNight.trim(),
-    beforeFood: form.beforeFood,
-    afterFood: form.afterFood,
-    instructions: form.instructions.trim(),
-  };
 }
 
 export default function MedicinesPage() {
@@ -111,8 +32,6 @@ export default function MedicinesPage() {
   const [loading, setLoading] = useState(true);
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState(null);
-  const [saving, setSaving] = useState(false);
-  const [form, setForm] = useState(EMPTY_FORM);
 
   const load = (p = 1) => {
     setLoading(true);
@@ -132,58 +51,19 @@ export default function MedicinesPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [branchId]);
 
-  const setField = (key, value) => setForm((prev) => ({ ...prev, [key]: value }));
-
   const openAdd = () => {
     setEditing(null);
-    setForm(EMPTY_FORM);
     setOpen(true);
   };
 
   const openEdit = (m) => {
     setEditing(m);
-    setForm(medicineToForm(m));
     setOpen(true);
   };
 
   const closeModal = () => {
-    if (saving) return;
     setOpen(false);
     setEditing(null);
-    setForm(EMPTY_FORM);
-  };
-
-  const save = async (e) => {
-    e.preventDefault();
-    if (!form.name.trim()) {
-      toast.error('Medicine name is required.');
-      return;
-    }
-    if (!form.type.trim()) {
-      toast.error('Medicine type is required.');
-      return;
-    }
-    if (!form.salt.trim()) {
-      toast.error('Salt is required.');
-      return;
-    }
-    setSaving(true);
-    try {
-      const payload = buildPayload(form);
-      if (editing?._id) {
-        await api.patch(`/medicines/${editing._id}`, payload);
-        toast.success('Medicine updated successfully.');
-      } else {
-        await api.post('/medicines', payload);
-        toast.success('Medicine added successfully.');
-      }
-      closeModal();
-      load(page);
-    } catch (err) {
-      toast.error(err.response?.data?.message || 'Could not save medicine.');
-    } finally {
-      setSaving(false);
-    }
   };
 
   const removeMedicine = async (m) => {
@@ -338,205 +218,12 @@ export default function MedicinesPage() {
 
       <Pagination page={page} pages={pages} onPage={load} />
 
-      <Modal
+      <MedicineFormModal
         open={open}
-        title={editing ? 'Edit medicine' : 'Medicine Add'}
+        editing={editing}
         onClose={closeModal}
-        wide
-      >
-        <form onSubmit={save} className="space-y-4" noValidate>
-          <fieldset disabled={saving} className="space-y-4 border-0 p-0 m-0 min-w-0">
-            <div className="grid sm:grid-cols-2 gap-3">
-              <div>
-                <label htmlFor="med-name" className="label-field">
-                  Name <span className="text-red-600">*</span>
-                </label>
-                <input
-                  id="med-name"
-                  className="input-field"
-                  required
-                  placeholder="E.g. Crocin"
-                  value={form.name}
-                  onChange={(e) => setField('name', e.target.value)}
-                />
-              </div>
-              <div>
-                <label htmlFor="med-type" className="label-field">
-                  Type <span className="text-red-600">*</span>
-                </label>
-                <input
-                  id="med-type"
-                  className="input-field"
-                  required
-                  placeholder="E.g. Tablet"
-                  value={form.type}
-                  onChange={(e) => setField('type', e.target.value)}
-                />
-              </div>
-              <div>
-                <label htmlFor="med-strength" className="label-field">
-                  Strength
-                </label>
-                <input
-                  id="med-strength"
-                  className="input-field"
-                  placeholder="E.g. 100"
-                  value={form.strength}
-                  onChange={(e) => setField('strength', e.target.value)}
-                />
-              </div>
-              <div>
-                <label htmlFor="med-strengthUnit" className="label-field">
-                  Unit
-                </label>
-                <input
-                  id="med-strengthUnit"
-                  className="input-field"
-                  placeholder="E.g. mg"
-                  value={form.strengthUnit}
-                  onChange={(e) => setField('strengthUnit', e.target.value)}
-                />
-              </div>
-              <div>
-                <label htmlFor="med-salt" className="label-field">
-                  Salt <span className="text-red-600">*</span>
-                </label>
-                <input
-                  id="med-salt"
-                  className="input-field"
-                  required
-                  placeholder="E.g. Azithromycin"
-                  value={form.salt}
-                  onChange={(e) => setField('salt', e.target.value)}
-                />
-              </div>
-              <div>
-                <label htmlFor="med-company" className="label-field">
-                  Company
-                </label>
-                <input
-                  id="med-company"
-                  className="input-field"
-                  placeholder="E.g. Sun Pharmaceutical"
-                  value={form.company}
-                  onChange={(e) => setField('company', e.target.value)}
-                />
-              </div>
-              <div>
-                <label htmlFor="med-duration" className="label-field">
-                  Duration
-                </label>
-                <input
-                  id="med-duration"
-                  className="input-field"
-                  placeholder="E.g. 1"
-                  value={form.durationValue}
-                  onChange={(e) => setField('durationValue', e.target.value)}
-                />
-              </div>
-              <div>
-                <label htmlFor="med-durationType" className="label-field">
-                  Duration Type
-                </label>
-                <select
-                  id="med-durationType"
-                  className="input-field"
-                  value={form.durationType}
-                  onChange={(e) => setField('durationType', e.target.value)}
-                >
-                  {DURATION_TYPES.map((t) => (
-                    <option key={t} value={t}>
-                      {t}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-3 gap-3">
-              <div>
-                <label htmlFor="med-morning" className="label-field">
-                  Morning
-                </label>
-                <input
-                  id="med-morning"
-                  className="input-field"
-                  placeholder="E.g. 1"
-                  value={form.dosageMorning}
-                  onChange={(e) => setField('dosageMorning', e.target.value)}
-                />
-              </div>
-              <div>
-                <label htmlFor="med-noon" className="label-field">
-                  Noon
-                </label>
-                <input
-                  id="med-noon"
-                  className="input-field"
-                  placeholder="E.g. 1"
-                  value={form.dosageNoon}
-                  onChange={(e) => setField('dosageNoon', e.target.value)}
-                />
-              </div>
-              <div>
-                <label htmlFor="med-night" className="label-field">
-                  Night
-                </label>
-                <input
-                  id="med-night"
-                  className="input-field"
-                  placeholder="E.g. 1"
-                  value={form.dosageNight}
-                  onChange={(e) => setField('dosageNight', e.target.value)}
-                />
-              </div>
-            </div>
-
-            <div className="flex flex-wrap gap-5">
-              <label className="inline-flex items-center gap-2 text-sm text-ink cursor-pointer">
-                <input
-                  type="checkbox"
-                  className="rounded border-line"
-                  checked={form.beforeFood}
-                  onChange={(e) => setField('beforeFood', e.target.checked)}
-                />
-                Before food
-              </label>
-              <label className="inline-flex items-center gap-2 text-sm text-ink cursor-pointer">
-                <input
-                  type="checkbox"
-                  className="rounded border-line"
-                  checked={form.afterFood}
-                  onChange={(e) => setField('afterFood', e.target.checked)}
-                />
-                After food
-              </label>
-            </div>
-
-            <div>
-              <label htmlFor="med-instructions" className="label-field">
-                Instructions
-              </label>
-              <textarea
-                id="med-instructions"
-                className="input-field"
-                rows={3}
-                placeholder="Medicines Instructions..."
-                value={form.instructions}
-                onChange={(e) => setField('instructions', e.target.value)}
-              />
-            </div>
-
-            <button
-              type="submit"
-              disabled={saving}
-              className="inline-flex items-center justify-center min-h-10 px-6 rounded-md text-sm font-semibold text-white bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50"
-            >
-              {saving ? 'Saving...' : editing ? 'UPDATE' : 'ADD'}
-            </button>
-          </fieldset>
-        </form>
-      </Modal>
+        onSaved={() => load(editing?._id ? page : 1)}
+      />
     </div>
   );
 }

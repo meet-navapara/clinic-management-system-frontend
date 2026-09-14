@@ -4,9 +4,13 @@ export default function PageHeader({ title, description, actions, crumb }) {
       <div className="min-w-0">
         {crumb && <p className="section-label mb-1">{crumb}</p>}
         {title && <h1 className="page-title">{title}</h1>}
-        {description && <p className="page-subtitle">{description}</p>}
+        {description && <p className="page-subtitle break-words">{description}</p>}
       </div>
-      {actions && <div className="flex flex-wrap items-center gap-2 shrink-0">{actions}</div>}
+      {actions && (
+        <div className="flex flex-wrap items-center gap-2 w-full min-w-0 sm:w-auto sm:shrink-0">
+          {actions}
+        </div>
+      )}
     </div>
   );
 }
