@@ -10,26 +10,65 @@ import { useAuth } from '../context/AuthContext';
 import { useBranch } from '../context/BranchContext';
 import RequiredMark from '../components/ui/RequiredMark';
 
+const EMPTY_FORM = {
+  name: '',
+  phone: '',
+  email: '',
+  address: '',
+  roomLabel: 'Room 1',
+  tokenPrefix: '',
+};
+
 export default function BranchesPage() {
   const { user } = useAuth();
   const { reload } = useBranch();
   const [rows, setRows] = useState([]);
   const [open, setOpen] = useState(false);
-  const [form, setForm] = useState({ name: '', phone: '', email: '', address: '', roomLabel: 'Room 1', tokenPrefix: '' });
+  const [editingId, setEditingId] = useState(null);
+  const [form, setForm] = useState(EMPTY_FORM);
   const [saving, setSaving] = useState(false);
 
   const load = () => {
-    api.get('/branches', { params: { active: 'all' } }).then((res) => setRows(res.data.branches || [])).catch(() => {});
+    api
+      .get('/branches', { params: { active: 'all' } })
+      .then((res) => setRows(res.data.branches || []))
+      .catch((err) => toast.error(err.response?.data?.message || 'Could not load branches.'));
   };
   useEffect(load, []);
+
+  const openCreate = () => {
+    setEditingId(null);
+    setForm(EMPTY_FORM);
+    setOpen(true);
+  };
+
+  const openEdit = (b) => {
+    setEditingId(b._id);
+    setForm({
+      name: b.name || '',
+      phone: b.phone || '',
+      email: b.email || '',
+      address: b.address || '',
+      roomLabel: b.roomLabel || 'Room 1',
+      tokenPrefix: b.tokenPrefix || '',
+    });
+    setOpen(true);
+  };
 
   const save = async (e) => {
     e.preventDefault();
     setSaving(true);
     try {
-      await api.post('/branches', form);
-      toast.success('Branch created.');
+      if (editingId) {
+        await api.patch(`/branches/${editingId}`, form);
+        toast.success('Branch updated.');
+      } else {
+        await api.post('/branches', form);
+        toast.success('Branch created.');
+      }
       setOpen(false);
+      setEditingId(null);
+      setForm(EMPTY_FORM);
       load();
       reload();
     } catch (err) {
@@ -42,6 +81,7 @@ export default function BranchesPage() {
   const toggle = async (b) => {
     try {
       await api.patch(`/branches/${b._id}`, { isActive: !b.isActive });
+      toast.success(b.isActive ? 'Branch deactivated.' : 'Branch activated.');
       load();
       reload();
     } catch (err) {
@@ -56,7 +96,9 @@ export default function BranchesPage() {
         description="Each branch has its own appointments, billing and stock."
         actions={
           can(user, P.BRANCHES_MANAGE) && (
-            <button type="button" className="btn-primary" onClick={() => setOpen(true)}>Add branch</button>
+            <button type="button" className="btn-primary" onClick={openCreate}>
+              Add branch
+            </button>
           )
         }
       />
@@ -71,18 +113,35 @@ export default function BranchesPage() {
                 <Badge value={b.isActive ? 'active' : 'inactive'} />
               </div>
               <p className="text-sm text-ink-muted mt-1">{b.address || 'No address'}</p>
-              <p className="text-sm text-ink-faint">{b.phone} {b.email}</p>
-              <p className="text-xs text-ink-faint mt-2">Room: {b.roomLabel || '—'} · Token prefix: {b.tokenPrefix || '—'}</p>
+              <p className="text-sm text-ink-faint">
+                {b.phone} {b.email}
+              </p>
+              <p className="text-xs text-ink-faint mt-2">
+                Room: {b.roomLabel || '—'} · Token prefix: {b.tokenPrefix || '—'}
+              </p>
               {can(user, P.BRANCHES_MANAGE) && (
-                <button type="button" className="btn-secondary mt-3 !min-h-9" onClick={() => toggle(b)}>
-                  {b.isActive ? 'Deactivate' : 'Activate'}
-                </button>
+                <div className="flex flex-wrap gap-2 mt-3">
+                  <button type="button" className="btn-secondary !min-h-9" onClick={() => openEdit(b)}>
+                    Edit
+                  </button>
+                  <button type="button" className="btn-ghost !min-h-9 text-xs" onClick={() => toggle(b)}>
+                    {b.isActive ? 'Deactivate' : 'Activate'}
+                  </button>
+                </div>
               )}
             </div>
           ))}
         </div>
       )}
-      <Modal open={open} title="New branch" onClose={() => setOpen(false)}>
+      <Modal
+        open={open}
+        title={editingId ? 'Edit branch' : 'New branch'}
+        onClose={() => {
+          setOpen(false);
+          setEditingId(null);
+          setForm(EMPTY_FORM);
+        }}
+      >
         <form onSubmit={save} className="space-y-3">
           {[
             ['name', 'Name', true],
@@ -106,7 +165,9 @@ export default function BranchesPage() {
               />
             </div>
           ))}
-          <button type="submit" className="btn-primary w-full" disabled={saving}>{saving ? 'Saving…' : 'Create'}</button>
+          <button type="submit" className="btn-primary w-full" disabled={saving}>
+            {saving ? 'Saving…' : editingId ? 'Update' : 'Create'}
+          </button>
         </form>
       </Modal>
     </div>

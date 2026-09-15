@@ -16,6 +16,7 @@ import RequiredMark from '../components/ui/RequiredMark';
 import SignaturePad from '../components/SignaturePad';
 
 const EMPTY_ASSIGN = { consentTemplateId: '', patientId: '' };
+const EMPTY_FORM = { name: '', category: 'general', body: '' };
 
 export default function ConsentPage() {
   const { user } = useAuth();
@@ -23,32 +24,73 @@ export default function ConsentPage() {
   const [templates, setTemplates] = useState([]);
   const [records, setRecords] = useState([]);
   const [open, setOpen] = useState(false);
+  const [editingId, setEditingId] = useState(null);
   const [assignOpen, setAssignOpen] = useState(false);
   const [sign, setSign] = useState(null);
-  const [form, setForm] = useState({ name: '', category: 'general', body: '' });
+  const [form, setForm] = useState(EMPTY_FORM);
   const [assign, setAssign] = useState(EMPTY_ASSIGN);
+  const [saving, setSaving] = useState(false);
   const signatureRef = useRef(null);
 
   const load = () => {
-    api.get('/consent/templates').then((res) => setTemplates(res.data.templates || [])).catch(() => {});
-    api.get('/consent/records').then((res) => setRecords(res.data.records || [])).catch(() => {});
+    api
+      .get('/consent/templates', { params: { active: 'all' } })
+      .then((res) => setTemplates(res.data.templates || []))
+      .catch((err) => toast.error(err.response?.data?.message || 'Could not load consent templates.'));
+    api
+      .get('/consent/records')
+      .then((res) => setRecords(res.data.records || []))
+      .catch((err) => toast.error(err.response?.data?.message || 'Could not load consent records.'));
   };
   useEffect(load, [branchId]);
 
+  const openCreate = () => {
+    setEditingId(null);
+    setForm(EMPTY_FORM);
+    setOpen(true);
+  };
+
+  const openEdit = (t) => {
+    setEditingId(t._id);
+    setForm({ name: t.name || '', category: t.category || 'general', body: t.body || '' });
+    setOpen(true);
+  };
+
   const saveTpl = async (e) => {
     e.preventDefault();
+    setSaving(true);
     try {
-      await api.post('/consent/templates', form);
-      toast.success('Template created.');
+      if (editingId) {
+        await api.patch(`/consent/templates/${editingId}`, form);
+        toast.success('Template updated.');
+      } else {
+        await api.post('/consent/templates', form);
+        toast.success('Template created.');
+      }
       setOpen(false);
+      setEditingId(null);
+      setForm(EMPTY_FORM);
       load();
     } catch (err) {
       toast.error(err.response?.data?.message || 'Save failed.');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const toggleActive = async (t) => {
+    try {
+      await api.patch(`/consent/templates/${t._id}`, { isActive: !t.isActive });
+      toast.success(t.isActive ? 'Template deactivated.' : 'Template activated.');
+      load();
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Update failed.');
     }
   };
 
   const doAssign = async (e) => {
     e.preventDefault();
+    setSaving(true);
     try {
       await api.post('/consent/records', assign);
       toast.success('Consent assigned.');
@@ -57,6 +99,8 @@ export default function ConsentPage() {
       load();
     } catch (err) {
       toast.error(err.response?.data?.message || 'Assign failed.');
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -66,15 +110,24 @@ export default function ConsentPage() {
       toast.error('Please sign in the box first.');
       return;
     }
+    setSaving(true);
     try {
-      await api.post(`/consent/records/${sign._id}/sign`, { status, signatureDataUrl, signerName: sign.patientId?.name });
+      await api.post(`/consent/records/${sign._id}/sign`, {
+        status,
+        signatureDataUrl,
+        signerName: sign.patientId?.name,
+      });
       toast.success(status === 'accepted' ? 'Consent accepted.' : 'Consent rejected.');
       setSign(null);
       load();
     } catch (err) {
       toast.error(err.response?.data?.message || 'Sign failed.');
+    } finally {
+      setSaving(false);
     }
   };
+
+  const activeTemplates = templates.filter((t) => t.isActive !== false);
 
   return (
     <div className="page-container">
@@ -94,45 +147,96 @@ export default function ConsentPage() {
                 Assign to patient
               </button>
             )}
-            {can(user, P.CONSENT_TEMPLATES) && <button type="button" className="btn-primary" onClick={() => setOpen(true)}>New template</button>}
+            {can(user, P.CONSENT_TEMPLATES) && (
+              <button type="button" className="btn-primary" onClick={openCreate}>
+                New template
+              </button>
+            )}
           </div>
         }
       />
       <h3 className="text-sm font-semibold mb-2">Templates</h3>
-      {!templates.length ? <EmptyState title="No templates" /> : (
+      {!templates.length ? (
+        <EmptyState title="No templates" />
+      ) : (
         <div className="grid sm:grid-cols-2 gap-3 mb-6">
           {templates.map((t) => (
             <div key={t._id} className="card">
-              <p className="font-semibold">{t.name}</p>
-              <p className="text-xs text-ink-faint">v{t.version} · {t.category}</p>
+              <div className="flex items-start justify-between gap-2">
+                <div>
+                  <p className="font-semibold">{t.name}</p>
+                  <p className="text-xs text-ink-faint">
+                    v{t.version} · {t.category}
+                    {t.isActive === false ? ' · inactive' : ''}
+                  </p>
+                </div>
+                <Badge value={t.isActive === false ? 'inactive' : 'active'} />
+              </div>
+              {can(user, P.CONSENT_TEMPLATES) && (
+                <div className="flex flex-wrap gap-2 mt-3">
+                  <button type="button" className="btn-secondary !min-h-9" onClick={() => openEdit(t)}>
+                    Edit
+                  </button>
+                  <button type="button" className="btn-ghost !min-h-9 text-xs" onClick={() => toggleActive(t)}>
+                    {t.isActive === false ? 'Activate' : 'Deactivate'}
+                  </button>
+                </div>
+              )}
             </div>
           ))}
         </div>
       )}
       <h3 className="text-sm font-semibold mb-2">Records</h3>
-      {!records.length ? <EmptyState title="No consent records" /> : (
+      {!records.length ? (
+        <EmptyState title="No consent records" />
+      ) : (
         <div className="space-y-2">
           {records.map((r) => (
             <div key={r._id} className="card !p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
               <div>
                 <p className="font-medium">{r.titleSnapshot}</p>
-                <p className="text-sm text-ink-muted">{r.patientId?.name} · v{r.version}</p>
+                <p className="text-sm text-ink-muted">
+                  {r.patientId?.name} · v{r.version}
+                </p>
               </div>
               <div className="flex items-center gap-2">
                 <Badge value={r.status} />
-                {r.status === 'pending' && <button type="button" className="btn-primary !min-h-9" onClick={() => setSign(r)}>Capture</button>}
-                <Link className="btn-ghost !min-h-9 text-xs" to={ROUTES.print('consent', r._id)} target="_blank" rel="noreferrer">Print</Link>
+                {r.status === 'pending' && can(user, P.CONSENT_CAPTURE) && (
+                  <button type="button" className="btn-primary !min-h-9" onClick={() => setSign(r)}>
+                    Capture
+                  </button>
+                )}
+                <Link className="btn-ghost !min-h-9 text-xs" to={ROUTES.print('consent', r._id)} target="_blank" rel="noreferrer">
+                  Print
+                </Link>
               </div>
             </div>
           ))}
         </div>
       )}
 
-      <Modal open={open} title="Consent template" onClose={() => setOpen(false)} wide>
+      <Modal
+        open={open}
+        title={editingId ? 'Edit consent template' : 'Consent template'}
+        onClose={() => {
+          setOpen(false);
+          setEditingId(null);
+          setForm(EMPTY_FORM);
+        }}
+        wide
+      >
         <form onSubmit={saveTpl} className="space-y-3">
           <div>
-            <label className="label-field">Name <RequiredMark /></label>
-            <input className="input-field" required placeholder="Name" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
+            <label className="label-field">
+              Name <RequiredMark />
+            </label>
+            <input
+              className="input-field"
+              required
+              placeholder="Name"
+              value={form.name}
+              onChange={(e) => setForm({ ...form, name: e.target.value })}
+            />
           </div>
           <div>
             <label className="label-field">Category</label>
@@ -144,10 +248,21 @@ export default function ConsentPage() {
             />
           </div>
           <div>
-            <label className="label-field">Consent text <RequiredMark /></label>
-            <textarea className="input-field" rows={8} required placeholder="Consent text" value={form.body} onChange={(e) => setForm({ ...form, body: e.target.value })} />
+            <label className="label-field">
+              Consent text <RequiredMark />
+            </label>
+            <textarea
+              className="input-field"
+              rows={8}
+              required
+              placeholder="Consent text"
+              value={form.body}
+              onChange={(e) => setForm({ ...form, body: e.target.value })}
+            />
           </div>
-          <button type="submit" className="btn-primary w-full">Save</button>
+          <button type="submit" className="btn-primary w-full" disabled={saving}>
+            {saving ? 'Saving…' : editingId ? 'Update template' : 'Save'}
+          </button>
         </form>
       </Modal>
 
@@ -161,14 +276,16 @@ export default function ConsentPage() {
       >
         <form onSubmit={doAssign} className="space-y-3">
           <div>
-            <label className="label-field">Template <RequiredMark /></label>
+            <label className="label-field">
+              Template <RequiredMark />
+            </label>
             <Dropdown
               required
               value={assign.consentTemplateId}
               onChange={(consentTemplateId) => setAssign({ ...assign, consentTemplateId })}
               placeholder="Select template"
               ariaLabel="Consent template"
-              options={templates.map((t) => ({ value: String(t._id), label: t.name }))}
+              options={activeTemplates.map((t) => ({ value: String(t._id), label: t.name }))}
             />
           </div>
           <div>
@@ -181,7 +298,9 @@ export default function ConsentPage() {
               onChange={(patientId) => setAssign({ ...assign, patientId })}
             />
           </div>
-          <button type="submit" className="btn-primary w-full">Assign</button>
+          <button type="submit" className="btn-primary w-full" disabled={saving}>
+            {saving ? 'Assigning…' : 'Assign'}
+          </button>
         </form>
       </Modal>
 
@@ -189,7 +308,9 @@ export default function ConsentPage() {
         {sign && (
           <div className="space-y-3">
             <p className="font-semibold">{sign.titleSnapshot}</p>
-            <div className="text-sm whitespace-pre-wrap max-h-48 overflow-y-auto border border-line rounded-lg p-3">{sign.bodySnapshot}</div>
+            <div className="text-sm whitespace-pre-wrap max-h-48 overflow-y-auto border border-line rounded-lg p-3">
+              {sign.bodySnapshot}
+            </div>
             <div className="flex items-center justify-between gap-2">
               <p className="text-xs text-ink-muted">Sign below — draw with your cursor or finger</p>
               <button type="button" className="btn-ghost !min-h-8 !px-2 text-xs" onClick={() => signatureRef.current?.clear()}>
@@ -198,8 +319,12 @@ export default function ConsentPage() {
             </div>
             <SignaturePad ref={signatureRef} />
             <div className="flex gap-2">
-              <button type="button" className="btn-primary flex-1" onClick={() => submitSign('accepted')}>Accept</button>
-              <button type="button" className="btn-danger flex-1" onClick={() => submitSign('rejected')}>Reject</button>
+              <button type="button" className="btn-primary flex-1" disabled={saving} onClick={() => submitSign('accepted')}>
+                Accept
+              </button>
+              <button type="button" className="btn-danger flex-1" disabled={saving} onClick={() => submitSign('rejected')}>
+                Reject
+              </button>
             </div>
           </div>
         )}

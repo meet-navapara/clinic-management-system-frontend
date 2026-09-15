@@ -55,20 +55,33 @@ export default function ConsultationPage() {
     api
       .get('/medicines', { params: { limit: 100 } })
       .then((res) => setCatalog(res.data.medicines || []))
-      .catch(() => {});
+      .catch((err) => toast.error(err.response?.data?.message || 'Could not load medicines.'));
   };
 
   useEffect(() => {
-    api.get(`/appointments/${appointmentId}`).then((res) => {
-      setAppointment(res.data.appointment);
-      const p = res.data.appointment?.patientId;
-      setForm((f) => ({ ...f, patientId: p?._id || p, appointmentId }));
-    }).catch(() => toast.error('Appointment not found.'));
-    api.get('/consultations/appointment/' + appointmentId).then((res) => {
-      if (res.data.consultation) setForm((f) => ({ ...f, ...res.data.consultation }));
-      if (res.data.prescription?.items?.length) setMeds(res.data.prescription.items);
-    }).catch(() => {});
-    api.get('/templates', { params: { type: 'consultation' } }).then((res) => setTemplates(res.data.templates || [])).catch(() => {});
+    api
+      .get(`/appointments/${appointmentId}`)
+      .then((res) => {
+        setAppointment(res.data.appointment);
+        const p = res.data.appointment?.patientId;
+        setForm((f) => ({ ...f, patientId: p?._id || p, appointmentId }));
+      })
+      .catch(() => toast.error('Appointment not found.'));
+    api
+      .get('/consultations/appointment/' + appointmentId)
+      .then((res) => {
+        if (res.data.consultation) setForm((f) => ({ ...f, ...res.data.consultation }));
+        if (res.data.prescription?.items?.length) setMeds(res.data.prescription.items);
+      })
+      .catch((err) => {
+        if (err.response?.status !== 404) {
+          toast.error(err.response?.data?.message || 'Could not load consultation.');
+        }
+      });
+    api
+      .get('/templates', { params: { type: 'consultation' } })
+      .then((res) => setTemplates(res.data.templates || []))
+      .catch((err) => toast.error(err.response?.data?.message || 'Could not load templates.'));
     loadCatalog();
   }, [appointmentId]);
 

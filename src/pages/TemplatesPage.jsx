@@ -58,6 +58,8 @@ export default function TemplatesPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [open, setOpen] = useState(false);
+  const [editingId, setEditingId] = useState(null);
+  const [saving, setSaving] = useState(false);
   const [form, setForm] = useState(() => emptyForm());
   const canClinic = can(user, P.TEMPLATES_CLINIC);
   const canCreate = canClinic || can(user, P.TEMPLATES_OWN);
@@ -82,19 +84,61 @@ export default function TemplatesPage() {
     load();
   }, []);
 
+  const openCreate = () => {
+    setEditingId(null);
+    setForm(emptyForm());
+    setOpen(true);
+  };
+
+  const openEdit = (t) => {
+    const fields = t?.fields && typeof t.fields === 'object' ? t.fields : {};
+    setEditingId(t._id);
+    setForm({
+      name: t.name || '',
+      type: t.type || 'consultation',
+      ownerType: t.ownerType === 'clinic' ? 'clinic' : 'doctor',
+      fields: { ...emptyForm().fields, ...fields },
+    });
+    setOpen(true);
+  };
+
   const save = async (e) => {
     e.preventDefault();
+    setSaving(true);
     try {
-      await api.post('/templates', {
-        ...form,
-        ownerType: canClinic ? form.ownerType : 'doctor',
-      });
-      toast.success('Template saved.');
+      if (editingId) {
+        await api.patch(`/templates/${editingId}`, {
+          name: form.name,
+          type: form.type,
+          fields: form.fields,
+        });
+        toast.success('Template updated.');
+      } else {
+        await api.post('/templates', {
+          ...form,
+          ownerType: canClinic ? form.ownerType : 'doctor',
+        });
+        toast.success('Template saved.');
+      }
       setOpen(false);
+      setEditingId(null);
       setForm(emptyForm());
       load();
     } catch (err) {
       toast.error(err.response?.data?.message || 'Save failed.');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const deactivate = async (t) => {
+    if (!window.confirm(`Deactivate “${t.name}”? It will no longer appear in consultations.`)) return;
+    try {
+      await api.patch(`/templates/${t._id}`, { isActive: false });
+      toast.success('Template deactivated.');
+      load();
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Could not deactivate template.');
     }
   };
 
@@ -105,14 +149,7 @@ export default function TemplatesPage() {
         description="Reusable notes for consultations, diagnosis, treatment and follow-up."
         actions={
           canCreate ? (
-            <button
-              type="button"
-              className="btn-primary"
-              onClick={() => {
-                setForm(emptyForm());
-                setOpen(true);
-              }}
-            >
+            <button type="button" className="btn-primary" onClick={openCreate}>
               <Plus className="w-4 h-4" /> New template
             </button>
           ) : null
@@ -137,7 +174,7 @@ export default function TemplatesPage() {
           description="Save a general consultation template so you can load it during a visit."
           action={
             canCreate ? (
-              <button type="button" className="btn-primary" onClick={() => setOpen(true)}>
+              <button type="button" className="btn-primary" onClick={openCreate}>
                 Create template
               </button>
             ) : null
@@ -149,6 +186,8 @@ export default function TemplatesPage() {
             const id = t?._id || t?.name;
             const fields = t?.fields && typeof t.fields === 'object' ? t.fields : {};
             const preview = fields.chiefComplaint || fields.diagnosis || fields.advice || fields.treatment || '';
+            const canEdit =
+              canClinic || (t?.ownerType === 'doctor' && String(t?.doctorId) === String(user?._id));
             return (
               <div key={id} className="card">
                 <div className="flex items-start justify-between gap-2">
@@ -157,13 +196,32 @@ export default function TemplatesPage() {
                 </div>
                 <p className="text-sm text-ink-muted mt-1">{typeLabel(t?.type)}</p>
                 {preview ? <p className="text-xs text-ink-faint mt-2 line-clamp-3">{preview}</p> : null}
+                {canEdit && (
+                  <div className="flex flex-wrap gap-2 mt-3">
+                    <button type="button" className="btn-secondary !min-h-9" onClick={() => openEdit(t)}>
+                      Edit
+                    </button>
+                    <button type="button" className="btn-ghost !min-h-9 text-xs" onClick={() => deactivate(t)}>
+                      Deactivate
+                    </button>
+                  </div>
+                )}
               </div>
             );
           })}
         </div>
       )}
 
-      <Modal open={open} title="New template" onClose={() => setOpen(false)} wide>
+      <Modal
+        open={open}
+        title={editingId ? 'Edit template' : 'New template'}
+        onClose={() => {
+          setOpen(false);
+          setEditingId(null);
+          setForm(emptyForm());
+        }}
+        wide
+      >
         <form onSubmit={save} className="space-y-3">
           <div>
             <label className="label-field">Name <RequiredMark /></label>
@@ -190,7 +248,7 @@ export default function TemplatesPage() {
               <Dropdown
                 value={canClinic ? form.ownerType : 'doctor'}
                 onChange={(ownerType) => setForm({ ...form, ownerType })}
-                disabled={!canClinic}
+                disabled={!canClinic || !!editingId}
                 ariaLabel="Visibility"
                 options={[
                   { value: 'doctor', label: 'Only me' },
@@ -211,7 +269,9 @@ export default function TemplatesPage() {
               />
             </div>
           ))}
-          <button type="submit" className="btn-primary w-full">Save template</button>
+          <button type="submit" className="btn-primary w-full" disabled={saving}>
+            {saving ? 'Saving…' : editingId ? 'Update template' : 'Save template'}
+          </button>
         </form>
       </Modal>
     </div>

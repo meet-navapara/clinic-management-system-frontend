@@ -1,12 +1,15 @@
 import { useEffect, useMemo, useState } from 'react';
+import { Link } from 'react-router-dom';
 import api from '../utils/api';
 import toast from 'react-hot-toast';
 import PageHeader from '../components/ui/PageHeader';
 import Dropdown from '../components/ui/Dropdown';
+import SimpleRichEditor from '../components/print/SimpleRichEditor';
+import PrintLetterhead from '../components/print/PrintLetterhead';
 import { BRAND_NAME } from '../constants/branding';
+import { ROUTES } from '../constants/routes';
 
 const FONT_SIZES = [8, 9, 10, 11, 12, 13, 14, 16, 18, 20, 22, 24];
-const MAX_IMAGE_BYTES = 450_000;
 
 const defaults = {
   clinicName: '',
@@ -22,6 +25,8 @@ const defaults = {
   footerText: '',
   headerHtml: '',
   footerHtml: '',
+  leftContentHtml: '',
+  rightContentHtml: '',
   terms: '',
   includeHeader: true,
   includeFooter: true,
@@ -44,48 +49,8 @@ const defaults = {
   coloredPrint: true,
   currency: 'INR',
   currencySymbol: '₹',
+  appointmentPhone: '',
 };
-
-async function fileToDataUrl(file, { maxEdge = 900 } = {}) {
-  if (!file) return '';
-  if (!file.type?.startsWith('image/')) {
-    throw new Error('Please choose an image file (PNG or JPG).');
-  }
-  const raw = await new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => resolve(String(reader.result || ''));
-    reader.onerror = () => reject(new Error('Could not read file'));
-    reader.readAsDataURL(file);
-  });
-
-  // Resize large images so payloads stay under the API body limit
-  const img = await new Promise((resolve, reject) => {
-    const el = new Image();
-    el.onload = () => resolve(el);
-    el.onerror = () => reject(new Error('Invalid image'));
-    el.src = raw;
-  });
-
-  const scale = Math.min(1, maxEdge / Math.max(img.width, img.height));
-  const w = Math.max(1, Math.round(img.width * scale));
-  const h = Math.max(1, Math.round(img.height * scale));
-  const canvas = document.createElement('canvas');
-  canvas.width = w;
-  canvas.height = h;
-  const ctx = canvas.getContext('2d');
-  ctx.drawImage(img, 0, 0, w, h);
-
-  let quality = 0.85;
-  let out = canvas.toDataURL('image/jpeg', quality);
-  while (out.length > MAX_IMAGE_BYTES && quality > 0.45) {
-    quality -= 0.1;
-    out = canvas.toDataURL('image/jpeg', quality);
-  }
-  if (out.length > MAX_IMAGE_BYTES) {
-    throw new Error('Image is too large. Use a smaller logo (under ~400 KB).');
-  }
-  return out;
-}
 
 function NumberField({ label, value, onChange, step = 0.1, min = 0, max = 3 }) {
   return (
@@ -104,117 +69,52 @@ function NumberField({ label, value, onChange, step = 0.1, min = 0, max = 3 }) {
   );
 }
 
-function LivePreview({ form, tab }) {
-  const showHeader = form.includeHeader;
-  const showFooter = form.includeFooter;
-  const heading = `${form.headingFontSize || 14}px`;
-  const content = `${form.contentFontSize || 12}px`;
-  const sub = `${form.subContentFontSize || 11}px`;
-
+/** Kiwi-style letterhead preview panel */
+function LetterheadPreview({ form, tab }) {
   return (
-    <div
-      className={`rounded-xl border border-line bg-white p-4 min-h-[280px] ${form.coloredPrint === false ? 'grayscale' : ''}`}
-      style={{
-        paddingTop: `${(form.marginTopIn || 0.5) * 16}px`,
-        paddingBottom: `${(form.marginBottomIn || 0.5) * 16}px`,
-        paddingLeft: `${(form.marginLeftIn || 0.5) * 16}px`,
-        paddingRight: `${(form.marginRightIn || 0.5) * 16}px`,
-        fontSize: content,
-      }}
-    >
-      {tab === 'header' && (
-        <div className="border-b border-dashed border-line pb-3 mb-3">
-          {showHeader ? (
-            <div className="flex gap-3 items-start">
-              {form.logo ? (
-                <img src={form.logo} alt="" className="h-14 w-auto object-contain max-w-[120px]" />
-              ) : (
-                <div className="h-14 w-14 rounded bg-canvas border border-line flex items-center justify-center text-[10px] text-ink-faint">
-                  Logo
-                </div>
-              )}
-              <div className="flex-1 min-w-0">
-                <p className="font-semibold text-ink truncate" style={{ fontSize: heading }}>
-                  {form.clinicName || 'Hospital / Clinic name'}
-                </p>
-                {form.headerText && (
-                  <p className="text-ink-muted whitespace-pre-wrap" style={{ fontSize: sub }}>
-                    {form.headerText}
-                  </p>
-                )}
-                <p className="text-ink-muted" style={{ fontSize: sub }}>
-                  {form.address || 'Address'}
-                </p>
-                <p className="text-ink-faint" style={{ fontSize: sub }}>
-                  {[form.phone && `Helpline: ${form.phone}`, form.email].filter(Boolean).join(' · ') || 'Contact'}
-                </p>
-              </div>
-            </div>
-          ) : (
-            <p className="text-sm text-ink-faint italic text-center py-6">
-              Header hidden — using letterpad paper
-            </p>
-          )}
-          <p className="mt-4 text-ink-faint text-center" style={{ fontSize: sub }}>
-            Invoice / prescription body appears here…
-          </p>
-        </div>
-      )}
-
-      {tab === 'footer' && (
-        <div className="min-h-[220px] flex flex-col justify-end">
-          <p className="text-center text-ink-faint mb-auto pt-8" style={{ fontSize: sub }}>
-            Document body…
-          </p>
-          {(form.showLeftSignature || form.showRightSignature) && (
-            <div className="flex justify-between gap-4 mt-6 mb-4" style={{ fontSize: sub }}>
-              <div className="flex-1">
-                {form.showLeftSignature && (
-                  <div className="whitespace-pre-wrap">
-                    {form.signatureImage && form.leftSignatureText === '' ? (
-                      <img src={form.signatureImage} alt="" className="h-10 object-contain mb-1" />
-                    ) : null}
-                    {form.leftSignatureText || 'Left signature'}
-                  </div>
-                )}
-              </div>
-              <div className="flex-1 text-right">
-                {form.showRightSignature && (
-                  <div className="whitespace-pre-wrap">
-                    {form.signatureImage ? (
-                      <img src={form.signatureImage} alt="" className="h-10 object-contain mb-1 ml-auto" />
-                    ) : null}
-                    {form.rightSignatureText || form.signatureLabel || 'Right signature'}
-                  </div>
-                )}
-              </div>
-            </div>
-          )}
-          {showFooter ? (
-            <div className="border-t border-dashed border-line pt-2" style={{ fontSize: sub }}>
-              {form.footerText || 'Footer text'}
-              {form.terms && <p className="mt-1 text-ink-faint whitespace-pre-wrap">{form.terms}</p>}
-            </div>
-          ) : (
-            <p className="text-sm text-ink-faint italic text-center border-t border-dashed border-line pt-3">
-              Footer hidden — using letterpad paper
-            </p>
-          )}
-          {form.showPoweredBy && (
-            <p className="text-center text-[10px] text-ink-faint mt-2">Powered by {BRAND_NAME}</p>
-          )}
-        </div>
-      )}
+    <div className="relative rounded border border-[#cfd6dd] bg-white min-h-[420px] overflow-hidden shadow-sm">
+      <div className="absolute top-0 right-0 z-10">
+        <span className="inline-block bg-[#8a939c] text-white text-[11px] font-medium px-3 py-1 rounded-bl">
+          Preview
+        </span>
+      </div>
+      <div
+        className={`p-5 pt-8 ${form.coloredPrint === false ? 'grayscale' : ''}`}
+        style={{
+          paddingTop: `${Math.max(0.4, form.marginTopIn || 0.5) * 48}px`,
+          paddingBottom: `${Math.max(0.4, form.marginBottomIn || 0.5) * 48}px`,
+          paddingLeft: `${Math.max(0.4, form.marginLeftIn || 0.5) * 48}px`,
+          paddingRight: `${Math.max(0.4, form.marginRightIn || 0.5) * 48}px`,
+        }}
+      >
+        <PrintLetterhead
+          branding={form}
+          mode={tab === 'footer' ? 'settings-footer' : 'settings-header'}
+          showPlaceholders
+        />
+        {form.showPoweredBy && tab === 'footer' && (
+          <p className="text-center text-[10px] text-ink-faint mt-2">Powered by {BRAND_NAME}</p>
+        )}
+      </div>
     </div>
   );
+}
+
+async function uploadPrintFile(kind, file) {
+  const body = new FormData();
+  body.append('file', file);
+  body.append('kind', kind);
+  const res = await api.post('/ops/print/settings/upload', body);
+  return res.data;
 }
 
 export default function PrintSettingsPage() {
   const [form, setForm] = useState(null);
   const [tab, setTab] = useState('header');
-  const [logoFile, setLogoFile] = useState(null);
-  const [sigFile, setSigFile] = useState(null);
   const [saving, setSaving] = useState(false);
+  const [uploadingLogo, setUploadingLogo] = useState(false);
+  const [uploadingSig, setUploadingSig] = useState(false);
+  const [insertingHeaderImg, setInsertingHeaderImg] = useState(false);
 
   useEffect(() => {
     api
@@ -235,25 +135,70 @@ export default function PrintSettingsPage() {
     []
   );
 
-  const uploadLogo = async () => {
+  const onLogoSelected = async (event) => {
+    const file = event.target.files?.[0];
+    event.target.value = '';
+    if (!file) return;
+    setUploadingLogo(true);
     try {
-      if (!logoFile) return toast.error('Choose a logo file first.');
-      const dataUrl = await fileToDataUrl(logoFile, { maxEdge: 800 });
-      set({ logo: dataUrl });
-      toast.success('Logo ready — click Save to apply.');
+      const data = await uploadPrintFile('logo', file);
+      setForm({ ...defaults, ...(data.settings || {}), logo: data.url });
+      toast.success('Logo uploaded and saved.');
     } catch (err) {
-      toast.error(err.message || 'Logo upload failed.');
+      toast.error(err.response?.data?.message || err.message || 'Logo upload failed.');
+    } finally {
+      setUploadingLogo(false);
     }
   };
 
-  const uploadSignature = async () => {
+  const insertImageIntoHeader = async (file) => {
+    setInsertingHeaderImg(true);
     try {
-      if (!sigFile) return toast.error('Choose a signature image first.');
-      const dataUrl = await fileToDataUrl(sigFile, { maxEdge: 600 });
-      set({ signatureImage: dataUrl });
-      toast.success('Signature ready — click Save to apply.');
+      const data = await uploadPrintFile('logo', file);
+      setForm((prev) => ({ ...defaults, ...(prev || {}), ...(data.settings || {}), logo: data.url || prev?.logo }));
+      toast.success('Image uploaded.');
+      return data.url;
     } catch (err) {
-      toast.error(err.message || 'Signature upload failed.');
+      toast.error(err.response?.data?.message || err.message || 'Image upload failed.');
+      return '';
+    } finally {
+      setInsertingHeaderImg(false);
+    }
+  };
+
+  const onSignatureSelected = async (event) => {
+    const file = event.target.files?.[0];
+    event.target.value = '';
+    if (!file) return;
+    setUploadingSig(true);
+    try {
+      const data = await uploadPrintFile('signature', file);
+      setForm({ ...defaults, ...(data.settings || {}), signatureImage: data.url });
+      toast.success('Signature uploaded and saved.');
+    } catch (err) {
+      toast.error(err.response?.data?.message || err.message || 'Signature upload failed.');
+    } finally {
+      setUploadingSig(false);
+    }
+  };
+
+  const clearLogo = async () => {
+    set({ logo: '' });
+    try {
+      await api.put('/ops/print/settings', { logo: '' });
+      toast.success('Logo removed.');
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Could not remove logo.');
+    }
+  };
+
+  const clearSignature = async () => {
+    set({ signatureImage: '' });
+    try {
+      await api.put('/ops/print/settings', { signatureImage: '' });
+      toast.success('Signature removed.');
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Could not remove signature.');
     }
   };
 
@@ -261,7 +206,13 @@ export default function PrintSettingsPage() {
     e?.preventDefault?.();
     setSaving(true);
     try {
-      const res = await api.put('/ops/print/settings', form);
+      const { logo, signatureImage, ...rest } = form;
+      const payload = {
+        ...rest,
+        logo: logo || '',
+        signatureImage: signatureImage || '',
+      };
+      const res = await api.put('/ops/print/settings', payload);
       setForm({ ...defaults, ...(res.data.settings || form) });
       toast.success('Print template saved for this clinic.');
     } catch (err) {
@@ -278,10 +229,14 @@ export default function PrintSettingsPage() {
       <PageHeader
         title="Print settings"
         description="Customize letterhead, logo, margins and signatures for invoices, prescriptions and all clinic prints."
+        actions={
+          <Link to={ROUTES.printPreview} className="btn-secondary" target="_blank" rel="noreferrer">
+            Open print preview
+          </Link>
+        }
       />
 
       <form onSubmit={save} className="space-y-4">
-        {/* Page layout */}
         <section className="card space-y-4">
           <h2 className="text-sm font-semibold text-ink">All pages — layout & fonts</h2>
           <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-3">
@@ -293,12 +248,7 @@ export default function PrintSettingsPage() {
           <div className="grid sm:grid-cols-2 lg:grid-cols-5 gap-3">
             <div>
               <label className="label-field">Page size</label>
-              <Dropdown
-                value={form.paperSize || 'A4'}
-                onChange={(paperSize) => set({ paperSize })}
-                ariaLabel="Page size"
-                options={paperOptions}
-              />
+              <Dropdown value={form.paperSize || 'A4'} onChange={(paperSize) => set({ paperSize })} ariaLabel="Page size" options={paperOptions} />
             </div>
             <div>
               <label className="label-field">Orientation</label>
@@ -342,9 +292,9 @@ export default function PrintSettingsPage() {
           </div>
         </section>
 
-        {/* Clinic identity + signatures */}
         <section className="card space-y-4">
           <h2 className="text-sm font-semibold text-ink">Clinic identity</h2>
+          <p className="text-xs text-ink-faint -mt-2">Used in the letterhead preview contact block (right side).</p>
           <div className="grid sm:grid-cols-2 gap-3">
             <div>
               <label className="label-field">Hospital / clinic name</label>
@@ -355,16 +305,25 @@ export default function PrintSettingsPage() {
               <input className="input-field" value={form.phone || ''} onChange={(e) => set({ phone: e.target.value })} />
             </div>
             <div>
-              <label className="label-field">Email</label>
-              <input className="input-field" value={form.email || ''} onChange={(e) => set({ email: e.target.value })} />
+              <label className="label-field">Appointment phone</label>
+              <input
+                className="input-field"
+                placeholder="Optional — defaults to helpline"
+                value={form.appointmentPhone || ''}
+                onChange={(e) => set({ appointmentPhone: e.target.value })}
+              />
             </div>
             <div>
-              <label className="label-field">Website</label>
-              <input className="input-field" value={form.website || ''} onChange={(e) => set({ website: e.target.value })} />
+              <label className="label-field">Email</label>
+              <input className="input-field" value={form.email || ''} onChange={(e) => set({ email: e.target.value })} />
             </div>
             <div className="sm:col-span-2">
               <label className="label-field">Address</label>
               <textarea className="input-field" rows={2} value={form.address || ''} onChange={(e) => set({ address: e.target.value })} />
+            </div>
+            <div>
+              <label className="label-field">Website</label>
+              <input className="input-field" value={form.website || ''} onChange={(e) => set({ website: e.target.value })} />
             </div>
             <div>
               <label className="label-field">Registration number</label>
@@ -376,29 +335,13 @@ export default function PrintSettingsPage() {
             </div>
           </div>
 
-          <div>
-            <label className="label-field">Hospital logo</label>
-            <div className="flex flex-wrap items-center gap-2">
-              <input type="file" accept="image/*" className="text-sm" onChange={(e) => setLogoFile(e.target.files?.[0] || null)} />
-              <button type="button" className="btn-secondary" onClick={uploadLogo}>
-                Upload logo
-              </button>
-              {form.logo && (
-                <button type="button" className="btn-ghost text-sm" onClick={() => set({ logo: '' })}>
-                  Remove logo
-                </button>
-              )}
-            </div>
-            {form.logo && <img src={form.logo} alt="Logo preview" className="mt-2 h-16 object-contain" />}
-          </div>
-
           <h2 className="text-sm font-semibold text-ink pt-2">Signatures</h2>
           <div className="grid sm:grid-cols-2 gap-3">
             <div>
-              <label className="label-field">Doctor left signature</label>
+              <label className="label-field">Doctor left signature label</label>
               <textarea
                 className="input-field"
-                rows={3}
+                rows={2}
                 placeholder="E.g. Thanks for reference"
                 value={form.leftSignatureText || ''}
                 onChange={(e) => set({ leftSignatureText: e.target.value })}
@@ -409,14 +352,14 @@ export default function PrintSettingsPage() {
                   checked={Boolean(form.showLeftSignature)}
                   onChange={(e) => set({ showLeftSignature: e.target.checked })}
                 />
-                Show left signature
+                Show left signature on prints
               </label>
             </div>
             <div>
-              <label className="label-field">Doctor right signature</label>
+              <label className="label-field">Doctor right signature label</label>
               <textarea
                 className="input-field"
-                rows={3}
+                rows={2}
                 placeholder="Clinic name / doctor details"
                 value={form.rightSignatureText || ''}
                 onChange={(e) => set({ rightSignatureText: e.target.value })}
@@ -427,98 +370,135 @@ export default function PrintSettingsPage() {
                   checked={form.showRightSignature !== false}
                   onChange={(e) => set({ showRightSignature: e.target.checked, showSignature: e.target.checked })}
                 />
-                Show right signature
+                Show right signature on prints
               </label>
             </div>
           </div>
           <div>
             <label className="label-field">Upload signature image</label>
             <div className="flex flex-wrap items-center gap-2">
-              <input type="file" accept="image/*" className="text-sm" onChange={(e) => setSigFile(e.target.files?.[0] || null)} />
-              <button type="button" className="btn-secondary" onClick={uploadSignature}>
-                Upload signature
-              </button>
-              <button type="button" className="btn-ghost text-sm" onClick={() => set({ signatureImage: '' })}>
-                Reset
-              </button>
+              <label className={`btn-secondary cursor-pointer ${uploadingSig ? 'opacity-60 pointer-events-none' : ''}`}>
+                {uploadingSig ? 'Uploading…' : 'Upload signature'}
+                <input type="file" accept="image/png,image/jpeg,image/jpg,image/webp,image/gif" className="sr-only" disabled={uploadingSig} onChange={onSignatureSelected} />
+              </label>
+              {form.signatureImage && (
+                <button type="button" className="btn-ghost text-sm" onClick={clearSignature}>
+                  Reset
+                </button>
+              )}
             </div>
             {form.signatureImage && <img src={form.signatureImage} alt="Signature" className="mt-2 h-12 object-contain" />}
-            <p className="text-xs text-ink-faint mt-2">
-              If a signature checkbox is on but text and image are blank, the default label is used. An uploaded image is shown when text is blank.
-            </p>
           </div>
 
           <div className="flex flex-wrap gap-4 pt-1">
             <label className="flex items-center gap-2 text-sm">
-              <input
-                type="checkbox"
-                checked={Boolean(form.showPoweredBy)}
-                onChange={(e) => set({ showPoweredBy: e.target.checked })}
-              />
+              <input type="checkbox" checked={Boolean(form.showPoweredBy)} onChange={(e) => set({ showPoweredBy: e.target.checked })} />
               Show &quot;Powered by {BRAND_NAME}&quot;
             </label>
             <label className="flex items-center gap-2 text-sm">
-              <input
-                type="checkbox"
-                checked={form.coloredPrint !== false}
-                onChange={(e) => set({ coloredPrint: e.target.checked })}
-              />
+              <input type="checkbox" checked={form.coloredPrint !== false} onChange={(e) => set({ coloredPrint: e.target.checked })} />
               Colored print
             </label>
           </div>
         </section>
 
-        {/* Header / Footer tabs */}
-        <section className="card">
-          <div className="flex gap-2 border-b border-line mb-4">
+        {/* Kiwi-style Header / Footer template editor */}
+        <section className="card !p-0 overflow-hidden">
+          <div className="flex items-center gap-6 px-4 border-b border-line">
             {['header', 'footer'].map((id) => (
               <button
                 key={id}
                 type="button"
-                className={`tab-chip capitalize ${tab === id ? 'bg-ink text-white' : 'text-ink-muted hover:bg-canvas'}`}
+                className={`relative py-3 text-sm font-medium capitalize ${
+                  tab === id ? 'text-[#2f6fed]' : 'text-ink-muted hover:text-ink'
+                }`}
                 onClick={() => setTab(id)}
               >
                 {id}
+                {tab === id && <span className="absolute left-0 right-0 -bottom-px h-0.5 bg-[#2f6fed]" />}
               </button>
             ))}
           </div>
 
-          <div className="grid lg:grid-cols-2 gap-6">
-            <div className="space-y-3">
+          <div className="grid lg:grid-cols-2 gap-0 lg:gap-0 divide-y lg:divide-y-0 lg:divide-x divide-line">
+            <div className="p-4 space-y-4 bg-white">
               {tab === 'header' && (
                 <>
                   <div>
-                    <p className="label-field mb-2">Include header?</p>
-                    <div className="flex flex-wrap gap-4 text-sm">
-                      <label className="flex items-center gap-2">
+                    <p className="text-sm font-medium text-ink mb-2">Include Header?</p>
+                    <div className="flex flex-wrap gap-5 text-sm text-ink">
+                      <label className="inline-flex items-center gap-2 cursor-pointer">
                         <input
                           type="radio"
                           name="includeHeader"
+                          className="accent-[#2f6fed]"
                           checked={form.includeHeader !== false}
                           onChange={() => set({ includeHeader: true })}
                         />
-                        Yes
+                        Yes.
                       </label>
-                      <label className="flex items-center gap-2">
+                      <label className="inline-flex items-center gap-2 cursor-pointer">
                         <input
                           type="radio"
                           name="includeHeader"
+                          className="accent-[#2f6fed]"
                           checked={form.includeHeader === false}
                           onChange={() => set({ includeHeader: false })}
                         />
-                        No, I have letterpad
+                        No, I have Letterpad.
                       </label>
                     </div>
                   </div>
+
                   <div>
-                    <label className="label-field">Header text (tagline / branch line)</label>
-                    <textarea
-                      className="input-field"
-                      rows={4}
-                      placeholder="Optional line under clinic name"
-                      value={form.headerText || ''}
-                      onChange={(e) => set({ headerText: e.target.value })}
+                    <div className="flex items-center justify-between gap-2 mb-1.5">
+                      <p className="text-sm font-medium text-ink">Header</p>
+                      <label className={`text-xs text-[#2f6fed] cursor-pointer ${uploadingLogo ? 'opacity-50 pointer-events-none' : ''}`}>
+                        {uploadingLogo ? 'Uploading logo…' : form.logo ? 'Change clinic logo' : 'Upload clinic logo'}
+                        <input
+                          type="file"
+                          accept="image/png,image/jpeg,image/jpg,image/webp,image/gif"
+                          className="sr-only"
+                          disabled={uploadingLogo}
+                          onChange={onLogoSelected}
+                        />
+                      </label>
+                    </div>
+                    <SimpleRichEditor
+                      value={form.headerHtml || ''}
+                      onChange={(headerHtml) => set({ headerHtml })}
                       disabled={form.includeHeader === false}
+                      minHeight={140}
+                      placeholder="Add header content or insert your logo image…"
+                      onInsertImage={insertImageIntoHeader}
+                      insertingImage={insertingHeaderImg}
+                    />
+                    {form.logo && (
+                      <button type="button" className="btn-ghost text-xs mt-1" onClick={clearLogo}>
+                        Remove saved clinic logo
+                      </button>
+                    )}
+                  </div>
+
+                  <div>
+                    <p className="text-sm font-medium text-ink mb-1.5">Left Content</p>
+                    <SimpleRichEditor
+                      value={form.leftContentHtml || ''}
+                      onChange={(leftContentHtml) => set({ leftContentHtml })}
+                      disabled={form.includeHeader === false}
+                      minHeight={100}
+                      placeholder="Left content here…"
+                    />
+                  </div>
+
+                  <div>
+                    <p className="text-sm font-medium text-ink mb-1.5">Right Content</p>
+                    <SimpleRichEditor
+                      value={form.rightContentHtml || ''}
+                      onChange={(rightContentHtml) => set({ rightContentHtml })}
+                      disabled={form.includeHeader === false}
+                      minHeight={100}
+                      placeholder="Right content here…"
                     />
                   </div>
                 </>
@@ -527,43 +507,58 @@ export default function PrintSettingsPage() {
               {tab === 'footer' && (
                 <>
                   <div>
-                    <p className="label-field mb-2">Include footer?</p>
-                    <div className="flex flex-wrap gap-4 text-sm">
-                      <label className="flex items-center gap-2">
+                    <p className="text-sm font-medium text-ink mb-2">Include Footer?</p>
+                    <div className="flex flex-wrap gap-5 text-sm text-ink">
+                      <label className="inline-flex items-center gap-2 cursor-pointer">
                         <input
                           type="radio"
                           name="includeFooter"
+                          className="accent-[#2f6fed]"
                           checked={form.includeFooter !== false}
                           onChange={() => set({ includeFooter: true })}
                         />
-                        Yes
+                        Yes.
                       </label>
-                      <label className="flex items-center gap-2">
+                      <label className="inline-flex items-center gap-2 cursor-pointer">
                         <input
                           type="radio"
                           name="includeFooter"
+                          className="accent-[#2f6fed]"
                           checked={form.includeFooter === false}
                           onChange={() => set({ includeFooter: false })}
                         />
-                        No, I have letterpad
+                        No, I have Letterpad.
                       </label>
                     </div>
                   </div>
+
                   <div>
-                    <label className="label-field">Footer text</label>
-                    <textarea
-                      className="input-field"
-                      rows={3}
-                      value={form.footerText || ''}
-                      onChange={(e) => set({ footerText: e.target.value })}
+                    <p className="text-sm font-medium text-ink mb-1.5">Footer</p>
+                    <SimpleRichEditor
+                      value={form.footerHtml || ''}
+                      onChange={(footerHtml) => set({ footerHtml })}
                       disabled={form.includeFooter === false}
+                      minHeight={120}
+                      placeholder="Footer content…"
                     />
                   </div>
+
+                  <div>
+                    <p className="text-sm font-medium text-ink mb-1.5">Right Content</p>
+                    <SimpleRichEditor
+                      value={form.rightContentHtml || ''}
+                      onChange={(rightContentHtml) => set({ rightContentHtml })}
+                      disabled={form.includeFooter === false}
+                      minHeight={100}
+                      placeholder="Right content here…"
+                    />
+                  </div>
+
                   <div>
                     <label className="label-field">Terms / notes</label>
                     <textarea
                       className="input-field"
-                      rows={3}
+                      rows={2}
                       value={form.terms || ''}
                       onChange={(e) => set({ terms: e.target.value })}
                       disabled={form.includeFooter === false}
@@ -573,22 +568,19 @@ export default function PrintSettingsPage() {
               )}
             </div>
 
-            <div>
-              <div className="flex items-center justify-between mb-2">
-                <p className="text-xs font-semibold uppercase tracking-wide text-ink-faint">Live preview</p>
-                <button type="button" className="btn-ghost text-xs" onClick={() => setTab(tab === 'header' ? 'footer' : 'header')}>
-                  Preview {tab === 'header' ? 'footer' : 'header'}
-                </button>
-              </div>
-              <LivePreview form={form} tab={tab} />
+            <div className="p-4 bg-[#f3f5f7]">
+              <LetterheadPreview form={form} tab={tab} />
             </div>
           </div>
         </section>
 
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
           <button type="submit" className="btn-primary" disabled={saving}>
             {saving ? 'Saving…' : 'Save'}
           </button>
+          <Link to={ROUTES.printPreview} className="btn-secondary" target="_blank" rel="noreferrer">
+            Open print preview
+          </Link>
         </div>
       </form>
     </div>

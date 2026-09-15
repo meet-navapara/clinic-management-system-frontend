@@ -26,6 +26,7 @@ import { compressImageToDataUrl } from '../utils/image';
 const TABS = [
   'overview',
   'appointments',
+  'consultations',
   'medical',
   'medications',
   'allergies',
@@ -50,6 +51,7 @@ export default function DoctorPatientDetail() {
   const [notes, setNotes] = useState([]);
   const [timeline, setTimeline] = useState([]);
   const [invoices, setInvoices] = useState([]);
+  const [consultations, setConsultations] = useState([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [noteBody, setNoteBody] = useState('');
@@ -64,7 +66,14 @@ export default function DoctorPatientDetail() {
       setAppointments(res.data.appointments || { upcoming: [], past: [] });
       setNotes(res.data.notes || []);
       setTimeline(res.data.timeline || []);
-      api.get(`/billing/patient/${id}`).then((b) => setInvoices(b.data.invoices || [])).catch(() => setInvoices([]));
+      api
+        .get(`/billing/patient/${id}`)
+        .then((b) => setInvoices(b.data.invoices || []))
+        .catch(() => setInvoices([]));
+      api
+        .get(`/consultations/patient/${id}`)
+        .then((c) => setConsultations(c.data.consultations || []))
+        .catch(() => setConsultations([]));
       const p = res.data.patient;
       setForm({
         firstName: p.firstName || '',
@@ -418,6 +427,60 @@ export default function DoctorPatientDetail() {
               </ul>
             )}
           </section>
+        </div>
+      )}
+
+      {tab === 'consultations' && (
+        <div className="space-y-2">
+          {!consultations.length ? (
+            <EmptyState
+              title="No consultations yet"
+              description="Completed visits will appear here after you save a consultation."
+            />
+          ) : (
+            consultations.map((c) => (
+              <article key={c._id} className="card !p-4 space-y-2">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <div>
+                    <p className="font-medium text-ink">
+                      {c.createdAt && isValid(new Date(c.createdAt))
+                        ? format(new Date(c.createdAt), 'PPP')
+                        : 'Consultation'}
+                    </p>
+                    <p className="text-xs text-ink-faint">
+                      {c.doctorId?.name ? `Dr. ${c.doctorId.name}` : 'Doctor'}
+                      {c.status ? ` · ${c.status}` : ''}
+                    </p>
+                  </div>
+                  <div className="flex gap-2">
+                    {c.appointmentId && (
+                      <Link
+                        className="btn-ghost !min-h-9 text-xs"
+                        to={ROUTES.doctorAppointmentDetail(c.appointmentId)}
+                      >
+                        Appointment
+                      </Link>
+                    )}
+                    <Link
+                      className="btn-secondary !min-h-9 text-xs"
+                      to={ROUTES.print('consultation', c._id)}
+                      target="_blank"
+                      rel="noreferrer"
+                    >
+                      Print
+                    </Link>
+                  </div>
+                </div>
+                {(c.chiefComplaint || c.diagnosis || c.treatment) && (
+                  <div className="text-sm text-ink-muted space-y-1">
+                    {c.chiefComplaint ? <p><span className="font-medium text-ink">Complaint:</span> {c.chiefComplaint}</p> : null}
+                    {c.diagnosis ? <p><span className="font-medium text-ink">Diagnosis:</span> {c.diagnosis}</p> : null}
+                    {c.treatment ? <p><span className="font-medium text-ink">Treatment:</span> {c.treatment}</p> : null}
+                  </div>
+                )}
+              </article>
+            ))
+          )}
         </div>
       )}
 

@@ -64,11 +64,25 @@ export default function InvoiceDetail() {
     if (!window.confirm('Refund the paid amount and reverse inventory if applicable?')) return;
     setBusy(true);
     try {
-      await api.post(`/billing/${id}/refund`, { reverseStock: true });
+      await api.post(`/billing/${id}/refund`, {});
       toast.success('Refund recorded.');
       load();
     } catch (err) {
       toast.error(err.response?.data?.message || 'Refund failed.');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const cancelInvoice = async () => {
+    if (!window.confirm('Cancel this unpaid invoice and reverse reserved stock?')) return;
+    setBusy(true);
+    try {
+      await api.post(`/billing/${id}/cancel`);
+      toast.success('Invoice cancelled.');
+      load();
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Cancel failed.');
     } finally {
       setBusy(false);
     }
@@ -104,6 +118,13 @@ export default function InvoiceDetail() {
                 Refund
               </button>
             )}
+            {can(user, P.BILLING_MANAGE) &&
+              Number(invoice.paidAmount || 0) <= 0 &&
+              invoice.paymentStatus !== 'cancelled' && (
+                <button type="button" className="btn-danger" onClick={cancelInvoice} disabled={busy}>
+                  Cancel invoice
+                </button>
+              )}
           </div>
         }
       />

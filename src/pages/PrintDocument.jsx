@@ -4,35 +4,10 @@ import { format, isValid } from 'date-fns';
 import api from '../utils/api';
 import Money from '../components/ui/Money';
 import BackButton from '../components/ui/BackButton';
+import PrintLetterhead from '../components/print/PrintLetterhead';
 import { BRAND_NAME } from '../constants/branding';
 import { useAuth } from '../context/AuthContext';
 import { getDashboardPath } from '../constants/routes';
-
-function BrandHeader({ branding, branch }) {
-  if (branding.includeHeader === false) {
-    return <div className="print-header-spacer" aria-hidden style={{ minHeight: '0.25in' }} />;
-  }
-
-  return (
-    <header className="print-header flex gap-4 items-start border-b border-line pb-3 mb-4">
-      {branding.logo ? <img src={branding.logo} alt="" className="h-14 w-auto object-contain max-w-[140px]" /> : null}
-      <div className="flex-1 min-w-0">
-        <h1 className="print-heading font-semibold">{branding.clinicName}</h1>
-        {branding.headerText && <p className="print-sub whitespace-pre-wrap">{branding.headerText}</p>}
-        <p className="print-sub text-ink-muted">{branch?.address || branding.address}</p>
-        <p className="print-sub text-ink-muted">
-          {[branding.phone, branding.email, branding.website].filter(Boolean).join(' · ')}
-        </p>
-        {(branding.registrationNumber || branding.gstNumber) && (
-          <p className="print-sub text-ink-faint">
-            {branding.registrationNumber && `Reg. ${branding.registrationNumber} `}
-            {branding.gstNumber && `${branding.taxLabel || 'GST'} ${branding.gstNumber}`}
-          </p>
-        )}
-      </div>
-    </header>
-  );
-}
 
 function SignatureBlock({ branding }) {
   const showLeft = Boolean(branding.showLeftSignature);
@@ -40,65 +15,61 @@ function SignatureBlock({ branding }) {
   if (!showLeft && !showRight) return null;
 
   return (
-    <div className="print-signatures mt-12 flex justify-between gap-8 print-sub">
+    <div className="print-signatures mt-14 flex justify-between gap-8 text-[12px]">
       <div className="flex-1">
         {showLeft && (
-          <>
-            {branding.signatureImage && !branding.leftSignatureText ? (
-              <img src={branding.signatureImage} alt="" className="h-12 object-contain mb-1" />
+          <div>
+            {branding.signatureImage ? (
+              <img src={branding.signatureImage} alt="" className="h-12 max-w-[160px] object-contain mb-1" />
             ) : null}
-            <p className="whitespace-pre-wrap">{branding.leftSignatureText || '_______________'}</p>
-          </>
+            <p className="whitespace-pre-wrap text-ink-muted">
+              {branding.leftSignatureText || '_______________'}
+            </p>
+          </div>
         )}
       </div>
       <div className="flex-1 text-right">
         {showRight && (
-          <>
+          <div className="inline-block text-right">
             {branding.signatureImage ? (
-              <img src={branding.signatureImage} alt="" className="h-12 object-contain mb-1 ml-auto" />
+              <img
+                src={branding.signatureImage}
+                alt=""
+                className="h-12 max-w-[160px] object-contain mb-1 ml-auto"
+              />
             ) : null}
-            <p className="whitespace-pre-wrap">
-              {branding.rightSignatureText || branding.signatureLabel || 'Authorized signature'}
-              {!branding.rightSignatureText && !branding.signatureImage ? (
-                <>
-                  <br />
-                  _______________
-                </>
-              ) : null}
+            <p className="whitespace-pre-wrap text-ink-muted">
+              {branding.rightSignatureText || branding.signatureLabel || 'Doctor signature'}
             </p>
-          </>
+          </div>
         )}
       </div>
     </div>
   );
 }
 
-function Footer({ branding }) {
+function DocumentFooter({ branding }) {
   if (branding.includeFooter === false && !branding.showPoweredBy) return null;
-
   return (
-    <footer className="print-footer mt-8 pt-3 border-t border-line print-sub text-ink-muted">
-      {branding.includeFooter !== false && (
-        <>
-          {branding.terms && <p className="mb-2 whitespace-pre-wrap">{branding.terms}</p>}
-          {branding.footerText && <p className="whitespace-pre-wrap">{branding.footerText}</p>}
-        </>
-      )}
+    <div className="mt-6">
+      <PrintLetterhead branding={branding} mode="document" section="footer" />
       {branding.showPoweredBy && (
         <p className="text-center text-[10px] text-ink-faint mt-3">Powered by {BRAND_NAME}</p>
       )}
-    </footer>
+    </div>
   );
 }
 
 export default function PrintDocument() {
-  const { type, id } = useParams();
+  const { type: typeParam, id } = useParams();
+  const type = typeParam || 'preview';
   const navigate = useNavigate();
   const { user } = useAuth();
   const [data, setData] = useState(null);
 
   useEffect(() => {
-    api.get(`/ops/print/${type}/${id}`).then((res) => setData(res.data)).catch(() => setData({ error: true }));
+    const url = type === 'preview' ? '/ops/print/preview' : `/ops/print/${type}/${id}`;
+    api.get(url).then((res) => setData(res.data)).catch(() => setData({ error: true }));
   }, [type, id]);
 
   const sheetStyle = useMemo(() => {
@@ -167,7 +138,28 @@ export default function PrintDocument() {
         </button>
       </div>
       <article className="print-sheet mx-auto max-w-[210mm]" style={sheetStyle}>
-        <BrandHeader branding={branding} branch={data.invoice?.branchId || data.appointment?.branchId} />
+        <PrintLetterhead
+          branding={branding}
+          branch={data.invoice?.branchId || data.appointment?.branchId || data.ticket?.branchId}
+          mode="document"
+          section="header"
+        />
+
+        {type === 'preview' && data.preview && (
+          <>
+            <h2 className="print-heading font-semibold mb-2">{data.preview.title}</h2>
+            <p className="print-sub mb-4">
+              Patient: {data.preview.patientName} · Doctor: {data.preview.doctorName}
+              {data.preview.dateLabel ? ` · ${data.preview.dateLabel}` : ''}
+            </p>
+            <div className="space-y-2 mb-6">
+              {(data.preview.lines || []).map((line, i) => (
+                <p key={i}>{line}</p>
+              ))}
+            </div>
+            <SignatureBlock branding={branding} />
+          </>
+        )}
 
         {type === 'invoice' && data.invoice && (
           <>
@@ -341,7 +333,7 @@ export default function PrintDocument() {
           </>
         )}
 
-        <Footer branding={branding} />
+        <DocumentFooter branding={branding} />
       </article>
     </div>
   );

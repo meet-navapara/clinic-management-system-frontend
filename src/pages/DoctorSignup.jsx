@@ -11,7 +11,7 @@ import { ROUTES } from '../constants/routes';
 import RequiredMark from '../components/ui/RequiredMark';
 import { normalizeIndianMobile, isValidEmail, meetsPasswordComplexity, STRONG_PASSWORD_MESSAGE } from '../utils/validation';
 
-const REQUIRED_FIELDS = ['name', 'email', 'phone', 'password', 'confirmPassword', 'qualification', 'licenseNumber', 'city', 'clinicName'];
+const REQUIRED_FIELDS = ['name', 'email', 'phone', 'password', 'confirmPassword', 'qualification', 'licenseNumber', 'city', 'clinicName', 'setupKey'];
 
 function FieldError({ id, message }) {
   if (!message) return null;
@@ -53,6 +53,8 @@ function validateSignup(form) {
 
   if (!form.clinicName.trim()) errors.clinicName = 'Practice / clinic name is required.';
 
+  if (!form.setupKey.trim()) errors.setupKey = 'Admin setup key is required.';
+
   if (form.experience !== '') {
     const years = Number(form.experience);
     if (!Number.isInteger(years) || years < 0) {
@@ -77,6 +79,7 @@ export default function DoctorSignup() {
     clinicName: '',
     city: '',
     bio: '',
+    setupKey: '',
   });
   const [fieldErrors, setFieldErrors] = useState({});
   const [loading, setLoading] = useState(false);
@@ -368,6 +371,27 @@ export default function DoctorSignup() {
                 />
                 <FieldError id="signup-clinicName-error" message={fieldErrors.clinicName} />
               </div>
+            </div>
+
+            <div>
+              <label htmlFor="signup-setupKey" className="block text-sm font-medium text-gray-700 mb-1">
+                Admin setup key <RequiredMark />
+              </label>
+              <input
+                id="signup-setupKey"
+                name="setupKey"
+                type="password"
+                autoComplete="off"
+                className="input-field"
+                required
+                value={form.setupKey}
+                onChange={handleChange}
+                placeholder="Provided by Super Admin"
+                aria-invalid={Boolean(fieldErrors.setupKey)}
+                aria-describedby={fieldErrors.setupKey ? 'signup-setupKey-error' : undefined}
+              />
+              <FieldError id="signup-setupKey-error" message={fieldErrors.setupKey} />
+              <p className="text-xs text-gray-500 mt-1">Required to create or join a clinic in production.</p>
             </div>
 
             <div>

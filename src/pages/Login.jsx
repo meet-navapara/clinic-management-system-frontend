@@ -117,6 +117,12 @@ export default function Login() {
           </fieldset>
         </form>
 
+        <p className="text-center text-xs sm:text-sm text-gray-500 mt-3">
+          <Link to={ROUTES.forgotPassword} className="text-accent-700 font-semibold hover:underline">
+            Forgot password?
+          </Link>
+        </p>
+
         <p className="text-center text-xs sm:text-sm text-gray-500 mt-4 sm:mt-6">
           New doctor?{' '}
           <Link to={ROUTES.doctorSignup} className="text-accent-700 font-semibold hover:underline">

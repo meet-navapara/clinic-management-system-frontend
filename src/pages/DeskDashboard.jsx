@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { format } from 'date-fns';
 import { Calendar, Users, Receipt, ListOrdered } from 'lucide-react';
 import api from '../utils/api';
+import toast from 'react-hot-toast';
 import { ROUTES } from '../constants/routes';
 import StatCard from '../components/ui/StatCard';
 import EmptyState from '../components/ui/EmptyState';
@@ -23,7 +24,10 @@ export default function DeskDashboard() {
   useEffect(() => {
     const today = format(new Date(), 'yyyy-MM-dd');
     if (can(user, P.APPOINTMENTS_VIEW)) {
-      api.get('/appointments/my', { params: { date: today } }).then((res) => setAppts(res.data.appointments || [])).catch(() => {});
+      api
+        .get('/appointments/my', { params: { date: today } })
+        .then((res) => setAppts(res.data.appointments || []))
+        .catch((err) => toast.error(err.response?.data?.message || 'Could not load appointments.'));
     }
     if (can(user, P.QUEUE_MANAGE)) {
       api
@@ -35,10 +39,13 @@ export default function DeskDashboard() {
             total: res.data.total || 0,
           })
         )
-        .catch(() => {});
+        .catch((err) => toast.error(err.response?.data?.message || 'Could not load queue.'));
     }
     if (can(user, P.BILLING_VIEW)) {
-      api.get('/billing', { params: { status: 'unpaid', limit: 8 } }).then((res) => setOutstanding(res.data.invoices || [])).catch(() => {});
+      api
+        .get('/billing', { params: { status: 'unpaid', limit: 8 } })
+        .then((res) => setOutstanding(res.data.invoices || []))
+        .catch((err) => toast.error(err.response?.data?.message || 'Could not load billing.'));
     }
   }, [user, branchId]);
 

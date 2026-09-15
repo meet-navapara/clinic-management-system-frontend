@@ -6,6 +6,8 @@ import GuestRoute from './components/GuestRoute';
 import Landing from './pages/Landing';
 import Login from './pages/Login';
 import DoctorSignup from './pages/DoctorSignup';
+import ForgotPassword from './pages/ForgotPassword';
+import ResetPassword from './pages/ResetPassword';
 import DoctorPending from './pages/DoctorPending';
 import DoctorDashboard from './pages/DoctorDashboard';
 import DoctorPatients from './pages/DoctorPatients';
@@ -135,6 +137,22 @@ export default function App() {
             </GuestRoute>
           }
         />
+        <Route
+          path={ROUTES.forgotPassword}
+          element={
+            <GuestRoute>
+              <ForgotPassword />
+            </GuestRoute>
+          }
+        />
+        <Route
+          path={ROUTES.resetPassword}
+          element={
+            <GuestRoute>
+              <ResetPassword />
+            </GuestRoute>
+          }
+        />
       </Route>
 
       <Route
@@ -142,6 +160,14 @@ export default function App() {
         element={
           <Staff permission={P.QUEUE_MANAGE}>
             <QueueDisplay />
+          </Staff>
+        }
+      />
+      <Route
+        path={ROUTES.printPreview}
+        element={
+          <Staff anyPermission={[P.PRINT_SETTINGS, P.BILLING_VIEW, P.CONSULTATION, P.QUEUE_MANAGE, P.CONSENT_CAPTURE]}>
+            <PrintDocument />
           </Staff>
         }
       />

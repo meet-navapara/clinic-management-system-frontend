@@ -22,6 +22,8 @@ export const ROUTES = {
   clinicAdminLogin: '/admin/login',
   clinicAdminDashboard: '/admin/dashboard',
   clinicAdminDoctorDetail: (id) => `/admin/doctors/${id}`,
+  forgotPassword: '/forgot-password',
+  resetPassword: '/reset-password',
 
   deskDashboard: '/desk',
   billing: '/billing',
@@ -41,6 +43,7 @@ export const ROUTES = {
   campaign: (id) => `/campaigns/${id}`,
   printSettings: '/print-settings',
   search: '/search',
+  printPreview: '/print/preview',
   print: (type, id) => `/print/${type}/${id}`,
 };
 
@@ -51,6 +54,8 @@ export const AUTH_PATHS = [
   ROUTES.doctorPending,
   ROUTES.clinicAdminRegister,
   ROUTES.clinicAdminLogin,
+  ROUTES.forgotPassword,
+  ROUTES.resetPassword,
 ];
 
 export function getPageMeta(pathname) {

@@ -3,42 +3,62 @@ import api from '../utils/api';
 
 const AuthContext = createContext(null);
 
+const clearStoredAuth = () => {
+  sessionStorage.removeItem('token');
+  localStorage.removeItem('token');
+  localStorage.removeItem('user');
+};
+
+const storeSession = (data) => {
+  // Prefer httpOnly cookie; keep Bearer token only in sessionStorage as cross-origin fallback.
+  if (data?.token) {
+    sessionStorage.setItem('token', data.token);
+    localStorage.removeItem('token');
+  }
+  if (data?.user) {
+    localStorage.setItem('user', JSON.stringify(data.user));
+  }
+};
+
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const token = localStorage.getItem('token');
     const savedUser = localStorage.getItem('user');
-    if (token && savedUser) {
+    const hasTokenHint =
+      Boolean(sessionStorage.getItem('token') || localStorage.getItem('token')) || Boolean(savedUser);
+
+    if (!hasTokenHint) {
+      setLoading(false);
+      return;
+    }
+
+    if (savedUser) {
       try {
         setUser(JSON.parse(savedUser));
       } catch {
-        localStorage.removeItem('token');
-        localStorage.removeItem('user');
+        clearStoredAuth();
         setLoading(false);
         return;
       }
-      api
-        .get('/auth/me')
-        .then((res) => {
-          setUser(res.data.user);
-          localStorage.setItem('user', JSON.stringify(res.data.user));
-        })
-        .catch(() => {
-          localStorage.removeItem('token');
-          localStorage.removeItem('user');
-          setUser(null);
-        })
-        .finally(() => setLoading(false));
-    } else {
-      setLoading(false);
     }
+
+    api
+      .get('/auth/me')
+      .then((res) => {
+        setUser(res.data.user);
+        localStorage.setItem('user', JSON.stringify(res.data.user));
+      })
+      .catch(() => {
+        clearStoredAuth();
+        setUser(null);
+      })
+      .finally(() => setLoading(false));
   }, []);
 
   const persistSession = (data) => {
-    localStorage.setItem('token', data.token);
-    localStorage.setItem('user', JSON.stringify(data.user));
+    storeSession(data);
     setUser(data.user);
     return data;
   };
@@ -60,9 +80,13 @@ export const AuthProvider = ({ children }) => {
     return persistSession(res.data);
   };
 
-  const logout = () => {
-    localStorage.removeItem('token');
-    localStorage.removeItem('user');
+  const logout = async () => {
+    try {
+      await api.post('/auth/logout');
+    } catch {
+      // Cookie clear may fail if already logged out — still wipe local state.
+    }
+    clearStoredAuth();
     setUser(null);
   };
 
