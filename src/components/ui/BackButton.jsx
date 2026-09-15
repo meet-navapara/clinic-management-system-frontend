@@ -1,30 +1,35 @@
 import { useNavigate } from 'react-router-dom';
 import { ArrowLeft } from 'lucide-react';
+import { useAuth } from '../../context/AuthContext';
+import { getDashboardPath, ROUTES } from '../../constants/routes';
 
 function canGoBackInApp() {
   const idx = window.history.state?.idx;
   if (typeof idx === 'number') return idx > 0;
-  return window.history.length > 1;
+  return false;
 }
 
 export default function BackButton({ to, label = 'Back', className = '', variant = 'default' }) {
   const navigate = useNavigate();
+  const { user } = useAuth();
   const onDark = variant === 'onDark';
 
+  const fallbackPath = () => {
+    if (typeof to === 'string' && to) return to;
+    if (user) return getDashboardPath(user.role, user);
+    return ROUTES.home;
+  };
+
   const goBack = () => {
+    if (window.opener && !window.opener.closed) {
+      window.close();
+      return;
+    }
     if (canGoBackInApp()) {
       navigate(-1);
       return;
     }
-    if (typeof to === 'string' && to) {
-      navigate(to);
-      return;
-    }
-    if (window.opener) {
-      window.close();
-      return;
-    }
-    navigate('/');
+    navigate(fallbackPath());
   };
 
   return (

@@ -41,7 +41,9 @@ export default function AppHeader({ unread = 0, onMenu }) {
           )}
         </div>
 
-        <BranchSwitcher compact />
+        <div className="hidden md:block">
+          <BranchSwitcher compact />
+        </div>
 
         {isDoctor && (
           <>

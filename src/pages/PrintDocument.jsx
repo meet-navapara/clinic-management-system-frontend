@@ -1,9 +1,11 @@
 import { useEffect, useState } from 'react';
-import { useParams } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import { format, isValid } from 'date-fns';
 import api from '../utils/api';
 import Money from '../components/ui/Money';
 import BackButton from '../components/ui/BackButton';
+import { useAuth } from '../context/AuthContext';
+import { getDashboardPath } from '../constants/routes';
 
 function BrandHeader({ branding, branch }) {
   return (
@@ -38,11 +40,26 @@ function Footer({ branding }) {
 
 export default function PrintDocument() {
   const { type, id } = useParams();
+  const navigate = useNavigate();
+  const { user } = useAuth();
   const [data, setData] = useState(null);
 
   useEffect(() => {
     api.get(`/ops/print/${type}/${id}`).then((res) => setData(res.data)).catch(() => setData({ error: true }));
   }, [type, id]);
+
+  const leavePrint = () => {
+    if (window.opener && !window.opener.closed) {
+      window.close();
+      return;
+    }
+    const idx = window.history.state?.idx;
+    if (typeof idx === 'number' && idx > 0) {
+      navigate(-1);
+      return;
+    }
+    navigate(getDashboardPath(user?.role, user));
+  };
 
   if (!data) return <div className="p-8">Loading document…</div>;
   if (data.error) return <div className="p-8">Document not found.</div>;
@@ -53,9 +70,9 @@ export default function PrintDocument() {
   return (
     <div className={`print-root ${paper} bg-white min-h-dvh text-ink`}>
       <div className="print-toolbar no-print sticky top-0 z-10 bg-canvas border-b border-line px-4 py-2 flex items-center gap-2">
-        <BackButton to={-1} />
+        <BackButton to={getDashboardPath(user?.role, user)} />
         <button type="button" className="btn-primary" onClick={() => window.print()}>Print / Save PDF</button>
-        <button type="button" className="btn-secondary" onClick={() => window.close()}>Close</button>
+        <button type="button" className="btn-secondary" onClick={leavePrint}>Close</button>
       </div>
       <article className="print-sheet mx-auto p-6 max-w-[210mm]">
         <BrandHeader branding={branding} branch={data.invoice?.branchId || data.appointment?.branchId} />

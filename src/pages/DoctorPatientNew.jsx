@@ -11,6 +11,7 @@ import Dropdown from '../components/ui/Dropdown';
 import DobDatepicker from '../components/DobDatepicker';
 import Checkbox from '../components/ui/Checkbox';
 import RequiredMark from '../components/ui/RequiredMark';
+import { compressImageToDataUrl } from '../utils/image';
 
 function Field({ id, label, required, error, className = '', children }) {
   return (
@@ -157,20 +158,24 @@ export default function DoctorPatientNew() {
     setHistoryFilter('');
   };
 
-  const onPhoto = (e) => {
+  const onPhoto = async (e) => {
     const file = e.target.files?.[0];
+    e.target.value = '';
     if (!file) return;
     if (!file.type.startsWith('image/')) {
       toast.error('Please upload an image file.');
       return;
     }
-    if (file.size > 2 * 1024 * 1024) {
-      toast.error('Profile image must be under 2MB.');
+    if (file.size > 8 * 1024 * 1024) {
+      toast.error('Profile image must be under 8MB.');
       return;
     }
-    const reader = new FileReader();
-    reader.onload = () => setField('profilePhoto', String(reader.result || ''));
-    reader.readAsDataURL(file);
+    try {
+      const dataUrl = await compressImageToDataUrl(file);
+      setField('profilePhoto', dataUrl);
+    } catch {
+      toast.error('Could not process image.');
+    }
   };
 
   const validate = () => {

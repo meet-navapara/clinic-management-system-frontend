@@ -4,7 +4,7 @@ import { useBranch } from '../context/BranchContext';
 import { isStaffUser } from '../constants/permissions';
 import Dropdown from './ui/Dropdown';
 
-export default function BranchSwitcher({ compact }) {
+export default function BranchSwitcher({ compact, align }) {
   const { user } = useAuth();
   const { branches, branchId, setBranchId, current } = useBranch();
   const staffLocked = isStaffUser(user);
@@ -37,7 +37,7 @@ export default function BranchSwitcher({ compact }) {
       placeholder="Select branch"
       ariaLabel="Select branch"
       size={compact ? 'sm' : 'md'}
-      align="right"
+      align={align ?? (compact ? 'right' : 'left')}
       icon={GitBranch}
       className={compact ? '!w-[11rem] sm:!w-[14rem] shrink-0' : 'w-full'}
     />

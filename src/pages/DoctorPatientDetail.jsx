@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { format, isValid, differenceInYears } from 'date-fns';
 import {
@@ -7,6 +7,7 @@ import {
   Mail,
   AlertTriangle,
   Plus,
+  Camera,
 } from 'lucide-react';
 import api from '../utils/api';
 import toast from 'react-hot-toast';
@@ -20,6 +21,7 @@ import StatusBadge from '../components/ui/StatusBadge';
 import EmptyState from '../components/ui/EmptyState';
 import RequiredMark from '../components/ui/RequiredMark';
 import { normalizeIndianMobile, isValidEmail } from '../utils/validation';
+import { compressImageToDataUrl } from '../utils/image';
 
 const TABS = [
   'overview',
@@ -52,6 +54,8 @@ export default function DoctorPatientDetail() {
   const [saving, setSaving] = useState(false);
   const [noteBody, setNoteBody] = useState('');
   const [form, setForm] = useState({});
+  const photoRef = useRef(null);
+  const [photoSaving, setPhotoSaving] = useState(false);
 
   const load = useCallback(async () => {
     try {
@@ -93,6 +97,31 @@ export default function DoctorPatientDetail() {
       setLoading(false);
     }
   }, [id]);
+
+  const onPhoto = async (e) => {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) return;
+    if (!file.type.startsWith('image/')) {
+      toast.error('Please upload an image file.');
+      return;
+    }
+    if (file.size > 8 * 1024 * 1024) {
+      toast.error('Profile image must be under 8MB.');
+      return;
+    }
+    setPhotoSaving(true);
+    try {
+      const profilePhoto = await compressImageToDataUrl(file);
+      const res = await api.put(`/patients/${id}`, { profilePhoto });
+      setPatient(res.data.patient);
+      toast.success('Photo updated.');
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Could not update photo.');
+    } finally {
+      setPhotoSaving(false);
+    }
+  };
 
   useEffect(() => {
     load();
@@ -175,7 +204,29 @@ export default function DoctorPatientDetail() {
       <div className="card mb-4">
         <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
           <div className="flex items-start gap-3 min-w-0">
-            <UserAvatar name={patientDisplayName(patient)} size="lg" />
+            <div className="relative shrink-0">
+              <UserAvatar
+                name={patientDisplayName(patient)}
+                profilePhoto={patient.profilePhoto}
+                size="lg"
+              />
+              <input
+                ref={photoRef}
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={onPhoto}
+              />
+              <button
+                type="button"
+                className="absolute -bottom-1 -right-1 h-7 w-7 rounded-full bg-white border border-line shadow-sm flex items-center justify-center text-ink-muted hover:text-ink"
+                aria-label="Change photo"
+                disabled={photoSaving}
+                onClick={() => photoRef.current?.click()}
+              >
+                <Camera className="w-3.5 h-3.5" />
+              </button>
+            </div>
             <div className="min-w-0">
               <p className="text-xs font-mono text-ink-faint mb-0.5">
                 {formatPatientCode(patient.patientCode)}
