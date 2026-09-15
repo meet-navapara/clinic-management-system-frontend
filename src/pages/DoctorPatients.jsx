@@ -146,7 +146,7 @@ export default function DoctorPatients() {
                     <tr key={p._id}>
                       <td>
                         <div className="flex items-center gap-3">
-                          <UserAvatar name={p.name} size="sm" />
+                          <UserAvatar name={p.name} profilePhoto={p.profilePhoto} size="sm" />
                           <div className="min-w-0">
                             <p className="font-medium text-ink truncate">{p.name}</p>
                             <p className="text-xs text-ink-faint capitalize">
@@ -184,7 +184,7 @@ export default function DoctorPatients() {
               <Link key={p._id} to={ROUTES.doctorPatientDetail(p._id)} className="card !p-4 block">
                 <div className="flex items-start justify-between gap-3">
                   <div className="flex items-center gap-3 min-w-0">
-                    <UserAvatar name={p.name} size="sm" />
+                    <UserAvatar name={p.name} profilePhoto={p.profilePhoto} size="sm" />
                     <div className="min-w-0">
                       <p className="font-semibold text-ink truncate">{p.name}</p>
                       <p className="text-xs font-mono text-ink-faint mt-0.5">{p.patientCode || '—'}</p>

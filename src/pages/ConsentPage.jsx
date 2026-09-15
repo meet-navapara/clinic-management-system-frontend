@@ -7,11 +7,15 @@ import EmptyState from '../components/ui/EmptyState';
 import Badge from '../components/ui/Badge';
 import Modal from '../components/ui/Modal';
 import Dropdown from '../components/ui/Dropdown';
+import PatientPicker from '../components/PatientPicker';
 import { can, P } from '../constants/permissions';
 import { useAuth } from '../context/AuthContext';
 import { ROUTES } from '../constants/routes';
 import { useBranch } from '../context/BranchContext';
 import RequiredMark from '../components/ui/RequiredMark';
+import SignaturePad from '../components/SignaturePad';
+
+const EMPTY_ASSIGN = { consentTemplateId: '', patientId: '' };
 
 export default function ConsentPage() {
   const { user } = useAuth();
@@ -22,26 +26,14 @@ export default function ConsentPage() {
   const [assignOpen, setAssignOpen] = useState(false);
   const [sign, setSign] = useState(null);
   const [form, setForm] = useState({ name: '', category: 'general', body: '' });
-  const [assign, setAssign] = useState({ consentTemplateId: '', patientId: '', q: '' });
-  const [patients, setPatients] = useState([]);
-  const canvasRef = useRef(null);
+  const [assign, setAssign] = useState(EMPTY_ASSIGN);
+  const signatureRef = useRef(null);
 
   const load = () => {
     api.get('/consent/templates').then((res) => setTemplates(res.data.templates || [])).catch(() => {});
     api.get('/consent/records').then((res) => setRecords(res.data.records || [])).catch(() => {});
   };
   useEffect(load, [branchId]);
-
-  useEffect(() => {
-    if (assign.q.trim().length < 2) {
-      setPatients([]);
-      return;
-    }
-    const t = setTimeout(() => {
-      api.get('/patients', { params: { search: assign.q, limit: 8 } }).then((res) => setPatients(res.data.patients || [])).catch(() => {});
-    }, 250);
-    return () => clearTimeout(t);
-  }, [assign.q, branchId]);
 
   const saveTpl = async (e) => {
     e.preventDefault();
@@ -61,29 +53,19 @@ export default function ConsentPage() {
       await api.post('/consent/records', assign);
       toast.success('Consent assigned.');
       setAssignOpen(false);
+      setAssign(EMPTY_ASSIGN);
       load();
     } catch (err) {
       toast.error(err.response?.data?.message || 'Assign failed.');
     }
   };
 
-  const draw = (e) => {
-    const c = canvasRef.current;
-    if (!c) return;
-    const ctx = c.getContext('2d');
-    const rect = c.getBoundingClientRect();
-    const pt = e.touches ? e.touches[0] : e;
-    ctx.lineWidth = 2;
-    ctx.lineCap = 'round';
-    ctx.strokeStyle = '#1c2430';
-    ctx.lineTo(pt.clientX - rect.left, pt.clientY - rect.top);
-    ctx.stroke();
-    ctx.beginPath();
-    ctx.moveTo(pt.clientX - rect.left, pt.clientY - rect.top);
-  };
-
   const submitSign = async (status) => {
-    const signatureDataUrl = canvasRef.current?.toDataURL?.() || '';
+    const signatureDataUrl = signatureRef.current?.toDataURL?.() || '';
+    if (status === 'accepted' && signatureRef.current?.isEmpty?.()) {
+      toast.error('Please sign in the box first.');
+      return;
+    }
     try {
       await api.post(`/consent/records/${sign._id}/sign`, { status, signatureDataUrl, signerName: sign.patientId?.name });
       toast.success(status === 'accepted' ? 'Consent accepted.' : 'Consent rejected.');
@@ -100,7 +82,18 @@ export default function ConsentPage() {
         title="Consent forms"
         actions={
           <div className="flex flex-wrap gap-2">
-            {can(user, P.CONSENT_CAPTURE) && <button type="button" className="btn-secondary" onClick={() => setAssignOpen(true)}>Assign to patient</button>}
+            {can(user, P.CONSENT_CAPTURE) && (
+              <button
+                type="button"
+                className="btn-secondary"
+                onClick={() => {
+                  setAssign(EMPTY_ASSIGN);
+                  setAssignOpen(true);
+                }}
+              >
+                Assign to patient
+              </button>
+            )}
             {can(user, P.CONSENT_TEMPLATES) && <button type="button" className="btn-primary" onClick={() => setOpen(true)}>New template</button>}
           </div>
         }
@@ -158,7 +151,14 @@ export default function ConsentPage() {
         </form>
       </Modal>
 
-      <Modal open={assignOpen} title="Assign consent" onClose={() => setAssignOpen(false)}>
+      <Modal
+        open={assignOpen}
+        title="Assign consent"
+        onClose={() => {
+          setAssignOpen(false);
+          setAssign(EMPTY_ASSIGN);
+        }}
+      >
         <form onSubmit={doAssign} className="space-y-3">
           <div>
             <label className="label-field">Template <RequiredMark /></label>
@@ -166,21 +166,20 @@ export default function ConsentPage() {
               required
               value={assign.consentTemplateId}
               onChange={(consentTemplateId) => setAssign({ ...assign, consentTemplateId })}
-              placeholder="Template"
+              placeholder="Select template"
               ariaLabel="Consent template"
               options={templates.map((t) => ({ value: String(t._id), label: t.name }))}
             />
           </div>
           <div>
-            <label className="label-field">Patient <RequiredMark /></label>
-            <input className="input-field" placeholder="Search patient" value={assign.q} onChange={(e) => setAssign({ ...assign, q: e.target.value })} />
-          </div>
-          <div className="max-h-40 overflow-y-auto">
-            {patients.map((p) => (
-              <button type="button" key={p._id} className={`w-full text-left px-3 py-2 rounded-lg text-sm ${assign.patientId === p._id ? 'bg-[#f3efe8]' : ''}`} onClick={() => setAssign({ ...assign, patientId: p._id, q: p.name })}>
-                {p.name}
-              </button>
-            ))}
+            <label className="label-field" htmlFor="assign-consent-patient">
+              Patient <RequiredMark />
+            </label>
+            <PatientPicker
+              id="assign-consent-patient"
+              value={assign.patientId}
+              onChange={(patientId) => setAssign({ ...assign, patientId })}
+            />
           </div>
           <button type="submit" className="btn-primary w-full">Assign</button>
         </form>
@@ -191,16 +190,13 @@ export default function ConsentPage() {
           <div className="space-y-3">
             <p className="font-semibold">{sign.titleSnapshot}</p>
             <div className="text-sm whitespace-pre-wrap max-h-48 overflow-y-auto border border-line rounded-lg p-3">{sign.bodySnapshot}</div>
-            <p className="text-xs text-ink-muted">Sign below</p>
-            <canvas
-              ref={canvasRef}
-              width={480}
-              height={160}
-              className="w-full border border-line rounded-lg bg-white touch-none"
-              onMouseDown={() => canvasRef.current?.getContext('2d').beginPath()}
-              onMouseMove={(e) => e.buttons === 1 && draw(e)}
-              onTouchMove={draw}
-            />
+            <div className="flex items-center justify-between gap-2">
+              <p className="text-xs text-ink-muted">Sign below — draw with your cursor or finger</p>
+              <button type="button" className="btn-ghost !min-h-8 !px-2 text-xs" onClick={() => signatureRef.current?.clear()}>
+                Clear
+              </button>
+            </div>
+            <SignaturePad ref={signatureRef} />
             <div className="flex gap-2">
               <button type="button" className="btn-primary flex-1" onClick={() => submitSign('accepted')}>Accept</button>
               <button type="button" className="btn-danger flex-1" onClick={() => submitSign('rejected')}>Reject</button>

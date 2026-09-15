@@ -86,7 +86,14 @@ export default function App() {
   return (
     <Routes>
       <Route element={<PublicLayout />}>
-        <Route path={ROUTES.home} element={<Landing />} />
+        <Route
+          path={ROUTES.home}
+          element={
+            <GuestRoute>
+              <Landing />
+            </GuestRoute>
+          }
+        />
         <Route
           path={ROUTES.login}
           element={

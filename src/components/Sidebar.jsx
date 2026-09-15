@@ -29,6 +29,7 @@ import { useBranch } from '../context/BranchContext';
 import { LOGO_URL, APP_NAME, BRAND_NAME } from '../constants/branding';
 import { ROUTES, getDashboardPath } from '../constants/routes';
 import UserAvatar from './UserAvatar';
+import BranchSwitcher from './BranchSwitcher';
 import api from '../utils/api';
 import { can, P, isStaffUser } from '../constants/permissions';
 
@@ -214,6 +215,15 @@ export default function Sidebar({ open, onClose, unread = 0, onUnread }) {
           </button>
         )}
       </div>
+
+      {!collapsed && (
+        <div className="md:hidden px-2.5 pt-3 pb-2 border-b border-line">
+          <p className="px-1 mb-1.5 text-[11px] font-medium uppercase tracking-wider text-ink-faint">
+            Branch
+          </p>
+          <BranchSwitcher />
+        </div>
+      )}
 
       <NavList
         links={links}

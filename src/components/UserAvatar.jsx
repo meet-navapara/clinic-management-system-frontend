@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react';
 import { User } from 'lucide-react';
 
 const ROLE_STYLES = {
@@ -34,6 +35,12 @@ export default function UserAvatar({
   rounded = 'full',
   className = '',
 }) {
+  const [failed, setFailed] = useState(false);
+
+  useEffect(() => {
+    setFailed(false);
+  }, [profilePhoto]);
+
   const roleKey =
     role === 'super_admin' || role === 'admin' ? 'admin' : 'doctor';
   const roleStyle = ROLE_STYLES[roleKey];
@@ -43,8 +50,14 @@ export default function UserAvatar({
     <div
       className={`${SIZE_CLASSES[size]} ${roundedClass} overflow-hidden ring-2 ${roleStyle.avatarRing} shrink-0 ${className}`}
     >
-      {profilePhoto ? (
-        <img src={profilePhoto} alt="" className="h-full w-full object-cover" draggable={false} />
+      {profilePhoto && !failed ? (
+        <img
+          src={profilePhoto}
+          alt=""
+          className="h-full w-full object-cover"
+          draggable={false}
+          onError={() => setFailed(true)}
+        />
       ) : (
         <div
           className={`flex h-full w-full items-center justify-center font-bold text-white ${roleStyle.avatarBg}`}

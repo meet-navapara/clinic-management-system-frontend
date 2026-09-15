@@ -206,7 +206,7 @@ export default function DoctorAppointmentDetail() {
         <section className="card">
           <p className="section-label mb-3">Patient</p>
           <div className="flex items-start gap-3">
-            <UserAvatar name={patientDisplayName(patient)} size="md" />
+            <UserAvatar name={patientDisplayName(patient)} profilePhoto={patient?.profilePhoto} size="md" />
             <div className="min-w-0 flex-1">
               <p className="font-semibold text-ink">{patientDisplayName(patient)}</p>
               {patient?.patientCode && (
