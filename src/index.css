@@ -206,10 +206,23 @@
   }
 }
 
+.print-heading {
+  font-size: var(--print-heading-size, 14px);
+}
+
+.print-sub {
+  font-size: var(--print-sub-size, 11px);
+}
+
+.print-grayscale,
+.print-grayscale img {
+  filter: grayscale(1);
+}
+
 @media print {
   .no-print,
   aside,
-  header,
+  header:not(.print-header),
   nav,
   .print-toolbar {
     display: none !important;
@@ -235,6 +248,10 @@
     width: 148mm;
   }
 
+  .print-letter .print-sheet {
+    width: 8.5in;
+  }
+
   .print-receipt .print-sheet {
     width: 80mm;
     font-size: 12px;
@@ -245,7 +262,13 @@
   }
 
   .print-header,
-  .print-footer {
+  .print-footer,
+  .print-signatures {
     break-inside: avoid;
+  }
+
+  .print-grayscale,
+  .print-grayscale img {
+    filter: grayscale(1) !important;
   }
 }
