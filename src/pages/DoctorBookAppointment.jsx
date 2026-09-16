@@ -67,26 +67,65 @@ export default function DoctorBookAppointment() {
 
     if (user?.availableDays) setAvailableDays(user.availableDays);
     if (user?.role !== 'doctor') {
-      api.get('/doctors').then((res) => setDoctors(res.data.doctors || [])).catch(() => {});
+      api
+        .get('/doctors')
+        .then((res) => {
+          const list = res.data.doctors || [];
+          setDoctors(list);
+          if (!doctorId && list[0]) {
+            const first = list[0];
+            setDoctorId(String(first._id));
+            if (first.availableDays?.length) setAvailableDays(first.availableDays);
+            if (first.practiceSettings?.defaultDurationMinutes) {
+              setDurationMinutes(first.practiceSettings.defaultDurationMinutes);
+            }
+          }
+        })
+        .catch(() => {});
     }
   }, [preselected, user?.availableDays, user?.role]);
+
+  // When staff picks a doctor, load that doctor's working days / duration immediately
+  useEffect(() => {
+    if (user?.role === 'doctor' || !doctorId) return;
+    const doc = doctors.find((d) => String(d._id) === String(doctorId));
+    if (!doc) return;
+    if (doc.availableDays?.length) setAvailableDays(doc.availableDays);
+    if (doc.practiceSettings?.defaultDurationMinutes) {
+      setDurationMinutes(doc.practiceSettings.defaultDurationMinutes);
+    }
+    const typesFromDoc = doc.practiceSettings?.appointmentTypes;
+    if (typesFromDoc?.length) setAppointmentType(typesFromDoc[0]);
+    setSelectedDate('');
+    setSelectedSlot('');
+    setAvailableSlots([]);
+  }, [doctorId, doctors, user?.role]);
 
   useEffect(() => {
     const id = doctorId || (user?.role === 'doctor' ? user?.id || user?._id : '');
     if (!id || !selectedDate) return;
+    const duration = Number(durationMinutes) || 30;
     api
-      .get(`/doctors/${id}/availability`, { params: { date: selectedDate } })
+      .get(`/doctors/${id}/availability`, {
+        params: { date: selectedDate, durationMinutes: duration },
+      })
       .then((res) => {
         setAvailableSlots(res.data.availableSlots || []);
         setAvailableDays(res.data.availableDays || availableDays);
         setSelectedSlot('');
       })
       .catch(() => setAvailableSlots([]));
-  }, [selectedDate, user, doctorId]);
+  }, [selectedDate, user, doctorId, durationMinutes]);
 
   const isDayAvailable = (dateStr) => {
     const parsed = parse(dateStr, 'yyyy-MM-dd', new Date());
-    return availableDays.includes(format(parsed, 'EEEE'));
+    const day = format(parsed, 'EEEE');
+    // Empty list = not loaded yet / unset — allow Mon–Fri so staff can pick a date
+    // before doctor days arrive; backend still enforces the real schedule.
+    if (!availableDays?.length) {
+      return ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'].includes(day);
+    }
+    return availableDays.includes(day);
   };
 
   const getMinDate = () => format(new Date(), 'yyyy-MM-dd');
@@ -96,14 +135,14 @@ export default function DoctorBookAppointment() {
     return format(max, 'yyyy-MM-dd');
   };
 
-  const allSlots = user?.availableSlots || [
-    '09:00', '10:00', '11:00', '14:00', '15:00', '16:00', '17:00', '18:00',
-  ];
-
   const handleBook = async (e) => {
     e.preventDefault();
     if (!patientId || !selectedDate || !selectedSlot || !reason.trim()) {
       toast.error('Fill all fields.');
+      return;
+    }
+    if (user?.role !== 'doctor' && !doctorId) {
+      toast.error('Select a doctor.');
       return;
     }
     setBooking(true);
@@ -189,30 +228,33 @@ export default function DoctorBookAppointment() {
             {selectedDate && (
               <div>
                 <p className="text-sm font-medium text-ink mb-2 flex items-center gap-2">
-                  <Clock className="w-4 h-4" /> Slots <RequiredMark />
+                  <Clock className="w-4 h-4" /> Available slots ({durationMinutes || 30} min) <RequiredMark />
                 </p>
-                <div className="flex flex-wrap gap-2">
-                  {allSlots.map((slot) => {
-                    const free = availableSlots.includes(slot);
-                    return (
+                {!availableSlots.length ? (
+                  <p className="text-sm text-ink-muted">
+                    No free slots for this duration. Try another date or change duration.
+                  </p>
+                ) : (
+                  <div className="flex flex-wrap gap-2">
+                    {availableSlots.map((slot) => (
                       <button
                         key={slot}
                         type="button"
-                        disabled={!free}
                         onClick={() => setSelectedSlot(slot)}
                         className={`slot-chip ${
                           selectedSlot === slot
                             ? 'bg-ink text-white ring-ink'
-                            : free
-                              ? 'bg-white text-ink ring-line hover:ring-accent-400'
-                              : 'bg-[#f4f2ee] text-ink-faint ring-transparent cursor-not-allowed'
+                            : 'bg-white text-ink ring-line hover:ring-accent-400'
                         }`}
                       >
                         {slot}
                       </button>
-                    );
-                  })}
-                </div>
+                    ))}
+                  </div>
+                )}
+                <p className="text-xs text-ink-faint mt-2">
+                  Slots update automatically when you change duration (e.g. 15 / 30 / 45 min).
+                </p>
               </div>
             )}
             <div className="grid sm:grid-cols-2 gap-4">
@@ -227,13 +269,18 @@ export default function DoctorBookAppointment() {
               </div>
               <div>
                 <label className="label-field">Duration (min)</label>
-                <input
-                  type="number"
-                  min="5"
-                  max="240"
-                  className="input-field"
-                  value={durationMinutes}
-                  onChange={(e) => setDurationMinutes(e.target.value)}
+                <Dropdown
+                  value={String(durationMinutes)}
+                  onChange={(v) => setDurationMinutes(v)}
+                  ariaLabel="Duration"
+                  options={[
+                    { value: '15', label: '15 min' },
+                    { value: '20', label: '20 min' },
+                    { value: '30', label: '30 min' },
+                    { value: '45', label: '45 min' },
+                    { value: '60', label: '60 min' },
+                    { value: '90', label: '90 min' },
+                  ]}
                 />
               </div>
             </div>

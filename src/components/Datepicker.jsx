@@ -13,9 +13,9 @@ import {
   startOfMonth,
   startOfWeek,
   subMonths,
+  subYears,
 } from 'date-fns';
 import { Calendar, ChevronLeft, ChevronRight } from 'lucide-react';
-import Dropdown from './ui/Dropdown';
 
 const MONTHS = [
   'January',
@@ -56,9 +56,16 @@ export default function Datepicker({
   id,
   isDateAllowed,
   onInvalidSelect,
+  /** When no value, open calendar around this date (e.g. DOB defaults ~25 years ago). */
+  defaultViewDate = null,
 }) {
   const [open, setOpen] = useState(false);
-  const [viewMonth, setViewMonth] = useState(() => parseDateValue(value) || new Date());
+  const [viewMonth, setViewMonth] = useState(() => {
+    const selected = parseDateValue(value);
+    if (selected) return selected;
+    if (defaultViewDate && isValid(defaultViewDate)) return defaultViewDate;
+    return new Date();
+  });
   const [panelPos, setPanelPos] = useState(null);
   const containerRef = useRef(null);
   const buttonRef = useRef(null);
@@ -86,9 +93,9 @@ export default function Datepicker({
     const placePanel = () => {
       const rect = buttonRef.current?.getBoundingClientRect();
       if (!rect) return;
-      const width = Math.max(rect.width, 280);
+      const width = Math.max(rect.width, 300);
       const left = Math.min(Math.max(8, rect.left), window.innerWidth - width - 8);
-      const estimatedHeight = 320;
+      const estimatedHeight = 340;
       const openUp = rect.bottom + estimatedHeight > window.innerHeight && rect.top > estimatedHeight;
       setPanelPos({
         top: openUp ? undefined : rect.bottom + 6,
@@ -103,7 +110,6 @@ export default function Datepicker({
     const handlePointerDown = (event) => {
       const target = event.target;
       if (containerRef.current?.contains(target) || panelRef.current?.contains(target)) return;
-      if (target.closest?.('[data-dropdown-panel]')) return;
       setOpen(false);
     };
 
@@ -142,6 +148,16 @@ export default function Datepicker({
     setOpen(false);
   };
 
+  const clampView = (next) => {
+    // Keep view within min/max year bounds
+    const y = next.getFullYear();
+    const minY = years[years.length - 1];
+    const maxY = years[0];
+    if (y < minY) return new Date(minY, next.getMonth(), 1);
+    if (y > maxY) return new Date(maxY, next.getMonth(), 1);
+    return next;
+  };
+
   const monthStart = startOfMonth(viewMonth);
   const monthEnd = endOfMonth(viewMonth);
   const calendarStart = startOfWeek(monthStart, { weekStartsOn: 0 });
@@ -150,107 +166,125 @@ export default function Datepicker({
   const selectedDate = parseDateValue(value);
   const today = new Date();
 
-  const calendar = open && !disabled && panelPos
-    ? createPortal(
-        <div
-          ref={panelRef}
-          className="fixed z-[80] bg-white rounded-lg border border-[#e8e0d4] shadow-xl p-2.5"
-          style={{
-            top: panelPos.top,
-            bottom: panelPos.bottom,
-            left: panelPos.left,
-            width: panelPos.width,
-          }}
-        >
-          <div className="flex items-center gap-1.5 mb-2">
-            <button
-              type="button"
-              onClick={() => setViewMonth((prev) => subMonths(prev, 1))}
-              className="p-1 rounded-md text-gray-500 hover:bg-[#faf7f2] hover:text-[#a8841f] transition-colors shrink-0"
-              aria-label="Previous month"
-            >
-              <ChevronLeft className="w-4 h-4" />
-            </button>
-            <Dropdown
-              size="sm"
-              className="flex-1"
-              ariaLabel="Month"
-              value={String(viewMonth.getMonth())}
-              onChange={(next) => {
-                setViewMonth((prev) => new Date(prev.getFullYear(), Number(next), 1));
-              }}
-              options={MONTHS.map((label, index) => ({ value: String(index), label }))}
-            />
-            <Dropdown
-              size="sm"
-              className="w-[5.75rem] shrink-0"
-              searchable
-              searchPlaceholder="Year"
-              ariaLabel="Year"
-              value={String(viewMonth.getFullYear())}
-              onChange={(next) => {
-                setViewMonth((prev) => new Date(Number(next), prev.getMonth(), 1));
-              }}
-              options={years.map((year) => ({ value: String(year), label: String(year) }))}
-            />
-            <button
-              type="button"
-              onClick={() => setViewMonth((prev) => addMonths(prev, 1))}
-              className="p-1 rounded-md text-gray-500 hover:bg-[#faf7f2] hover:text-[#a8841f] transition-colors shrink-0"
-              aria-label="Next month"
-            >
-              <ChevronRight className="w-4 h-4" />
-            </button>
-          </div>
+  const calendar =
+    open && !disabled && panelPos
+      ? createPortal(
+          <div
+            ref={panelRef}
+            className="fixed z-[80] bg-white rounded-lg border border-[#e8e0d4] shadow-xl p-3"
+            style={{
+              top: panelPos.top,
+              bottom: panelPos.bottom,
+              left: panelPos.left,
+              width: panelPos.width,
+            }}
+          >
+            <div className="flex items-center gap-1 mb-2">
+              <button
+                type="button"
+                onClick={() => setViewMonth((prev) => clampView(subMonths(prev, 1)))}
+                className="p-1.5 rounded-md text-gray-500 hover:bg-[#faf7f2] hover:text-[#a8841f] transition-colors shrink-0"
+                aria-label="Previous month"
+              >
+                <ChevronLeft className="w-4 h-4" />
+              </button>
 
-          <div className="grid grid-cols-7 gap-0.5 mb-1">
-            {['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'].map((day) => (
-              <div key={day} className="text-center text-[10px] font-semibold text-[#a8841f] py-0.5">
-                {day}
-              </div>
-            ))}
-          </div>
+              {/* Native selects — avoid nested portal Dropdowns that hide the month label */}
+              <select
+                className="flex-1 min-w-0 h-9 rounded-md border border-[#e8e0d4] bg-white px-2 text-sm font-semibold text-ink"
+                aria-label="Month"
+                value={viewMonth.getMonth()}
+                onChange={(e) => {
+                  setViewMonth((prev) =>
+                    clampView(new Date(prev.getFullYear(), Number(e.target.value), 1))
+                  );
+                }}
+              >
+                {MONTHS.map((label, index) => (
+                  <option key={label} value={index}>
+                    {label}
+                  </option>
+                ))}
+              </select>
+              <select
+                className="w-[5.5rem] shrink-0 h-9 rounded-md border border-[#e8e0d4] bg-white px-1 text-sm font-semibold text-ink"
+                aria-label="Year"
+                value={viewMonth.getFullYear()}
+                onChange={(e) => {
+                  setViewMonth((prev) =>
+                    clampView(new Date(Number(e.target.value), prev.getMonth(), 1))
+                  );
+                }}
+              >
+                {years.map((year) => (
+                  <option key={year} value={year}>
+                    {year}
+                  </option>
+                ))}
+              </select>
 
-          <div className="grid grid-cols-7 gap-0.5">
-            {days.map((day) => {
-              const disabledDay = isDateDisabled(day);
-              const isSelected = selectedDate && isSameDay(day, selectedDate);
-              const isToday = isSameDay(day, today);
-              const isCurrentMonth = isSameMonth(day, viewMonth);
+              <button
+                type="button"
+                onClick={() => setViewMonth((prev) => clampView(addMonths(prev, 1)))}
+                className="p-1.5 rounded-md text-gray-500 hover:bg-[#faf7f2] hover:text-[#a8841f] transition-colors shrink-0"
+                aria-label="Next month"
+              >
+                <ChevronRight className="w-4 h-4" />
+              </button>
+            </div>
 
-              return (
-                <button
-                  key={day.toISOString()}
-                  type="button"
-                  disabled={disabledDay}
-                  onClick={() => handleSelect(day)}
-                  className={`h-8 w-full rounded-md text-xs font-medium transition-all ${
-                    isSelected
-                      ? 'text-[#1c1814] shadow-md'
-                      : disabledDay
-                        ? 'text-gray-300 cursor-not-allowed'
-                        : isCurrentMonth
-                          ? 'text-gray-700 hover:bg-[#faf7f2] hover:text-[#a8841f]'
-                          : 'text-gray-300 hover:bg-[#faf7f2]/60'
-                  } ${isToday && !isSelected ? 'ring-1 ring-[#d4af37]/50' : ''}`}
-                  style={
-                    isSelected
-                      ? {
-                          background:
-                            'linear-gradient(135deg, #e8c547 0%, #c9a227 50%, #d4af37 100%)',
-                        }
-                      : undefined
-                  }
-                >
-                  {format(day, 'd')}
-                </button>
-              );
-            })}
-          </div>
-        </div>,
-        document.body
-      )
-    : null;
+            <p className="text-center text-xs font-semibold text-ink mb-2">
+              {format(viewMonth, 'MMMM yyyy')}
+            </p>
+
+            <div className="grid grid-cols-7 gap-0.5 mb-1">
+              {['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'].map((day) => (
+                <div key={day} className="text-center text-[10px] font-semibold text-[#a8841f] py-0.5">
+                  {day}
+                </div>
+              ))}
+            </div>
+
+            <div className="grid grid-cols-7 gap-0.5">
+              {days.map((day) => {
+                const disabledDay = isDateDisabled(day);
+                const isSelected = selectedDate && isSameDay(day, selectedDate);
+                const isToday = isSameDay(day, today);
+                const isCurrentMonth = isSameMonth(day, viewMonth);
+
+                return (
+                  <button
+                    key={day.toISOString()}
+                    type="button"
+                    disabled={disabledDay}
+                    onClick={() => handleSelect(day)}
+                    className={`h-8 w-full rounded-md text-xs font-medium transition-all ${
+                      isSelected
+                        ? 'text-[#1c1814] shadow-md'
+                        : disabledDay
+                          ? 'text-gray-300 cursor-not-allowed'
+                          : isCurrentMonth
+                            ? 'text-gray-700 hover:bg-[#faf7f2] hover:text-[#a8841f]'
+                            : 'text-gray-400 hover:bg-[#faf7f2]/60'
+                    } ${isToday && !isSelected ? 'ring-1 ring-[#d4af37]/50' : ''}`}
+                    style={
+                      isSelected
+                        ? {
+                            background:
+                              'linear-gradient(135deg, #e8c547 0%, #c9a227 50%, #d4af37 100%)',
+                          }
+                        : undefined
+                    }
+                  >
+                    {format(day, 'd')}
+                  </button>
+                );
+              })}
+            </div>
+          </div>,
+          document.body
+        )
+      : null;
 
   return (
     <div ref={containerRef} className={`relative ${className}`}>
@@ -261,7 +295,12 @@ export default function Datepicker({
         disabled={disabled}
         aria-haspopup="dialog"
         aria-expanded={open}
-        onClick={() => setOpen((prev) => !prev)}
+        onClick={() => {
+          if (!value && defaultViewDate && isValid(defaultViewDate)) {
+            setViewMonth(defaultViewDate);
+          }
+          setOpen((prev) => !prev);
+        }}
         className={`input-field box-border !h-10 !min-h-10 !py-0 flex items-center justify-between gap-3 text-left bg-white ${
           disabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer hover:border-[#d4af37]/60'
         } ${open ? 'ring-2 ring-[#d4af37] border-transparent' : ''}`}
@@ -273,16 +312,15 @@ export default function Datepicker({
       </button>
 
       {required && (
-        <input
-          tabIndex={-1}
-          className="sr-only"
-          value={value}
-          onChange={() => {}}
-          required
-        />
+        <input tabIndex={-1} className="sr-only" value={value} onChange={() => {}} required />
       )}
 
       {calendar}
     </div>
   );
+}
+
+/** Convenience default view for DOB (~25 years ago). */
+export function defaultDobViewDate() {
+  return subYears(new Date(), 25);
 }

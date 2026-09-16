@@ -9,7 +9,7 @@ import PrintLetterhead from '../components/print/PrintLetterhead';
 import { BRAND_NAME } from '../constants/branding';
 import { ROUTES } from '../constants/routes';
 
-const FONT_SIZES = [8, 9, 10, 11, 12, 13, 14, 16, 18, 20, 22, 24];
+const FONT_SIZES = [8, 9, 10, 11, 12, 13, 14, 16, 18, 20, 22, 24, 28];
 
 const defaults = {
   clinicName: '',
@@ -71,6 +71,9 @@ function NumberField({ label, value, onChange, step = 0.1, min = 0, max = 3 }) {
 
 /** Kiwi-style letterhead preview panel */
 function LetterheadPreview({ form, tab }) {
+  const showLeft = Boolean(form.showLeftSignature);
+  const showRight = form.showRightSignature !== false;
+
   return (
     <div className="relative rounded border border-[#cfd6dd] bg-white min-h-[420px] overflow-hidden shadow-sm">
       <div className="absolute top-0 right-0 z-10">
@@ -92,6 +95,32 @@ function LetterheadPreview({ form, tab }) {
           mode={tab === 'footer' ? 'settings-footer' : 'settings-header'}
           showPlaceholders
         />
+        {tab === 'footer' && (showLeft || showRight) && (
+          <div className="flex justify-between gap-6 mt-8 text-[12px] text-[#555]">
+            <div className="flex-1 min-w-0">
+              {showLeft && (
+                <div>
+                  {form.signatureImage ? (
+                    <img src={form.signatureImage} alt="" className="h-10 object-contain mb-1" />
+                  ) : null}
+                  <p className="whitespace-pre-wrap">{form.leftSignatureText || 'Left signature'}</p>
+                </div>
+              )}
+            </div>
+            <div className="flex-1 min-w-0 text-right">
+              {showRight && (
+                <div className="inline-block text-right">
+                  {form.signatureImage ? (
+                    <img src={form.signatureImage} alt="" className="h-10 object-contain mb-1 ml-auto" />
+                  ) : null}
+                  <p className="whitespace-pre-wrap">
+                    {form.rightSignatureText || form.signatureLabel || 'Right signature'}
+                  </p>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
         {form.showPoweredBy && tab === 'footer' && (
           <p className="text-center text-[10px] text-ink-faint mt-2">Powered by {BRAND_NAME}</p>
         )}
@@ -156,8 +185,9 @@ export default function PrintSettingsPage() {
     try {
       const data = await uploadPrintFile('logo', file);
       setForm((prev) => ({ ...defaults, ...(prev || {}), ...(data.settings || {}), logo: data.url || prev?.logo }));
-      toast.success('Image uploaded.');
-      return data.url;
+      toast.success('Clinic logo updated (shown in letterhead).');
+      // Return empty so the editor does not embed a duplicate <img> (logo slot handles it).
+      return '';
     } catch (err) {
       toast.error(err.response?.data?.message || err.message || 'Image upload failed.');
       return '';
@@ -540,6 +570,17 @@ export default function PrintSettingsPage() {
                       disabled={form.includeFooter === false}
                       minHeight={120}
                       placeholder="Footer content…"
+                    />
+                  </div>
+
+                  <div>
+                    <p className="text-sm font-medium text-ink mb-1.5">Left Content</p>
+                    <SimpleRichEditor
+                      value={form.leftContentHtml || ''}
+                      onChange={(leftContentHtml) => set({ leftContentHtml })}
+                      disabled={form.includeFooter === false}
+                      minHeight={100}
+                      placeholder="Left content here…"
                     />
                   </div>
 

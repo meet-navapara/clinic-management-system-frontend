@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import api from '../utils/api';
 import toast from 'react-hot-toast';
 import PageHeader from '../components/ui/PageHeader';
@@ -15,25 +15,41 @@ const emptyLine = () => ({ type: 'consultation', name: '', quantity: 1, unitPric
 
 export default function InvoiceEditor() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const preselectedPatientId = searchParams.get('patientId') || '';
   const { branchId } = useBranch();
   const [patients, setPatients] = useState([]);
   const [q, setQ] = useState('');
-  const [patientId, setPatientId] = useState('');
+  const [patientId, setPatientId] = useState(preselectedPatientId);
   const [items, setItems] = useState([emptyLine()]);
   const [discount, setDiscount] = useState(0);
   const [notes, setNotes] = useState('');
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
+    if (!preselectedPatientId) return;
+    api
+      .get(`/patients/${preselectedPatientId}`)
+      .then((res) => {
+        const p = res.data.patient;
+        if (!p) return;
+        setPatientId(p._id);
+        setQ(p.name || '');
+        setPatients([p]);
+      })
+      .catch(() => {});
+  }, [preselectedPatientId, branchId]);
+
+  useEffect(() => {
     if (q.trim().length < 2) {
-      setPatients([]);
+      if (!patientId) setPatients([]);
       return;
     }
     const t = setTimeout(() => {
       api.get('/patients', { params: { search: q, limit: 8 } }).then((res) => setPatients(res.data.patients || [])).catch(() => {});
     }, 250);
     return () => clearTimeout(t);
-  }, [q, branchId]);
+  }, [q, branchId, patientId]);
 
   const subtotal = useMemo(
     () => items.reduce((s, i) => s + Math.max(0, (Number(i.quantity) || 0) * (Number(i.unitPrice) || 0) - (Number(i.discount) || 0)), 0),

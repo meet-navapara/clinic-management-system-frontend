@@ -9,12 +9,15 @@ import {
   UserX,
   RefreshCw,
   MessageCircle,
+  Printer,
+  ListOrdered,
 } from 'lucide-react';
 import api from '../utils/api';
 import toast from 'react-hot-toast';
 import Datepicker from '../components/Datepicker';
 import RequiredMark from '../components/ui/RequiredMark';
 import { useAuth } from '../context/AuthContext';
+import { useBranch } from '../context/BranchContext';
 import { ACTIVE_APPOINTMENT_STATUSES } from '../constants/appointmentStatus';
 import { ROUTES } from '../constants/routes';
 import { patientDisplayName, confirmAction } from '../utils/display';
@@ -23,6 +26,7 @@ import EmptyState from '../components/ui/EmptyState';
 import UserAvatar from '../components/UserAvatar';
 import { Skeleton } from '../components/ui/Skeleton';
 import { normalizeAppointmentStatus } from '../constants/appointmentStatus';
+import { can, P } from '../constants/permissions';
 
 function Field({ label, children }) {
   return (
@@ -36,6 +40,7 @@ function Field({ label, children }) {
 export default function DoctorAppointmentDetail() {
   const { id } = useParams();
   const { user } = useAuth();
+  const { branchId } = useBranch();
   const navigate = useNavigate();
   const [appointment, setAppointment] = useState(null);
   const [reminders, setReminders] = useState([]);
@@ -46,6 +51,7 @@ export default function DoctorAppointmentDetail() {
   const [rescheduleSlot, setRescheduleSlot] = useState('');
   const [slots, setSlots] = useState([]);
   const [waBusy, setWaBusy] = useState(false);
+  const [queueBusy, setQueueBusy] = useState(false);
 
   const load = useCallback(async () => {
     if (!id || id === 'new') {
@@ -77,16 +83,23 @@ export default function DoctorAppointmentDetail() {
   }, [id, load, navigate]);
 
   useEffect(() => {
-    const doctorId = user?.id || user?._id;
+    const doctorId =
+      appointment?.doctor?._id ||
+      appointment?.doctor?.id ||
+      appointment?.doctor ||
+      (user?.role === 'doctor' ? user?.id || user?._id : '');
     if (!rescheduleOpen || !rescheduleDate || !doctorId) return;
+    const duration = appointment?.durationMinutes || 30;
     api
-      .get(`/doctors/${doctorId}/availability`, { params: { date: rescheduleDate } })
+      .get(`/doctors/${doctorId}/availability`, {
+        params: { date: rescheduleDate, durationMinutes: duration },
+      })
       .then((res) => {
         setSlots(res.data.availableSlots || []);
         setRescheduleSlot('');
       })
       .catch(() => setSlots([]));
-  }, [rescheduleOpen, rescheduleDate, user]);
+  }, [rescheduleOpen, rescheduleDate, user, appointment?.durationMinutes, appointment?.doctor]);
 
   const updateStatus = async (status, needsConfirm = false) => {
     if (needsConfirm && !confirmAction(`Mark this appointment as ${status.replace('_', '-')}?`)) {
@@ -140,6 +153,38 @@ export default function DoctorAppointmentDetail() {
     }
   };
 
+  const checkInToQueue = async () => {
+    if (!branchId && user?.role === 'doctor') {
+      toast.error('Select a branch in the header first.');
+      return;
+    }
+    const patient = appointment?.patientId || appointment?.patient;
+    const patientId = patient?._id || patient?.id;
+    if (!patientId) {
+      toast.error('Patient missing on this appointment.');
+      return;
+    }
+    setQueueBusy(true);
+    try {
+      const doctorRef = appointment?.doctor;
+      const doctorId = doctorRef?._id || doctorRef?.id || doctorRef || undefined;
+      const res = await api.post('/queue/check-in', {
+        patientId,
+        appointmentId: id,
+        ...(doctorId ? { doctorId } : {}),
+      });
+      toast.success(
+        res.data.alreadyCheckedIn
+          ? `Already in queue · Token ${res.data.ticket.tokenLabel}`
+          : `Checked in · Token ${res.data.ticket.tokenLabel}`
+      );
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Queue check-in failed.');
+    } finally {
+      setQueueBusy(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="page-container space-y-4">
@@ -173,7 +218,9 @@ export default function DoctorAppointmentDetail() {
   const patientId = patient?._id || patient?.id;
   const doctor = appointment.doctor;
   const status = normalizeAppointmentStatus(appointment.status);
-  const canAct = ACTIVE_APPOINTMENT_STATUSES.includes(status);
+  const canManage = can(user, P.APPOINTMENTS_MANAGE);
+  const canQueue = can(user, P.QUEUE_MANAGE);
+  const canAct = canManage && ACTIVE_APPOINTMENT_STATUSES.includes(status);
   const dateObj = new Date(appointment.appointmentDate);
 
   return (
@@ -189,17 +236,27 @@ export default function DoctorAppointmentDetail() {
             {doctor?.name ? ` · Dr. ${String(doctor.name).replace(/^Dr\.?\s*/i, '')}` : ''}
           </p>
         </div>
-        {patient?.phone && (
-          <button
-            type="button"
-            className="btn-whatsapp shrink-0"
-            disabled={waBusy}
-            onClick={openWhatsApp}
+        <div className="flex flex-wrap gap-2 shrink-0">
+          <Link
+            to={ROUTES.print('appointment_slip', id)}
+            target="_blank"
+            rel="noreferrer"
+            className="btn-secondary !min-h-10"
           >
-            <MessageCircle className="w-4 h-4" />
-            {waBusy ? 'Opening…' : 'Notify on WhatsApp'}
-          </button>
-        )}
+            <Printer className="w-4 h-4" /> Print slip
+          </Link>
+          {patient?.phone && (
+            <button
+              type="button"
+              className="btn-whatsapp"
+              disabled={waBusy}
+              onClick={openWhatsApp}
+            >
+              <MessageCircle className="w-4 h-4" />
+              {waBusy ? 'Opening…' : 'Notify on WhatsApp'}
+            </button>
+          )}
+        </div>
       </div>
 
       <div className="grid lg:grid-cols-2 gap-4 mb-4">
@@ -287,14 +344,35 @@ export default function DoctorAppointmentDetail() {
                 Start consultation
               </Link>
             )}
+            {canQueue && (
+              <button
+                type="button"
+                className="btn-secondary !min-h-10"
+                disabled={busy || queueBusy}
+                onClick={checkInToQueue}
+              >
+                <ListOrdered className="w-4 h-4" />
+                {queueBusy ? 'Checking in…' : 'Check in to queue'}
+              </button>
+            )}
             <button
               type="button"
               className="btn-primary !min-h-10"
               disabled={busy}
-              onClick={() => updateStatus('completed')}
+              onClick={() => updateStatus('completed', true)}
             >
               <CheckCircle className="w-4 h-4" /> Complete visit
             </button>
+            {status !== 'confirmed' && (
+              <button
+                type="button"
+                className="btn-secondary"
+                disabled={busy}
+                onClick={() => updateStatus('confirmed')}
+              >
+                Confirm
+              </button>
+            )}
             <button
               type="button"
               className="btn-secondary"

@@ -164,7 +164,7 @@ export default function SearchPage() {
         <EmptyState
           icon={Search}
           title={`No matches for “${trimmed}”`}
-          description="Doctors only see their own patients. Try Ashwagandha, another name, or switch to All branches."
+          description="Search across patients in this branch. Try a name, phone, PAT-ID, or switch to All branches."
         />
       ) : (
         SECTIONS.map(({ key, label }) =>

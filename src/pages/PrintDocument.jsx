@@ -163,12 +163,19 @@ export default function PrintDocument() {
 
         {type === 'invoice' && data.invoice && (
           <>
-            <h2 className="print-heading font-semibold mb-2">Invoice {data.invoice.invoiceNumber}</h2>
+            <div className="flex items-baseline justify-between gap-3 mb-3 border-b border-line pb-2">
+              <h2 className="print-heading font-semibold tracking-wide">
+                INVOICE {data.invoice.invoiceNumber}
+              </h2>
+              <p className="print-sub text-ink-faint">
+                {data.invoice.invoiceDate && isValid(new Date(data.invoice.invoiceDate))
+                  ? format(new Date(data.invoice.invoiceDate), 'dd MMM yyyy')
+                  : ''}
+              </p>
+            </div>
             <p className="print-sub mb-4">
-              Patient: {data.invoice.patientId?.name} · Doctor: {data.invoice.doctorId?.name}
-              {data.invoice.invoiceDate && isValid(new Date(data.invoice.invoiceDate))
-                ? ` · ${format(new Date(data.invoice.invoiceDate), 'dd MMM yyyy')}`
-                : ''}
+              Patient: <strong>{data.invoice.patientId?.name}</strong>
+              {data.invoice.doctorId?.name ? ` · Doctor: ${data.invoice.doctorId.name}` : ''}
             </p>
             <table className="w-full mb-4" style={{ fontSize: 'inherit' }}>
               <thead>
@@ -253,24 +260,65 @@ export default function PrintDocument() {
 
         {type === 'prescription' && data.prescription && (
           <>
-            <h2 className="print-heading font-semibold mb-2">Prescription</h2>
-            <p className="print-sub mb-1">
-              Patient: {data.prescription.patientId?.name}{' '}
-              {data.prescription.patientId?.age ? `· ${data.prescription.patientId.age} yrs` : ''}
-            </p>
-            <p className="print-sub mb-4">
-              Doctor: {data.prescription.doctorId?.name} {data.prescription.doctorId?.qualification}
-            </p>
-            <ol className="list-decimal pl-5 space-y-2">
-              {(data.prescription.items || []).map((m, i) => (
-                <li key={i}>
-                  <strong>{m.name}</strong> — {m.dosage} {m.frequency} {m.duration}
-                  {m.instructions ? ` (${m.instructions})` : ''}
-                </li>
-              ))}
-            </ol>
+            <div className="flex items-baseline justify-between gap-3 mb-3 border-b border-line pb-2">
+              <h2 className="print-heading font-semibold tracking-wide">PRESCRIPTION</h2>
+              <p className="print-sub text-ink-faint">
+                {data.prescription.createdAt && isValid(new Date(data.prescription.createdAt))
+                  ? format(new Date(data.prescription.createdAt), 'dd MMM yyyy')
+                  : ''}
+              </p>
+            </div>
+            <div className="grid sm:grid-cols-2 gap-2 print-sub mb-4">
+              <div>
+                <p>
+                  <span className="text-ink-faint">Patient: </span>
+                  <strong>{data.prescription.patientId?.name}</strong>
+                  {data.prescription.patientId?.age ? ` · ${data.prescription.patientId.age} yrs` : ''}
+                </p>
+                {data.prescription.patientId?.gender ? (
+                  <p className="capitalize text-ink-muted">Gender: {data.prescription.patientId.gender}</p>
+                ) : null}
+              </div>
+              <div className="sm:text-right">
+                <p>
+                  <span className="text-ink-faint">Doctor: </span>
+                  <strong>{data.prescription.doctorId?.name}</strong>
+                </p>
+                <p className="text-ink-muted">
+                  {[data.prescription.doctorId?.qualification, data.prescription.doctorId?.specialization]
+                    .filter(Boolean)
+                    .join(' · ')}
+                </p>
+              </div>
+            </div>
+            <table className="w-full mb-4 text-sm">
+              <thead>
+                <tr className="border-b border-line text-left">
+                  <th className="py-1.5 pr-2 w-8">#</th>
+                  <th className="py-1.5 pr-2">Medicine</th>
+                  <th className="py-1.5 pr-2">Dosage</th>
+                  <th className="py-1.5 pr-2">Frequency</th>
+                  <th className="py-1.5 pr-2">Duration</th>
+                  <th className="py-1.5">Notes</th>
+                </tr>
+              </thead>
+              <tbody>
+                {(data.prescription.items || []).map((m, i) => (
+                  <tr key={i} className="border-b border-line align-top">
+                    <td className="py-2 pr-2 text-ink-faint">{i + 1}</td>
+                    <td className="py-2 pr-2 font-medium">{m.name}</td>
+                    <td className="py-2 pr-2">{m.dosage || '—'}</td>
+                    <td className="py-2 pr-2">{m.frequency || '—'}</td>
+                    <td className="py-2 pr-2">{m.duration || '—'}</td>
+                    <td className="py-2 text-ink-muted">{m.instructions || '—'}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
             {data.prescription.followUpInstructions && (
-              <p className="mt-4">Follow-up: {data.prescription.followUpInstructions}</p>
+              <p className="print-sub mb-2">
+                <strong>Follow-up:</strong> {data.prescription.followUpInstructions}
+              </p>
             )}
             <SignatureBlock branding={branding} />
           </>

@@ -17,6 +17,8 @@ import { getAppointmentStatusConfig, normalizeAppointmentStatus } from '../const
 import { ROUTES } from '../constants/routes';
 import { patientDisplayName } from '../utils/display';
 import { useBranch } from '../context/BranchContext';
+import { useAuth } from '../context/AuthContext';
+import { can, P } from '../constants/permissions';
 
 function toDateKey(d) {
   return format(d, 'yyyy-MM-dd');
@@ -82,6 +84,7 @@ function CalendarEvent({ appointment, onOpen }) {
 
 export default function DoctorCalendar() {
   const navigate = useNavigate();
+  const { user } = useAuth();
   const { branchId } = useBranch();
   const [view, setView] = useState('week');
   const [anchor, setAnchor] = useState(() => startOfDay(new Date()));
@@ -207,12 +210,14 @@ export default function DoctorCalendar() {
               </button>
             ))}
           </div>
-          <Link
-            to={ROUTES.doctorBook}
-            className="inline-flex items-center gap-2 min-h-9 px-3.5 rounded-[10px] text-sm font-semibold text-white bg-[#1c2430] hover:bg-[#2a3340] hover:shadow-sm transition-all duration-150"
-          >
-            <CalendarPlus className="w-4 h-4" /> New Appointment
-          </Link>
+          {can(user, P.APPOINTMENTS_MANAGE) && (
+            <Link
+              to={ROUTES.doctorBook}
+              className="inline-flex items-center gap-2 min-h-9 px-3.5 rounded-[10px] text-sm font-semibold text-white bg-[#1c2430] hover:bg-[#2a3340] hover:shadow-sm transition-all duration-150"
+            >
+              <CalendarPlus className="w-4 h-4" /> New Appointment
+            </Link>
+          )}
         </div>
       </div>
 

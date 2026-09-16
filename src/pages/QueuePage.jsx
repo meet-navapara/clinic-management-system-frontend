@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
+import { Monitor } from 'lucide-react';
 import api from '../utils/api';
 import toast from 'react-hot-toast';
 import PageHeader from '../components/ui/PageHeader';
@@ -9,12 +10,14 @@ import Modal from '../components/ui/Modal';
 import Pagination from '../components/ui/Pagination';
 import PatientPicker from '../components/PatientPicker';
 import RequiredMark from '../components/ui/RequiredMark';
+import Dropdown from '../components/ui/Dropdown';
 import { SkeletonRows } from '../components/ui/Skeleton';
 import { ROUTES } from '../constants/routes';
 import { useAuth } from '../context/AuthContext';
 import { useBranch } from '../context/BranchContext';
 
 const PAGE_SIZE = 20;
+const POLL_MS = 5000;
 const ACTION_BTN =
   'flex-1 min-w-[calc(50%-0.25rem)] md:flex-none md:min-w-0 !min-h-10 md:!min-h-9 text-sm justify-center text-center px-2 leading-tight';
 
@@ -26,7 +29,10 @@ function TicketCard({ ticket: t, onStatus }) {
           <p className="font-semibold text-ink truncate">
             #{t.tokenLabel} · {t.patientId?.name || 'Patient'}
           </p>
-          <p className="text-sm text-ink-muted truncate">{t.doctorId?.name || 'Unassigned'}</p>
+          <p className="text-sm text-ink-muted truncate">
+            {t.doctorId?.name || 'Unassigned'}
+            {t.roomLabel ? ` · ${t.roomLabel}` : ''}
+          </p>
         </div>
         <Badge value={t.status} className="shrink-0 whitespace-nowrap md:hidden" />
       </div>
@@ -48,7 +54,11 @@ function TicketCard({ ticket: t, onStatus }) {
           </button>
         )}
         {t.status === 'in_consultation' && (
-          <button type="button" className={`btn-primary ${ACTION_BTN} border border-[#1c2430]`} onClick={() => onStatus(t._id, 'completed')}>
+          <button
+            type="button"
+            className={`btn-primary ${ACTION_BTN} border border-[#1c2430]`}
+            onClick={() => onStatus(t._id, 'completed')}
+          >
             Complete
           </button>
         )}
@@ -92,9 +102,13 @@ export default function QueuePage() {
   const [loading, setLoading] = useState(true);
   const [open, setOpen] = useState(false);
   const [patientId, setPatientId] = useState('');
+  const [doctorId, setDoctorId] = useState('');
+  const [roomLabel, setRoomLabel] = useState('');
+  const [doctors, setDoctors] = useState([]);
   const [checkingIn, setCheckingIn] = useState(false);
   const isDoctor = user?.role === 'doctor';
   const needsBranch = isDoctor && !branchId;
+  const rooms = Array.isArray(current?.rooms) ? current.rooms.filter(Boolean) : [];
 
   const applyQueue = (res, requestedPage) => {
     const nextPages = res.data.pages || 1;
@@ -123,8 +137,12 @@ export default function QueuePage() {
       return;
     }
     if (showLoading) setLoading(true);
+    const params = { page: pageNum, limit: PAGE_SIZE };
+    if (isDoctor) params.mine = '1';
+    else if (doctorId) params.doctorId = doctorId;
+
     api
-      .get('/queue', { params: { page: pageNum, limit: PAGE_SIZE } })
+      .get('/queue', { params })
       .then((res) => applyQueue(res, pageNum))
       .catch((err) => {
         const msg = err.response?.data?.message || 'Queue failed.';
@@ -136,16 +154,32 @@ export default function QueuePage() {
 
   useEffect(() => {
     setPage(1);
-  }, [branchId]);
+  }, [branchId, doctorId]);
 
   useEffect(() => {
     load(page, { showLoading: true });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [page, branchId, needsBranch]);
+  }, [page, branchId, needsBranch, doctorId, isDoctor]);
+
+  useEffect(() => {
+    if (needsBranch) return undefined;
+    const id = setInterval(() => load(page), POLL_MS);
+    return () => clearInterval(id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [page, branchId, needsBranch, doctorId, isDoctor]);
+
+  useEffect(() => {
+    if (isDoctor || needsBranch) return;
+    api
+      .get('/doctors')
+      .then((res) => setDoctors(res.data.doctors || []))
+      .catch(() => setDoctors([]));
+  }, [isDoctor, needsBranch, branchId]);
 
   const closeCheckIn = () => {
     setOpen(false);
     setPatientId('');
+    setRoomLabel('');
     setCheckingIn(false);
   };
 
@@ -160,7 +194,10 @@ export default function QueuePage() {
     }
     setCheckingIn(true);
     try {
-      const res = await api.post('/queue/check-in', { patientId });
+      const payload = { patientId };
+      if (!isDoctor && doctorId) payload.doctorId = doctorId;
+      if (roomLabel) payload.roomLabel = roomLabel;
+      const res = await api.post('/queue/check-in', payload);
       toast.success(
         res.data.alreadyCheckedIn
           ? `Already in queue · Token ${res.data.ticket.tokenLabel}`
@@ -189,12 +226,22 @@ export default function QueuePage() {
       return;
     }
     try {
-      await api.post('/queue/call-next', {});
+      const body = {};
+      if (!isDoctor && doctorId) body.doctorId = doctorId;
+      await api.post('/queue/call-next', body);
       load();
     } catch (err) {
       toast.error(err.response?.data?.message || 'No patients waiting.');
     }
   };
+
+  const doctorOptions = [
+    { value: '', label: isDoctor ? 'My queue' : 'All doctors' },
+    ...doctors.map((d) => ({
+      value: String(d._id),
+      label: d.name?.startsWith('Dr') ? d.name : `Dr. ${d.name}`,
+    })),
+  ];
 
   return (
     <div className="page-container">
@@ -206,7 +253,15 @@ export default function QueuePage() {
             : "Choose a branch to run today's queue"
         }
         actions={
-          <div className="grid grid-cols-2 gap-2 w-full md:flex md:w-auto">
+          <div className="grid grid-cols-2 gap-2 w-full md:flex md:w-auto md:flex-wrap">
+            <Link
+              to={ROUTES.queueDisplay}
+              target="_blank"
+              rel="noreferrer"
+              className="btn-secondary w-full md:w-auto inline-flex items-center justify-center gap-1.5"
+            >
+              <Monitor className="w-4 h-4" /> TV display
+            </Link>
             <button
               type="button"
               className="btn-secondary w-full md:w-auto"
@@ -217,9 +272,10 @@ export default function QueuePage() {
             </button>
             <button
               type="button"
-              className="btn-primary w-full md:w-auto border border-[#1c2430]"
+              className="btn-primary w-full md:w-auto border border-[#1c2430] col-span-2 md:col-span-1"
               onClick={() => {
                 setPatientId('');
+                setRoomLabel(rooms[0] || current?.roomLabel || '');
                 setOpen(true);
               }}
               disabled={needsBranch}
@@ -229,6 +285,21 @@ export default function QueuePage() {
           </div>
         }
       />
+
+      {!isDoctor && !needsBranch && doctors.length > 0 && (
+        <div className="mb-4 max-w-xs">
+          <label className="label-field" htmlFor="queue-doctor-filter">
+            Doctor lane
+          </label>
+          <Dropdown
+            id="queue-doctor-filter"
+            value={doctorId}
+            onChange={setDoctorId}
+            options={doctorOptions}
+            ariaLabel="Filter queue by doctor"
+          />
+        </div>
+      )}
 
       {needsBranch ? (
         <EmptyState
@@ -265,18 +336,19 @@ export default function QueuePage() {
             <EmptyState title="Queue is empty" description="Check in a patient to generate a token." />
           ) : (
             <>
-            <p className="text-xs text-ink-faint mb-2">
-              {waitingCount} waiting · {total} token{total === 1 ? '' : 's'}
-              {pages > 1 ? ` · page ${page} of ${pages}` : ''}
-            </p>
-            <div className="space-y-2">
-              {tickets.map((t) => (
-                <TicketCard key={t._id} ticket={t} onStatus={setStatus} />
-              ))}
-            </div>
-            <div className="pb-[max(0.5rem,env(safe-area-inset-bottom))]">
-              <Pagination page={page} pages={pages} onPage={setPage} />
-            </div>
+              <p className="text-xs text-ink-faint mb-2">
+                {waitingCount} waiting · {total} token{total === 1 ? '' : 's'}
+                {isDoctor ? ' · your lane' : ''}
+                {pages > 1 ? ` · page ${page} of ${pages}` : ''}
+              </p>
+              <div className="space-y-2">
+                {tickets.map((t) => (
+                  <TicketCard key={t._id} ticket={t} onStatus={setStatus} />
+                ))}
+              </div>
+              <div className="pb-[max(0.5rem,env(safe-area-inset-bottom))]">
+                <Pagination page={page} pages={pages} onPage={setPage} />
+              </div>
             </>
           )}
         </>
@@ -292,6 +364,38 @@ export default function QueuePage() {
           onChange={setPatientId}
           disabled={checkingIn}
         />
+        {!isDoctor && doctors.length > 0 && (
+          <div className="mt-3">
+            <label className="label-field" htmlFor="queue-checkin-doctor">
+              Doctor
+            </label>
+            <Dropdown
+              id="queue-checkin-doctor"
+              value={doctorId}
+              onChange={setDoctorId}
+              options={doctorOptions.filter((o) => o.value)}
+              placeholder="Patient's doctor (default)"
+              ariaLabel="Assign doctor for check-in"
+              disabled={checkingIn}
+            />
+          </div>
+        )}
+        {rooms.length > 0 && (
+          <div className="mt-3">
+            <label className="label-field" htmlFor="queue-checkin-room">
+              Room
+            </label>
+            <Dropdown
+              id="queue-checkin-room"
+              value={roomLabel}
+              onChange={setRoomLabel}
+              options={rooms.map((r) => ({ value: r, label: r }))}
+              placeholder="Room"
+              ariaLabel="Room for token"
+              disabled={checkingIn}
+            />
+          </div>
+        )}
         <div className="flex flex-col-reverse sm:flex-row sm:justify-end gap-2 mt-4">
           <button type="button" className="btn-secondary w-full sm:w-auto" onClick={closeCheckIn} disabled={checkingIn}>
             Cancel

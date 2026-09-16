@@ -6,12 +6,29 @@ import api from '../utils/api';
 import toast from 'react-hot-toast';
 import { ROUTES } from '../constants/routes';
 import { useAuth } from '../context/AuthContext';
-import { normalizeIndianMobile, isValidEmail } from '../utils/validation';
+import { useBranch } from '../context/BranchContext';
+import {
+  normalizeIndianMobile,
+  isValidEmail,
+  formatIndianMobileInput,
+  digitsOnly,
+  ageFromDob,
+} from '../utils/validation';
+import {
+  PATIENT_RELATIONS,
+  PATIENT_BLOOD_GROUPS,
+  PATIENT_CITIES,
+  PATIENT_CATEGORIES,
+  PATIENT_GENDERS,
+  DEFAULT_HISTORY_TAGS,
+} from '../constants/patientForm';
 import Dropdown from '../components/ui/Dropdown';
 import DobDatepicker from '../components/DobDatepicker';
 import Checkbox from '../components/ui/Checkbox';
 import RequiredMark from '../components/ui/RequiredMark';
 import { compressImageToDataUrl } from '../utils/image';
+
+const FALLBACK_ROOMS = ['OPD', 'Room 1', 'Room 2', 'Room 3', 'Ward'];
 
 function Field({ id, label, required, error, className = '', children }) {
   return (
@@ -28,43 +45,20 @@ function Field({ id, label, required, error, className = '', children }) {
   );
 }
 
-const RELATIONS = [
-  'Father',
-  'Mother',
-  'Spouse',
-  'Son',
-  'Daughter',
-  'Brother',
-  'Sister',
-  'Guardian',
-  'Friend',
-  'Other',
-];
+/** Occupation: letters / spaces / basic punctuation — not a digit dump. */
+function formatOccupationInput(raw) {
+  return String(raw || '')
+    .replace(/[0-9]/g, '')
+    .replace(/\s{2,}/g, ' ')
+    .slice(0, 80);
+}
 
-const BLOOD_GROUPS = ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-', 'Unknown'];
-
-const AREAS = ['Adajan', 'Vesu', 'Athwa', 'Katargam', 'Varachha', 'Piplod'];
-
-const PATIENT_CATEGORIES = ['Patient', 'Family', 'Corporate'];
-
-const ROOMS = ['OPD', 'Room 1', 'Room 2', 'Room 3', 'Ward'];
-
-const GENDERS = [
-  { value: 'male', label: 'Male' },
-  { value: 'female', label: 'Female' },
-];
-
-const DEFAULT_HISTORY_TAGS = [
-  'Vertigo',
-  'Active Smoker',
-  'Alcohol problem',
-  'Allergic to Diclofenac',
-  'Allergic to Milk Products',
-  'Diabetes',
-  'Hypertension',
-  'Asthma',
-  'Thyroid disorder',
-];
+/** Case Id: short alphanumeric code. */
+function formatCaseIdInput(raw) {
+  return String(raw || '')
+    .replace(/[^a-zA-Z0-9\-_/]/g, '')
+    .slice(0, 24);
+}
 
 const EMPTY_FORM = {
   firstName: '',
@@ -102,6 +96,7 @@ const EMPTY_FORM = {
 export default function DoctorPatientNew() {
   const navigate = useNavigate();
   const { user } = useAuth();
+  const { branches, current } = useBranch();
   const fileRef = useRef(null);
   const [loading, setLoading] = useState(false);
   const [doctors, setDoctors] = useState([]);
@@ -109,6 +104,23 @@ export default function DoctorPatientNew() {
   const [customTag, setCustomTag] = useState('');
   const [fieldErrors, setFieldErrors] = useState({});
   const [form, setForm] = useState(EMPTY_FORM);
+
+  const roomOptions = useMemo(() => {
+    const fromBranches = branches.flatMap((b) => {
+      const list = Array.isArray(b.rooms) && b.rooms.length ? b.rooms : [];
+      if (list.length) return list;
+      return b.roomLabel ? [b.roomLabel] : [];
+    });
+    const unique = [...new Set(fromBranches.map((r) => String(r || '').trim()).filter(Boolean))];
+    if (unique.length) return unique;
+    return FALLBACK_ROOMS;
+  }, [branches]);
+
+  useEffect(() => {
+    if (!form.room && current?.roomLabel) {
+      setForm((prev) => (prev.room ? prev : { ...prev, room: current.roomLabel }));
+    }
+  }, [current?.roomLabel]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     if (user?.role === 'doctor') return;
@@ -135,6 +147,44 @@ export default function DoctorPatientNew() {
     setField(name, type === 'checkbox' ? checked : value);
   };
 
+  const handlePhoneChange = (name) => (e) => {
+    setField(name, formatIndianMobileInput(e.target.value));
+  };
+
+  const handlePhoneKeyDown = (name) => (e) => {
+    if (e.key !== 'Backspace') return;
+    const v = form[name] || '';
+    const localDigits = v.replace(/^\s*\+?\s*91[\s-]*/i, '').replace(/\D/g, '');
+    if (localDigits.length <= 1) {
+      e.preventDefault();
+      setField(name, '');
+    }
+  };
+
+  const handleAadharChange = (e) => {
+    setField('aadharNumber', digitsOnly(e.target.value, 12));
+  };
+
+  const handleAgeChange = (e) => {
+    const raw = digitsOnly(e.target.value, 3);
+    if (raw === '') {
+      setField('age', '');
+      return;
+    }
+    const n = Math.min(150, Number(raw));
+    setField('age', String(Number.isFinite(n) ? n : ''));
+  };
+
+  const handleDobChange = (value) => {
+    const derived = ageFromDob(value);
+    setForm((prev) => ({
+      ...prev,
+      dateOfBirth: value,
+      ...(derived != null ? { age: String(derived) } : {}),
+    }));
+    setFieldErrors((prev) => ({ ...prev, dateOfBirth: undefined, age: undefined }));
+  };
+
   const toggleHistoryTag = (tag) => {
     setForm((prev) => {
       const exists = prev.historyTags.includes(tag);
@@ -148,7 +198,7 @@ export default function DoctorPatientNew() {
   };
 
   const addCustomTag = () => {
-    const tag = customTag.trim();
+    const tag = customTag.trim().slice(0, 80);
     if (!tag) return;
     setForm((prev) => ({
       ...prev,
@@ -181,27 +231,87 @@ export default function DoctorPatientNew() {
   const validate = () => {
     const errors = {};
     if (!form.firstName.trim()) errors.firstName = 'First name is required.';
+    else if (form.firstName.trim().length > 80) errors.firstName = 'First name is too long.';
     if (!form.lastName.trim()) errors.lastName = 'Last name is required.';
+    else if (form.lastName.trim().length > 80) errors.lastName = 'Last name is too long.';
+    if (form.middleName.trim().length > 80) errors.middleName = 'Middle name is too long.';
+
     const phone = normalizeIndianMobile(form.phone);
-    if (!phone) errors.phone = 'Contact number must be a valid 10-digit Indian mobile (+91).';
+    if (!phone) errors.phone = 'Enter a valid 10-digit Indian mobile (starts with 6–9).';
+
     if (!form.gender) errors.gender = 'Gender is required.';
+
     if (form.email && !isValidEmail(form.email)) errors.email = 'Email address is invalid.';
+
     if (form.secondaryPhone && !normalizeIndianMobile(form.secondaryPhone)) {
       errors.secondaryPhone = 'Secondary number must be a valid 10-digit Indian mobile.';
     }
     if (form.emergencyContactPhone && !normalizeIndianMobile(form.emergencyContactPhone)) {
       errors.emergencyContactPhone = 'Relative contact must be a valid 10-digit Indian mobile.';
     }
-    if (form.aadharNumber && !/^\d{12}$/.test(form.aadharNumber.trim())) {
-      errors.aadharNumber = 'Aadhar number must be 12 digits.';
+
+    if (form.aadharNumber && !/^\d{12}$/.test(form.aadharNumber)) {
+      errors.aadharNumber = 'Aadhar number must be exactly 12 digits.';
     }
+
+    if (form.city && !PATIENT_CITIES.includes(form.city)) {
+      errors.city = 'Select a city from the list.';
+    }
+    if (form.area.trim().length > 80) errors.area = 'Area is too long.';
+
+    if (form.bloodGroup && !PATIENT_BLOOD_GROUPS.includes(form.bloodGroup)) {
+      errors.bloodGroup = 'Select a valid blood group.';
+    }
+    if (form.room && !roomOptions.includes(form.room)) {
+      errors.room = 'Select a room from clinic branch settings.';
+    }
+    if (form.patientCategory && !PATIENT_CATEGORIES.includes(form.patientCategory)) {
+      errors.patientCategory = 'Invalid patient category.';
+    }
+    if (
+      form.emergencyContactRelationship &&
+      !PATIENT_RELATIONS.includes(form.emergencyContactRelationship)
+    ) {
+      errors.emergencyContactRelationship = 'Select a relation from the list.';
+    }
+
+    if (form.admitPatient && !form.room) {
+      errors.room = 'Select a room when admitting the patient.';
+    }
+
     if (form.dateOfBirth) {
       const d = new Date(form.dateOfBirth);
       if (Number.isNaN(d.getTime()) || d > new Date()) {
         errors.dateOfBirth = 'Date of birth cannot be in the future.';
+      } else if (d.getFullYear() < 1900) {
+        errors.dateOfBirth = 'Date of birth is too far in the past.';
       }
     }
+
+    if (form.age !== '') {
+      const ageNum = Number(form.age);
+      if (!Number.isInteger(ageNum) || ageNum < 0 || ageNum > 150) {
+        errors.age = 'Age must be between 0 and 150.';
+      }
+    }
+
+    if (form.occupation && /[0-9]/.test(form.occupation)) {
+      errors.occupation = 'Occupation cannot contain numbers.';
+    }
+    if (form.caseId && form.caseId.length > 24) {
+      errors.caseId = 'Case Id must be at most 24 characters.';
+    }
+
+    if (form.address.length > 500) errors.address = 'Address is too long.';
+    if (form.nhId.trim().length > 40) errors.nhId = 'NH ID is too long.';
+    if (form.referredBy.trim().length > 120) errors.referredBy = 'Referred by is too long.';
+    if (form.otherHistory.trim().length > 500) errors.otherHistory = 'Other history is too long.';
+    if (form.linkedPatientName.trim().length > 120) {
+      errors.linkedPatientName = 'Linked patient name is too long.';
+    }
+
     if (user?.role !== 'doctor' && !form.doctorId) errors.doctorId = 'Assigned doctor is required.';
+
     setFieldErrors(errors);
     if (Object.keys(errors).length) {
       const firstKey = Object.keys(errors)[0];
@@ -219,15 +329,13 @@ export default function DoctorPatientNew() {
       address: form.address.trim(),
       city: form.city.trim(),
       area: form.area.trim(),
-      emergencyContactName: form.emergencyContactName.trim(),
+      emergencyContactName: form.emergencyContactName.trim().slice(0, 80),
       emergencyContactPhone: form.emergencyContactPhone
         ? normalizeIndianMobile(form.emergencyContactPhone)
         : '',
       emergencyContactRelationship: form.emergencyContactRelationship,
       profilePhoto: form.profilePhoto,
-      secondaryPhone: form.secondaryPhone
-        ? normalizeIndianMobile(form.secondaryPhone)
-        : '',
+      secondaryPhone: form.secondaryPhone ? normalizeIndianMobile(form.secondaryPhone) : '',
       email: form.email.trim(),
       age: form.age === '' ? undefined : Number(form.age),
       dateOfBirth: form.dateOfBirth || undefined,
@@ -296,334 +404,360 @@ export default function DoctorPatientNew() {
         >
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-5 items-start">
             <div className="lg:col-span-2 min-w-0 grid grid-cols-1 sm:grid-cols-2 gap-x-3 gap-y-4 items-start">
-            <p className="label-field sm:col-span-2 mb-0">
-              Name <RequiredMark />
-            </p>
-            <div className="sm:col-span-2 min-w-0 grid grid-cols-1 sm:grid-cols-3 gap-x-3 gap-y-4">
-            <Field id="patient-firstName" error={fieldErrors.firstName}>
-              <input
-                id="patient-firstName"
-                name="firstName"
-                className="input-field w-full"
-                placeholder="First Name (required)"
-                value={form.firstName}
-                onChange={handleChange}
-                required
-              />
-            </Field>
-            <Field id="patient-middleName">
-              <input
-                id="patient-middleName"
-                name="middleName"
-                className="input-field w-full"
-                placeholder="Middle Name (optional)"
-                value={form.middleName}
-                onChange={handleChange}
-              />
-            </Field>
-            <Field id="patient-lastName" error={fieldErrors.lastName}>
-              <input
-                id="patient-lastName"
-                name="lastName"
-                className="input-field w-full"
-                placeholder="Last Name (required)"
-                value={form.lastName}
-                onChange={handleChange}
-                required
-              />
-            </Field>
-            </div>
-
-            <Field id="patient-phone" label="Contact No." required error={fieldErrors.phone}>
-              <input
-                id="patient-phone"
-                name="phone"
-                type="tel"
-                inputMode="numeric"
-                className="input-field w-full"
-                placeholder="+91 9876543210"
-                value={form.phone}
-                onChange={handleChange}
-                required
-              />
-            </Field>
-            <Field id="patient-gender" label="Gender" required error={fieldErrors.gender}>
-              <Dropdown
-                id="patient-gender"
-                value={form.gender}
-                onChange={(value) => setField('gender', value)}
-                options={GENDERS}
-                placeholder="Select Gender"
-                required
-                ariaLabel="Gender"
-              />
-            </Field>
-            <Field label="Profile Image">
-              <div className="flex items-center gap-2 h-10">
-                <div className="h-10 w-10 shrink-0 rounded-full bg-[#efeae2] overflow-hidden flex items-center justify-center ring-1 ring-line">
-                  {form.profilePhoto ? (
-                    <img src={form.profilePhoto} alt="" className="h-full w-full object-cover" />
-                  ) : (
-                    <Camera className="w-4 h-4 text-ink-faint" aria-hidden />
-                  )}
-                </div>
-                <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={onPhoto} />
-                <button
-                  type="button"
-                  className="btn-secondary !h-10 !min-h-10 grow"
-                  onClick={() => fileRef.current?.click()}
-                >
-                  Upload
-                </button>
+              <p className="label-field sm:col-span-2 mb-0">
+                Name <RequiredMark />
+              </p>
+              <div className="sm:col-span-2 min-w-0 grid grid-cols-1 sm:grid-cols-3 gap-x-3 gap-y-4">
+                <Field id="patient-firstName" error={fieldErrors.firstName}>
+                  <input
+                    id="patient-firstName"
+                    name="firstName"
+                    className="input-field w-full"
+                    placeholder="First Name (required)"
+                    value={form.firstName}
+                    onChange={handleChange}
+                    maxLength={80}
+                    autoComplete="given-name"
+                    required
+                  />
+                </Field>
+                <Field id="patient-middleName" error={fieldErrors.middleName}>
+                  <input
+                    id="patient-middleName"
+                    name="middleName"
+                    className="input-field w-full"
+                    placeholder="Middle Name (optional)"
+                    value={form.middleName}
+                    onChange={handleChange}
+                    maxLength={80}
+                    autoComplete="additional-name"
+                  />
+                </Field>
+                <Field id="patient-lastName" error={fieldErrors.lastName}>
+                  <input
+                    id="patient-lastName"
+                    name="lastName"
+                    className="input-field w-full"
+                    placeholder="Last Name (required)"
+                    value={form.lastName}
+                    onChange={handleChange}
+                    maxLength={80}
+                    autoComplete="family-name"
+                    required
+                  />
+                </Field>
               </div>
-            </Field>
 
-            <Field id="patient-address" label="Address">
-              <input
-                id="patient-address"
-                name="address"
-                className="input-field w-full"
-                placeholder="Street / landmark"
-                value={form.address}
-                onChange={handleChange}
-              />
-            </Field>
-            <Field id="patient-city" label="City">
-              <input
-                id="patient-city"
-                name="city"
-                className="input-field w-full"
-                placeholder="City"
-                value={form.city}
-                onChange={handleChange}
-              />
-            </Field>
-            <Field id="patient-area" label="Area">
-              <Dropdown
-                id="patient-area"
-                value={form.area}
-                onChange={(value) => setField('area', value)}
-                options={AREAS}
-                placeholder="Select Area"
-                ariaLabel="Area"
-              />
-            </Field>
-
-            <p className="section-label sm:col-span-2 mb-0 mt-1">
-              Relative&apos;s Information
-            </p>
-            <Field id="patient-emergencyContactName" label="Name">
-              <input
-                id="patient-emergencyContactName"
-                name="emergencyContactName"
-                className="input-field w-full"
-                value={form.emergencyContactName}
-                onChange={handleChange}
-              />
-            </Field>
-            <Field
-              id="patient-emergencyContactPhone"
-              label="Contact"
-              error={fieldErrors.emergencyContactPhone}
-            >
-              <input
-                id="patient-emergencyContactPhone"
-                name="emergencyContactPhone"
-                type="tel"
-                className="input-field w-full"
-                value={form.emergencyContactPhone}
-                onChange={handleChange}
-              />
-            </Field>
-            <Field id="patient-emergencyContactRelationship" label="Relation">
-              <Dropdown
-                id="patient-emergencyContactRelationship"
-                value={form.emergencyContactRelationship}
-                onChange={(value) => setField('emergencyContactRelationship', value)}
-                options={RELATIONS}
-                placeholder="Select Relation"
-                ariaLabel="Relation"
-              />
-            </Field>
-
-            <Field
-              id="patient-secondaryPhone"
-              label="Secondary No."
-              error={fieldErrors.secondaryPhone}
-            >
-              <input
-                id="patient-secondaryPhone"
-                name="secondaryPhone"
-                type="tel"
-                className="input-field w-full"
-                value={form.secondaryPhone}
-                onChange={handleChange}
-              />
-            </Field>
-            <Field id="patient-email" label="Email Id" error={fieldErrors.email}>
-              <input
-                id="patient-email"
-                name="email"
-                type="email"
-                className="input-field w-full"
-                value={form.email}
-                onChange={handleChange}
-              />
-            </Field>
-            <Field id="patient-age" label="Age">
-              <input
-                id="patient-age"
-                name="age"
-                type="number"
-                min="0"
-                max="150"
-                className="input-field w-full"
-                placeholder="In Years"
-                value={form.age}
-                onChange={handleChange}
-              />
-            </Field>
-
-            <Field id="patient-dateOfBirth" label="DOB" error={fieldErrors.dateOfBirth}>
-              <DobDatepicker
-                id="patient-dateOfBirth"
-                value={form.dateOfBirth}
-                onChange={(value) => setField('dateOfBirth', value)}
-              />
-            </Field>
-            <Field label="Creation date">
-              <input className="input-field w-full" value={format(new Date(), 'dd-MM-yyyy')} readOnly />
-            </Field>
-            <Field id="patient-nhId" label="NH ID">
-              <input
-                id="patient-nhId"
-                name="nhId"
-                className="input-field w-full"
-                placeholder="Enter NH ID"
-                value={form.nhId}
-                onChange={handleChange}
-              />
-            </Field>
-
-            <Field id="patient-referredBy" label="Referred By">
-              <input
-                id="patient-referredBy"
-                name="referredBy"
-                className="input-field w-full"
-                placeholder="Doctor Name"
-                value={form.referredBy}
-                onChange={handleChange}
-              />
-            </Field>
-            <Field id="patient-patientCategory" label="Patient Link">
-              <Dropdown
-                id="patient-patientCategory"
-                value={form.patientCategory}
-                onChange={(value) => setField('patientCategory', value)}
-                options={PATIENT_CATEGORIES}
-                placeholder="Select"
-                ariaLabel="Patient link"
-              />
-            </Field>
-            <Field id="patient-linkedPatientName" label="Linked Patient">
-              <input
-                id="patient-linkedPatientName"
-                name="linkedPatientName"
-                className="input-field w-full"
-                placeholder="Patient Name"
-                value={form.linkedPatientName}
-                onChange={handleChange}
-              />
-            </Field>
-
-            <Field id="patient-caseId" label="Case Id">
-              <input
-                id="patient-caseId"
-                name="caseId"
-                className="input-field w-full"
-                placeholder="Case Id"
-                value={form.caseId}
-                onChange={handleChange}
-              />
-            </Field>
-            <Field id="patient-aadharNumber" label="Aadhar Card" error={fieldErrors.aadharNumber}>
-              <input
-                id="patient-aadharNumber"
-                name="aadharNumber"
-                className="input-field w-full"
-                placeholder="Enter aadhar card no."
-                value={form.aadharNumber}
-                onChange={handleChange}
-                inputMode="numeric"
-                maxLength={12}
-              />
-            </Field>
-            <Field id="patient-occupation" label="Occupation">
-              <input
-                id="patient-occupation"
-                name="occupation"
-                className="input-field w-full"
-                value={form.occupation}
-                onChange={handleChange}
-              />
-            </Field>
-            {user?.role !== 'doctor' ? (
-              <Field id="patient-doctorId" label="Assigned doctor" required error={fieldErrors.doctorId}>
-                <Dropdown
-                  id="patient-doctorId"
-                  value={form.doctorId}
-                  onChange={(value) => setField('doctorId', value)}
-                  options={doctors.map((d) => ({
-                    value: String(d._id || d.id),
-                    label: d.name,
-                  }))}
-                  placeholder="Select doctor"
+              <Field id="patient-phone" label="Contact No." required error={fieldErrors.phone}>
+                <input
+                  id="patient-phone"
+                  name="phone"
+                  type="tel"
+                  inputMode="numeric"
+                  autoComplete="tel"
+                  className="input-field w-full"
+                  placeholder="+91 9876543210"
+                  value={form.phone}
+                  onChange={handlePhoneChange('phone')}
+                  onKeyDown={handlePhoneKeyDown('phone')}
+                  maxLength={14}
                   required
-                  ariaLabel="Assigned doctor"
                 />
               </Field>
-            ) : null}
+              <Field id="patient-gender" label="Gender" required error={fieldErrors.gender}>
+                <Dropdown
+                  id="patient-gender"
+                  value={form.gender}
+                  onChange={(value) => setField('gender', value)}
+                  options={PATIENT_GENDERS}
+                  placeholder="Select Gender"
+                  required
+                  ariaLabel="Gender"
+                />
+              </Field>
+              <Field label="Profile Image">
+                <div className="flex items-center gap-2 h-10">
+                  <div className="h-10 w-10 shrink-0 rounded-full bg-[#efeae2] overflow-hidden flex items-center justify-center ring-1 ring-line">
+                    {form.profilePhoto ? (
+                      <img src={form.profilePhoto} alt="" className="h-full w-full object-cover" />
+                    ) : (
+                      <Camera className="w-4 h-4 text-ink-faint" aria-hidden />
+                    )}
+                  </div>
+                  <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={onPhoto} />
+                  <button
+                    type="button"
+                    className="btn-secondary !h-10 !min-h-10 grow"
+                    onClick={() => fileRef.current?.click()}
+                  >
+                    Upload
+                  </button>
+                  {form.profilePhoto ? (
+                    <button type="button" className="btn-ghost !h-10 text-xs" onClick={() => setField('profilePhoto', '')}>
+                      Remove
+                    </button>
+                  ) : null}
+                </div>
+              </Field>
 
-            <Field label="SMS" className="sm:col-start-1 lg:col-start-1">
-              <Checkbox name="sendSms" checked={form.sendSms} onChange={handleChange}>
-                Send SMS to patient
-              </Checkbox>
-            </Field>
-            <Field label="Admission">
-              <Checkbox name="admitPatient" checked={form.admitPatient} onChange={handleChange}>
-                Admit this patient
-              </Checkbox>
-            </Field>
-            <Field id="patient-room" label="Room">
-              <Dropdown
-                id="patient-room"
-                value={form.room}
-                onChange={(value) => setField('room', value)}
-                options={ROOMS}
-                placeholder="Select"
-                ariaLabel="Room"
-              />
-            </Field>
+              <Field id="patient-address" label="Address" error={fieldErrors.address}>
+                <input
+                  id="patient-address"
+                  name="address"
+                  className="input-field w-full"
+                  placeholder="Street / landmark"
+                  value={form.address}
+                  onChange={handleChange}
+                  maxLength={500}
+                />
+              </Field>
+              <Field id="patient-city" label="City" error={fieldErrors.city}>
+                <Dropdown
+                  id="patient-city"
+                  value={form.city}
+                  onChange={(value) => setField('city', value)}
+                  options={PATIENT_CITIES}
+                  placeholder="Select City"
+                  ariaLabel="City"
+                  searchable
+                  searchPlaceholder="Search Gujarat city"
+                />
+              </Field>
+              <Field id="patient-area" label="Area" error={fieldErrors.area}>
+                <input
+                  id="patient-area"
+                  name="area"
+                  className="input-field w-full"
+                  placeholder="e.g. Adajan, Vesu"
+                  value={form.area}
+                  onChange={handleChange}
+                  maxLength={80}
+                />
+              </Field>
 
-            <Field id="patient-bloodGroup" label="Blood Group">
-              <Dropdown
-                id="patient-bloodGroup"
-                value={form.bloodGroup}
-                onChange={(value) => setField('bloodGroup', value)}
-                options={BLOOD_GROUPS}
-                placeholder="Select Blood Group"
-                ariaLabel="Blood group"
-              />
-            </Field>
-            <Field id="patient-otherHistory" label="Other History">
-              <input
-                id="patient-otherHistory"
-                name="otherHistory"
-                className="input-field w-full"
-                value={form.otherHistory}
-                onChange={handleChange}
-              />
-            </Field>
+              <p className="section-label sm:col-span-2 mb-0 mt-1">Relative&apos;s Information</p>
+              <Field id="patient-emergencyContactName" label="Name">
+                <input
+                  id="patient-emergencyContactName"
+                  name="emergencyContactName"
+                  className="input-field w-full"
+                  value={form.emergencyContactName}
+                  onChange={handleChange}
+                  maxLength={80}
+                />
+              </Field>
+              <Field id="patient-emergencyContactPhone" label="Contact" error={fieldErrors.emergencyContactPhone}>
+                <input
+                  id="patient-emergencyContactPhone"
+                  name="emergencyContactPhone"
+                  type="tel"
+                  inputMode="numeric"
+                  className="input-field w-full"
+                  placeholder="+91 9876543210"
+                  value={form.emergencyContactPhone}
+                  onChange={handlePhoneChange('emergencyContactPhone')}
+                  onKeyDown={handlePhoneKeyDown('emergencyContactPhone')}
+                  maxLength={14}
+                />
+              </Field>
+              <Field id="patient-emergencyContactRelationship" label="Relation" error={fieldErrors.emergencyContactRelationship}>
+                <Dropdown
+                  id="patient-emergencyContactRelationship"
+                  value={form.emergencyContactRelationship}
+                  onChange={(value) => setField('emergencyContactRelationship', value)}
+                  options={PATIENT_RELATIONS}
+                  placeholder="Select Relation"
+                  ariaLabel="Relation"
+                />
+              </Field>
+
+              <Field id="patient-secondaryPhone" label="Secondary No." error={fieldErrors.secondaryPhone}>
+                <input
+                  id="patient-secondaryPhone"
+                  name="secondaryPhone"
+                  type="tel"
+                  inputMode="numeric"
+                  className="input-field w-full"
+                  placeholder="+91 9876543210"
+                  value={form.secondaryPhone}
+                  onChange={handlePhoneChange('secondaryPhone')}
+                  onKeyDown={handlePhoneKeyDown('secondaryPhone')}
+                  maxLength={14}
+                />
+              </Field>
+              <Field id="patient-email" label="Email Id" error={fieldErrors.email}>
+                <input
+                  id="patient-email"
+                  name="email"
+                  type="email"
+                  className="input-field w-full"
+                  value={form.email}
+                  onChange={handleChange}
+                  maxLength={120}
+                  autoComplete="email"
+                />
+              </Field>
+              <Field id="patient-age" label="Age" error={fieldErrors.age}>
+                <input
+                  id="patient-age"
+                  name="age"
+                  type="text"
+                  inputMode="numeric"
+                  className="input-field w-full"
+                  placeholder="In Years (0–150)"
+                  value={form.age}
+                  onChange={handleAgeChange}
+                  maxLength={3}
+                />
+              </Field>
+
+              <Field id="patient-dateOfBirth" label="DOB" error={fieldErrors.dateOfBirth}>
+                <DobDatepicker id="patient-dateOfBirth" value={form.dateOfBirth} onChange={handleDobChange} />
+              </Field>
+              <Field label="Creation date">
+                <input className="input-field w-full" value={format(new Date(), 'dd-MM-yyyy')} readOnly />
+              </Field>
+              <Field id="patient-nhId" label="NH ID" error={fieldErrors.nhId}>
+                <input
+                  id="patient-nhId"
+                  name="nhId"
+                  className="input-field w-full"
+                  placeholder="Enter NH ID"
+                  value={form.nhId}
+                  onChange={handleChange}
+                  maxLength={40}
+                />
+              </Field>
+
+              <Field id="patient-referredBy" label="Referred By" error={fieldErrors.referredBy}>
+                <input
+                  id="patient-referredBy"
+                  name="referredBy"
+                  className="input-field w-full"
+                  placeholder="Doctor Name"
+                  value={form.referredBy}
+                  onChange={handleChange}
+                  maxLength={120}
+                />
+              </Field>
+              <Field id="patient-patientCategory" label="Patient Link" error={fieldErrors.patientCategory}>
+                <Dropdown
+                  id="patient-patientCategory"
+                  value={form.patientCategory}
+                  onChange={(value) => setField('patientCategory', value)}
+                  options={PATIENT_CATEGORIES}
+                  placeholder="Select"
+                  ariaLabel="Patient link"
+                />
+              </Field>
+              <Field id="patient-linkedPatientName" label="Linked Patient" error={fieldErrors.linkedPatientName}>
+                <input
+                  id="patient-linkedPatientName"
+                  name="linkedPatientName"
+                  className="input-field w-full"
+                  placeholder="Patient Name"
+                  value={form.linkedPatientName}
+                  onChange={handleChange}
+                  maxLength={120}
+                />
+              </Field>
+
+              <Field id="patient-caseId" label="Case Id" error={fieldErrors.caseId}>
+                <input
+                  id="patient-caseId"
+                  name="caseId"
+                  className="input-field w-full"
+                  placeholder="e.g. CASE-1024"
+                  value={form.caseId}
+                  onChange={(e) => setField('caseId', formatCaseIdInput(e.target.value))}
+                  maxLength={24}
+                />
+              </Field>
+              <Field id="patient-aadharNumber" label="Aadhar Card" error={fieldErrors.aadharNumber}>
+                <input
+                  id="patient-aadharNumber"
+                  name="aadharNumber"
+                  className="input-field w-full"
+                  placeholder="12-digit Aadhar"
+                  value={form.aadharNumber}
+                  onChange={handleAadharChange}
+                  inputMode="numeric"
+                  maxLength={12}
+                />
+              </Field>
+              <Field id="patient-occupation" label="Occupation" error={fieldErrors.occupation}>
+                <input
+                  id="patient-occupation"
+                  name="occupation"
+                  className="input-field w-full"
+                  placeholder="e.g. Teacher, Engineer"
+                  value={form.occupation}
+                  onChange={(e) => setField('occupation', formatOccupationInput(e.target.value))}
+                  maxLength={80}
+                />
+              </Field>
+              {user?.role !== 'doctor' ? (
+                <Field id="patient-doctorId" label="Assigned doctor" required error={fieldErrors.doctorId}>
+                  <Dropdown
+                    id="patient-doctorId"
+                    value={form.doctorId}
+                    onChange={(value) => setField('doctorId', value)}
+                    options={doctors.map((d) => ({
+                      value: String(d._id || d.id),
+                      label: d.name,
+                    }))}
+                    placeholder="Select doctor"
+                    required
+                    ariaLabel="Assigned doctor"
+                  />
+                </Field>
+              ) : null}
+
+              <Field label="SMS" className="sm:col-start-1 lg:col-start-1">
+                <Checkbox name="sendSms" checked={form.sendSms} onChange={handleChange}>
+                  Send SMS to patient
+                </Checkbox>
+              </Field>
+              <Field label="Admission">
+                <Checkbox name="admitPatient" checked={form.admitPatient} onChange={handleChange}>
+                  Admit this patient
+                </Checkbox>
+              </Field>
+              <Field id="patient-room" label="Room" required={form.admitPatient} error={fieldErrors.room}>
+                <Dropdown
+                  id="patient-room"
+                  value={form.room}
+                  onChange={(value) => setField('room', value)}
+                  options={roomOptions}
+                  placeholder="Select room"
+                  ariaLabel="Room"
+                />
+                <p className="text-[11px] text-ink-faint mt-1">
+                  From branch settings (Branches → Room label)
+                  {current?.roomLabel ? ` · current: ${current.roomLabel}` : ''}
+                </p>
+              </Field>
+
+              <Field id="patient-bloodGroup" label="Blood Group" error={fieldErrors.bloodGroup}>
+                <Dropdown
+                  id="patient-bloodGroup"
+                  value={form.bloodGroup}
+                  onChange={(value) => setField('bloodGroup', value)}
+                  options={PATIENT_BLOOD_GROUPS}
+                  placeholder="Select Blood Group"
+                  ariaLabel="Blood group"
+                />
+              </Field>
+              <Field id="patient-otherHistory" label="Other History" error={fieldErrors.otherHistory}>
+                <input
+                  id="patient-otherHistory"
+                  name="otherHistory"
+                  className="input-field w-full"
+                  value={form.otherHistory}
+                  onChange={handleChange}
+                  maxLength={500}
+                />
+              </Field>
             </div>
 
             <aside className="min-w-0 lg:sticky lg:top-4">
@@ -643,13 +777,14 @@ export default function DoctorPatientNew() {
                       className="input-field w-full min-w-0 grow"
                       placeholder="Add custom history"
                       value={customTag}
-                      onChange={(e) => setCustomTag(e.target.value)}
+                      onChange={(e) => setCustomTag(e.target.value.slice(0, 80))}
                       onKeyDown={(e) => {
                         if (e.key === 'Enter') {
                           e.preventDefault();
                           addCustomTag();
                         }
                       }}
+                      maxLength={80}
                     />
                     <button type="button" className="btn-secondary shrink-0 !h-10 !min-h-10" onClick={addCustomTag}>
                       Add
@@ -676,32 +811,8 @@ export default function DoctorPatientNew() {
           </div>
 
           <div className="pt-2 border-t border-line flex flex-wrap gap-2">
-            <button
-              type="button"
-              className="inline-flex items-center justify-center min-h-10 px-3 rounded-md text-sm font-semibold text-white bg-orange-500 hover:bg-orange-600 disabled:opacity-50"
-              disabled={loading}
-              onClick={() => savePatient('profile')}
-            >
-              Add Patient & Print Registration Form
-            </button>
-            <button
-              type="button"
-              className="inline-flex items-center justify-center min-h-10 px-3 rounded-md text-sm font-semibold text-white bg-orange-500 hover:bg-orange-600 disabled:opacity-50"
-              disabled={loading}
-              onClick={() => savePatient('consent')}
-            >
-              Add Patient & Print Consent Form
-            </button>
             <button type="submit" className="btn-primary" disabled={loading}>
               {loading ? 'Saving...' : 'Add Patient'}
-            </button>
-            <button
-              type="button"
-              className="inline-flex items-center justify-center min-h-10 px-3 rounded-md text-sm font-semibold text-white bg-teal-700 hover:bg-teal-800 disabled:opacity-50"
-              disabled={loading}
-              onClick={() => savePatient('profile')}
-            >
-              Add Patient & Print Sticker
             </button>
             <button
               type="button"
@@ -718,6 +829,14 @@ export default function DoctorPatientNew() {
               onClick={() => savePatient('book')}
             >
               Add Patient & Book Appointment
+            </button>
+            <button
+              type="button"
+              className="inline-flex items-center justify-center min-h-10 px-3 rounded-md text-sm font-semibold text-white bg-orange-500 hover:bg-orange-600 disabled:opacity-50"
+              disabled={loading}
+              onClick={() => savePatient('consent')}
+            >
+              Add Patient & Consent
             </button>
             <Link to={ROUTES.doctorPatients} className="btn-secondary">
               Cancel

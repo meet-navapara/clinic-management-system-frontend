@@ -22,6 +22,8 @@ import EmptyState from '../components/ui/EmptyState';
 import RequiredMark from '../components/ui/RequiredMark';
 import { normalizeIndianMobile, isValidEmail } from '../utils/validation';
 import { compressImageToDataUrl } from '../utils/image';
+import { useAuth } from '../context/AuthContext';
+import { can, P } from '../constants/permissions';
 
 const TABS = [
   'overview',
@@ -45,6 +47,11 @@ function ageLabel(patient) {
 
 export default function DoctorPatientDetail() {
   const { id } = useParams();
+  const { user } = useAuth();
+  const canManage = can(user, P.PATIENTS_MANAGE);
+  const canNote = canManage || can(user, P.CONSULTATION);
+  const canSchedule = can(user, P.APPOINTMENTS_MANAGE);
+  const canBill = can(user, P.BILLING_MANAGE);
   const [tab, setTab] = useState('overview');
   const [patient, setPatient] = useState(null);
   const [appointments, setAppointments] = useState({ upcoming: [], past: [] });
@@ -138,6 +145,7 @@ export default function DoctorPatientDetail() {
 
   const saveProfile = async (e) => {
     e.preventDefault();
+    if (!canManage) return;
     const phone = normalizeIndianMobile(form.phone);
     if (!phone) {
       toast.error('Mobile number must contain exactly 10 digits (+91).');
@@ -219,22 +227,26 @@ export default function DoctorPatientDetail() {
                 profilePhoto={patient.profilePhoto}
                 size="lg"
               />
-              <input
-                ref={photoRef}
-                type="file"
-                accept="image/*"
-                className="hidden"
-                onChange={onPhoto}
-              />
-              <button
-                type="button"
-                className="absolute -bottom-1 -right-1 h-7 w-7 rounded-full bg-white border border-line shadow-sm flex items-center justify-center text-ink-muted hover:text-ink"
-                aria-label="Change photo"
-                disabled={photoSaving}
-                onClick={() => photoRef.current?.click()}
-              >
-                <Camera className="w-3.5 h-3.5" />
-              </button>
+              {canManage && (
+                <>
+                  <input
+                    ref={photoRef}
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    onChange={onPhoto}
+                  />
+                  <button
+                    type="button"
+                    className="absolute -bottom-1 -right-1 h-7 w-7 rounded-full bg-white border border-line shadow-sm flex items-center justify-center text-ink-muted hover:text-ink"
+                    aria-label="Change photo"
+                    disabled={photoSaving}
+                    onClick={() => photoRef.current?.click()}
+                  >
+                    <Camera className="w-3.5 h-3.5" />
+                  </button>
+                </>
+              )}
             </div>
             <div className="min-w-0">
               <p className="text-xs font-mono text-ink-faint mb-0.5">
@@ -276,12 +288,14 @@ export default function DoctorPatientDetail() {
               )}
             </div>
           </div>
-          <Link
-            to={`${ROUTES.doctorBook}?patientId=${patient._id}`}
-            className="btn-primary shrink-0"
-          >
-            <CalendarPlus className="w-4 h-4" /> Schedule
-          </Link>
+          {canSchedule && (
+            <Link
+              to={`${ROUTES.doctorBook}?patientId=${patient._id}`}
+              className="btn-primary shrink-0"
+            >
+              <CalendarPlus className="w-4 h-4" /> Schedule
+            </Link>
+          )}
         </div>
       </div>
 
@@ -369,9 +383,11 @@ export default function DoctorPatientDetail() {
               onChange={(e) => setForm({ ...form, alerts: e.target.value })}
             />
           </label>
-          <button type="submit" className="btn-primary" disabled={saving}>
-            {saving ? 'Saving…' : 'Save changes'}
-          </button>
+          {canManage && (
+            <button type="submit" className="btn-primary" disabled={saving}>
+              {saving ? 'Saving…' : 'Save changes'}
+            </button>
+          )}
         </form>
       )}
 
@@ -519,9 +535,11 @@ export default function DoctorPatientDetail() {
               onChange={(e) => setForm({ ...form, surgeries: e.target.value })}
             />
           </label>
-          <button type="submit" className="btn-primary" disabled={saving}>
-            Save
-          </button>
+          {canManage && (
+            <button type="submit" className="btn-primary" disabled={saving}>
+              Save
+            </button>
+          )}
         </form>
       )}
 
@@ -534,11 +552,14 @@ export default function DoctorPatientDetail() {
               value={form.medications}
               onChange={(e) => setForm({ ...form, medications: e.target.value })}
               placeholder="One per line or comma-separated"
+              readOnly={!canManage}
             />
           </label>
-          <button type="submit" className="btn-primary" disabled={saving}>
-            Save
-          </button>
+          {canManage && (
+            <button type="submit" className="btn-primary" disabled={saving}>
+              Save
+            </button>
+          )}
         </form>
       )}
 
@@ -551,30 +572,35 @@ export default function DoctorPatientDetail() {
               value={form.allergies}
               onChange={(e) => setForm({ ...form, allergies: e.target.value })}
               placeholder="Comma-separated"
+              readOnly={!canManage}
             />
           </label>
-          <button type="submit" className="btn-primary" disabled={saving}>
-            Save
-          </button>
+          {canManage && (
+            <button type="submit" className="btn-primary" disabled={saving}>
+              Save
+            </button>
+          )}
         </form>
       )}
 
       {tab === 'notes' && (
         <div className="space-y-4">
-          <form onSubmit={addNote} className="card space-y-3">
-            <label className="block text-sm">
-              <span className="font-medium text-ink">Add note <RequiredMark /></span>
-              <textarea
-                className="input-field mt-1 min-h-[90px]"
-                value={noteBody}
-                onChange={(e) => setNoteBody(e.target.value)}
-                required
-              />
-            </label>
-            <button type="submit" className="btn-primary !py-2 text-sm inline-flex items-center gap-1.5">
-              <Plus className="w-4 h-4" /> Add note
-            </button>
-          </form>
+          {canNote && (
+            <form onSubmit={addNote} className="card space-y-3">
+              <label className="block text-sm">
+                <span className="font-medium text-ink">Add note <RequiredMark /></span>
+                <textarea
+                  className="input-field mt-1 min-h-[90px]"
+                  value={noteBody}
+                  onChange={(e) => setNoteBody(e.target.value)}
+                  required
+                />
+              </label>
+              <button type="submit" className="btn-primary !py-2 text-sm inline-flex items-center gap-1.5">
+                <Plus className="w-4 h-4" /> Add note
+              </button>
+            </form>
+          )}
           <div className="space-y-2">
             {notes.length === 0 ? (
               <p className="text-sm text-gray-500 card">No clinical notes yet.</p>
@@ -583,6 +609,7 @@ export default function DoctorPatientDetail() {
                 <article key={n._id} className="card !p-4">
                   <p className="text-sm text-gray-800 whitespace-pre-wrap">{n.body}</p>
                   <p className="text-xs text-gray-400 mt-2">
+                    {n.doctorId?.name ? `${n.doctorId.name} · ` : ''}
                     {n.createdAt && isValid(new Date(n.createdAt))
                       ? format(new Date(n.createdAt), 'PPp')
                       : ''}
@@ -596,7 +623,14 @@ export default function DoctorPatientDetail() {
 
       {tab === 'billing' && (
         <div className="space-y-2">
-          <Link to={ROUTES.billingNew} className="btn-primary inline-flex mb-2">New invoice</Link>
+          {canBill && (
+            <Link
+              to={`${ROUTES.billingNew}?patientId=${patient._id}`}
+              className="btn-primary inline-flex mb-2"
+            >
+              New invoice
+            </Link>
+          )}
           {!invoices.length ? (
             <p className="text-sm text-ink-muted card">No billing history.</p>
           ) : (

@@ -1,5 +1,5 @@
 import { format, subYears } from 'date-fns';
-import Datepicker from './Datepicker';
+import Datepicker, { defaultDobViewDate } from './Datepicker';
 
 function todayIso() {
   return format(new Date(), 'yyyy-MM-dd');
@@ -29,6 +29,7 @@ export default function DobDatepicker({
       max={todayIso()}
       placeholder={placeholder}
       className={className}
+      defaultViewDate={defaultDobViewDate()}
     />
   );
 }

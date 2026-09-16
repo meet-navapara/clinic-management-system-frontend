@@ -97,17 +97,40 @@ export default function DoctorDashboard() {
             <h3 className="text-sm font-semibold text-ink mb-3">Today</h3>
             <div className="grid grid-cols-2 xl:grid-cols-4 gap-3">
               <StatCard label="Appointments" value={today.total ?? 0} icon={Calendar} />
-              <StatCard label="Upcoming" value={today.scheduled ?? 0} icon={Clock} />
+              <StatCard label="Pending today" value={today.scheduled ?? 0} icon={Clock} />
               <StatCard label="Completed" value={today.completed ?? 0} icon={CheckCircle} />
-              <StatCard label="Patients" value={patients.total ?? 0} icon={Users} hint={`${patients.newThisWeek ?? 0} new this week`} />
+              <StatCard
+                label="Patients"
+                value={patients.total ?? 0}
+                icon={Users}
+                hint={`${patients.newThisWeek ?? 0} new this week · ${patients.returning ?? 0} returning`}
+              />
             </div>
             {(stats?.revenue || stats?.queue) && (
               <div className="grid grid-cols-2 xl:grid-cols-4 gap-3 mt-3">
-                <StatCard label="Own collected" value={`₹${Number(stats.revenue?.paid || 0).toLocaleString('en-IN')}`} hint="From invoices" />
-                <StatCard label="Outstanding" value={`₹${Number(stats.revenue?.due || 0).toLocaleString('en-IN')}`} />
-                <StatCard label="Queue now" value={stats.queue?.length ?? 0} />
+                <StatCard
+                  label="Own collected"
+                  value={`₹${Number(stats.revenue?.paid || 0).toLocaleString('en-IN')}`}
+                  hint="From your invoices"
+                />
+                <StatCard
+                  label="Outstanding"
+                  value={`₹${Number(stats.revenue?.due || 0).toLocaleString('en-IN')}`}
+                />
+                <StatCard
+                  label="Queue now"
+                  value={stats.queue?.length ?? 0}
+                  hint={stats.queue?.length ? 'Waiting / in consult' : undefined}
+                />
                 <StatCard label="Prescriptions" value={stats.prescriptions?.total ?? 0} />
               </div>
+            )}
+            {(today.cancelled > 0 || today.noShow > 0) && (
+              <p className="text-xs text-ink-faint mt-2">
+                Today also: {today.cancelled > 0 ? `${today.cancelled} cancelled` : ''}
+                {today.cancelled > 0 && today.noShow > 0 ? ' · ' : ''}
+                {today.noShow > 0 ? `${today.noShow} no-show` : ''}
+              </p>
             )}
           </section>
 
@@ -122,11 +145,21 @@ export default function DoctorDashboard() {
               {!!stats?.queue?.length && (
                 <div className="card mb-3 !p-4">
                   <div className="flex justify-between items-center mb-2">
-                    <p className="section-label">Queue</p>
-                    <Link to={ROUTES.queue} className="text-xs font-semibold text-accent-700">Open queue</Link>
+                    <p className="section-label">
+                      Queue · {stats.queue.length} active
+                    </p>
+                    <Link to={ROUTES.queue} className="text-xs font-semibold text-accent-700">
+                      Open queue
+                    </Link>
                   </div>
                   <p className="text-lg font-semibold">TOKEN #{stats.queue[0].tokenLabel}</p>
                   <p className="text-sm text-ink-muted">{stats.queue[0].patientId?.name}</p>
+                  {stats.queue.length > 1 && (
+                    <p className="text-xs text-ink-faint mt-1">
+                      Next: {stats.queue.slice(1, 4).map((t) => `#${t.tokenLabel}`).join(', ')}
+                      {stats.queue.length > 4 ? '…' : ''}
+                    </p>
+                  )}
                   {stats.queue[0].appointmentId && (
                     <Link
                       to={ROUTES.doctorConsult(stats.queue[0].appointmentId._id || stats.queue[0].appointmentId)}
@@ -175,7 +208,7 @@ export default function DoctorDashboard() {
 
             <section>
               <div className="flex items-center justify-between mb-3">
-                <h3 className="text-sm font-semibold text-ink">Upcoming</h3>
+                <h3 className="text-sm font-semibold text-ink">Upcoming (from tomorrow)</h3>
                 <Link
                   to={ROUTES.doctorNotifications}
                   className="text-xs font-semibold text-accent-700 hover:underline inline-flex items-center gap-1"
@@ -184,7 +217,7 @@ export default function DoctorDashboard() {
                 </Link>
               </div>
               {!appointments.next?.length ? (
-                <EmptyState title="No upcoming visits" description="Booked visits will appear here." />
+                <EmptyState title="No upcoming visits" description="Future bookings will appear here." />
               ) : (
                 <div className="card !p-0 overflow-hidden divide-y divide-line">
                   {appointments.next.map((appt) => {

@@ -61,7 +61,7 @@ export default function PrintLetterhead({
   return (
     <div className={isSettings ? '' : 'print-letterhead'}>
       {includeHeader && showHeaderBlock && (
-        <header className="border-b border-[#d8dde3] pb-3 mb-4">
+        <header className="print-header border-b border-[#d8dde3] pb-3 mb-4">
           <div className="relative flex gap-4 items-start min-h-[76px]">
             {showPlaceholders && (
               <div className="absolute inset-0 flex items-center justify-center pointer-events-none select-none overflow-hidden">

@@ -11,6 +11,8 @@ import Pagination from '../components/ui/Pagination';
 import { SkeletonRows } from '../components/ui/Skeleton';
 import UserAvatar from '../components/UserAvatar';
 import { useBranch } from '../context/BranchContext';
+import { useAuth } from '../context/AuthContext';
+import { can, P } from '../constants/permissions';
 import useDebouncedValue from '../hooks/useDebouncedValue';
 
 const PAGE_SIZE = 20;
@@ -23,7 +25,9 @@ function visitLabel(visit) {
 }
 
 export default function DoctorPatients() {
+  const { user } = useAuth();
   const { branchId } = useBranch();
+  const canManage = can(user, P.PATIENTS_MANAGE);
   const [patients, setPatients] = useState([]);
   const [search, setSearch] = useState('');
   const debouncedSearch = useDebouncedValue(search, 300);
@@ -66,15 +70,15 @@ export default function DoctorPatients() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [page, branchId, debouncedSearch]);
 
+  const addPatientLink = canManage ? (
+    <Link to={ROUTES.doctorPatientNew} className="btn-primary">
+      <UserPlus className="w-4 h-4" /> Add patient
+    </Link>
+  ) : null;
+
   return (
     <div className="page-container">
-      <PageHeader
-        actions={
-          <Link to={ROUTES.doctorPatientNew} className="btn-primary">
-            <UserPlus className="w-4 h-4" /> Add patient
-          </Link>
-        }
-      />
+      <PageHeader actions={addPatientLink} />
 
       <div className="mb-4">
         <label htmlFor="patient-search" className="sr-only">
@@ -113,12 +117,18 @@ export default function DoctorPatients() {
       ) : patients.length === 0 ? (
         <EmptyState
           icon={UserPlus}
-          title="No patients found"
-          description="Add a patient record to start scheduling visits."
+          title={debouncedSearch.trim() ? 'No matching patients' : 'No patients found'}
+          description={
+            debouncedSearch.trim()
+              ? 'Try a different name, phone, or patient ID.'
+              : 'Add a patient record to start scheduling visits.'
+          }
           action={
-            <Link to={ROUTES.doctorPatientNew} className="btn-primary">
-              Add patient
-            </Link>
+            canManage && !debouncedSearch.trim() ? (
+              <Link to={ROUTES.doctorPatientNew} className="btn-primary">
+                Add patient
+              </Link>
+            ) : null
           }
         />
       ) : (
