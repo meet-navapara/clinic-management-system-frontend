@@ -189,7 +189,7 @@ export default function Dropdown({
                   <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-ink-faint pointer-events-none" />
                   <input
                     ref={searchRef}
-                    className="input-field !h-9 !min-h-9 !py-0 pl-9"
+                    className="input-field !py-0 pl-9"
                     placeholder={searchPlaceholder}
                     value={query}
                     onChange={(event) => {
@@ -316,7 +316,7 @@ export default function Dropdown({
           }
         }}
         className={`input-field box-border flex items-center gap-2 text-left ${
-          compact ? '!h-9 !min-h-9 !py-0 !px-2.5 !text-xs sm:!text-sm' : '!h-10 !min-h-10 !py-0'
+          compact ? '!py-0 !px-2.5' : '!py-0'
         } ${disabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer hover:border-[#d4af37]/60'} ${
           open ? 'border-[#c9a227] shadow-[0_0_0_3px_rgba(201,162,39,0.16)]' : ''
         } ${buttonClassName}`}

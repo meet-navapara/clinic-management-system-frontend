@@ -8,7 +8,6 @@ import AuthPageLayout from '../components/AuthPageLayout';
 import PasswordInput from '../components/PasswordInput';
 import { validateLoginFields } from '../utils/validation';
 import RequiredMark from '../components/ui/RequiredMark';
-import { ROUTES } from '../constants/routes';
 
 /** Quiet admin login — not linked from public landing/nav. */
 export default function AdminLogin() {
@@ -53,7 +52,7 @@ export default function AdminLogin() {
   };
 
   return (
-    <AuthPageLayout backTo={ROUTES.home}>
+    <AuthPageLayout>
       <div className="text-center mb-3 sm:mb-5">
         <AuthPageLogo className="mb-3 sm:mb-4" />
         <h1 className="text-lg sm:text-2xl font-bold text-gray-900">Super Admin Login</h1>

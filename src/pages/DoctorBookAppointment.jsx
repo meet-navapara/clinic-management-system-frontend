@@ -5,10 +5,11 @@ import api from '../utils/api';
 import toast from 'react-hot-toast';
 import { Calendar, Clock } from 'lucide-react';
 import Datepicker from '../components/Datepicker';
-import PageLoader from '../components/PageLoader';
 import EmptyState from '../components/ui/EmptyState';
 import Dropdown from '../components/ui/Dropdown';
 import PatientPicker from '../components/PatientPicker';
+import { SkeletonDetail } from '../components/ui/Skeleton';
+import LoadingOverlay from '../components/ui/LoadingOverlay';
 import { useAuth } from '../context/AuthContext';
 import { ROUTES } from '../constants/routes';
 import RequiredMark from '../components/ui/RequiredMark';
@@ -167,15 +168,12 @@ export default function DoctorBookAppointment() {
   };
 
   if (loading) {
-    return (
-      <div className="page-container">
-        <PageLoader message="Loading..." compact />
-      </div>
-    );
+    return <SkeletonDetail />;
   }
 
   return (
-    <div className="page-container">
+    <div className="page-container relative">
+      <LoadingOverlay show={booking} message="Booking…" />
       {patients.length === 0 ? (
         <EmptyState
           title="Add a patient first"

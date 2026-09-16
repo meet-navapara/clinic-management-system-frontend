@@ -14,6 +14,8 @@ import { ROUTES } from '../constants/routes';
 import { useBranch } from '../context/BranchContext';
 import RequiredMark from '../components/ui/RequiredMark';
 import SignaturePad from '../components/SignaturePad';
+import { SkeletonCards, SkeletonRows } from '../components/ui/Skeleton';
+import LoadingOverlay from '../components/ui/LoadingOverlay';
 
 const EMPTY_ASSIGN = { consentTemplateId: '', patientId: '' };
 const EMPTY_FORM = { name: '', category: 'general', body: '' };
@@ -30,19 +32,25 @@ export default function ConsentPage() {
   const [form, setForm] = useState(EMPTY_FORM);
   const [assign, setAssign] = useState(EMPTY_ASSIGN);
   const [saving, setSaving] = useState(false);
+  const [loading, setLoading] = useState(true);
   const signatureRef = useRef(null);
 
-  const load = () => {
-    api
-      .get('/consent/templates', { params: { active: 'all' } })
-      .then((res) => setTemplates(res.data.templates || []))
-      .catch((err) => toast.error(err.response?.data?.message || 'Could not load consent templates.'));
-    api
-      .get('/consent/records')
-      .then((res) => setRecords(res.data.records || []))
-      .catch((err) => toast.error(err.response?.data?.message || 'Could not load consent records.'));
+  const load = (showLoader = false) => {
+    if (showLoader) setLoading(true);
+    Promise.all([
+      api
+        .get('/consent/templates', { params: { active: 'all' } })
+        .then((res) => setTemplates(res.data.templates || []))
+        .catch((err) => toast.error(err.response?.data?.message || 'Could not load consent templates.')),
+      api
+        .get('/consent/records')
+        .then((res) => setRecords(res.data.records || []))
+        .catch((err) => toast.error(err.response?.data?.message || 'Could not load consent records.')),
+    ]).finally(() => setLoading(false));
   };
-  useEffect(load, [branchId]);
+  useEffect(() => {
+    load(true);
+  }, [branchId]);
 
   const openCreate = () => {
     setEditingId(null);
@@ -130,7 +138,8 @@ export default function ConsentPage() {
   const activeTemplates = templates.filter((t) => t.isActive !== false);
 
   return (
-    <div className="page-container">
+    <div className="page-container relative">
+      <LoadingOverlay show={saving} message="Saving…" />
       <PageHeader
         title="Consent forms"
         actions={
@@ -155,6 +164,15 @@ export default function ConsentPage() {
           </div>
         }
       />
+      {loading ? (
+        <>
+          <h3 className="text-sm font-semibold mb-2">Templates</h3>
+          <SkeletonCards count={4} className="!grid-cols-1 sm:!grid-cols-2 mb-6" />
+          <h3 className="text-sm font-semibold mb-2">Records</h3>
+          <SkeletonRows count={6} />
+        </>
+      ) : (
+        <>
       <h3 className="text-sm font-semibold mb-2">Templates</h3>
       {!templates.length ? (
         <EmptyState title="No templates" />
@@ -174,10 +192,10 @@ export default function ConsentPage() {
               </div>
               {can(user, P.CONSENT_TEMPLATES) && (
                 <div className="flex flex-wrap gap-2 mt-3">
-                  <button type="button" className="btn-secondary !min-h-9" onClick={() => openEdit(t)}>
+                  <button type="button" className="btn-secondary btn-sm" onClick={() => openEdit(t)}>
                     Edit
                   </button>
-                  <button type="button" className="btn-ghost !min-h-9 text-xs" onClick={() => toggleActive(t)}>
+                  <button type="button" className="btn-ghost btn-sm" onClick={() => toggleActive(t)}>
                     {t.isActive === false ? 'Activate' : 'Deactivate'}
                   </button>
                 </div>
@@ -202,17 +220,19 @@ export default function ConsentPage() {
               <div className="flex items-center gap-2">
                 <Badge value={r.status} />
                 {r.status === 'pending' && can(user, P.CONSENT_CAPTURE) && (
-                  <button type="button" className="btn-primary !min-h-9" onClick={() => setSign(r)}>
+                  <button type="button" className="btn-primary btn-sm" onClick={() => setSign(r)}>
                     Capture
                   </button>
                 )}
-                <Link className="btn-ghost !min-h-9 text-xs" to={ROUTES.print('consent', r._id)} target="_blank" rel="noreferrer">
+                <Link className="btn-ghost btn-sm" to={ROUTES.print('consent', r._id)} target="_blank" rel="noreferrer">
                   Print
                 </Link>
               </div>
             </div>
           ))}
         </div>
+      )}
+        </>
       )}
 
       <Modal
@@ -313,7 +333,7 @@ export default function ConsentPage() {
             </div>
             <div className="flex items-center justify-between gap-2">
               <p className="text-xs text-ink-muted">Sign below — draw with your cursor or finger</p>
-              <button type="button" className="btn-ghost !min-h-8 !px-2 text-xs" onClick={() => signatureRef.current?.clear()}>
+              <button type="button" className="btn-ghost btn-sm" onClick={() => signatureRef.current?.clear()}>
                 Clear
               </button>
             </div>

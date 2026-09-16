@@ -13,6 +13,7 @@ import { can, P } from '../constants/permissions';
 import { useAuth } from '../context/AuthContext';
 import { useBranch } from '../context/BranchContext';
 import { patientDisplayName } from '../utils/display';
+import { SkeletonCards, SkeletonRows } from '../components/ui/Skeleton';
 
 export default function DeskDashboard() {
   const { user } = useAuth();
@@ -20,33 +21,43 @@ export default function DeskDashboard() {
   const [appts, setAppts] = useState([]);
   const [queue, setQueue] = useState({ tickets: [], waitingCount: 0, total: 0 });
   const [outstanding, setOutstanding] = useState([]);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const today = format(new Date(), 'yyyy-MM-dd');
+    setLoading(true);
+    const tasks = [];
     if (can(user, P.APPOINTMENTS_VIEW)) {
-      api
-        .get('/appointments/my', { params: { date: today } })
-        .then((res) => setAppts(res.data.appointments || []))
-        .catch((err) => toast.error(err.response?.data?.message || 'Could not load appointments.'));
+      tasks.push(
+        api
+          .get('/appointments/my', { params: { date: today } })
+          .then((res) => setAppts(res.data.appointments || []))
+          .catch((err) => toast.error(err.response?.data?.message || 'Could not load appointments.'))
+      );
     }
     if (can(user, P.QUEUE_MANAGE)) {
-      api
-        .get('/queue', { params: { limit: 8 } })
-        .then((res) =>
-          setQueue({
-            tickets: res.data.tickets || [],
-            waitingCount: res.data.waitingCount || 0,
-            total: res.data.total || 0,
-          })
-        )
-        .catch((err) => toast.error(err.response?.data?.message || 'Could not load queue.'));
+      tasks.push(
+        api
+          .get('/queue', { params: { limit: 8 } })
+          .then((res) =>
+            setQueue({
+              tickets: res.data.tickets || [],
+              waitingCount: res.data.waitingCount || 0,
+              total: res.data.total || 0,
+            })
+          )
+          .catch((err) => toast.error(err.response?.data?.message || 'Could not load queue.'))
+      );
     }
     if (can(user, P.BILLING_VIEW)) {
-      api
-        .get('/billing', { params: { status: 'unpaid', limit: 8 } })
-        .then((res) => setOutstanding(res.data.invoices || []))
-        .catch((err) => toast.error(err.response?.data?.message || 'Could not load billing.'));
+      tasks.push(
+        api
+          .get('/billing', { params: { status: 'unpaid', limit: 8 } })
+          .then((res) => setOutstanding(res.data.invoices || []))
+          .catch((err) => toast.error(err.response?.data?.message || 'Could not load billing.'))
+      );
     }
+    Promise.all(tasks).finally(() => setLoading(false));
   }, [user, branchId]);
 
   return (
@@ -55,7 +66,14 @@ export default function DeskDashboard() {
         <p className="section-label mb-1">{format(new Date(), 'EEEE, MMMM d')}</p>
         <h2 className="page-title">Dashboard</h2>
       </div>
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
+      {loading ? (
+        <>
+          <SkeletonCards count={4} className="mb-6" />
+          <SkeletonRows count={8} />
+        </>
+      ) : (
+        <>
+      <div className="stat-grid mb-6">
         {can(user, P.APPOINTMENTS_VIEW) && <StatCard label="Today" value={appts.length} icon={Calendar} />}
         {can(user, P.QUEUE_MANAGE) && <StatCard label="Waiting" value={queue.waitingCount} icon={ListOrdered} />}
         {can(user, P.QUEUE_MANAGE) && <StatCard label="Checked in" value={queue.total} icon={Users} />}
@@ -102,6 +120,8 @@ export default function DeskDashboard() {
           </section>
         )}
       </div>
+        </>
+      )}
     </div>
   );
 }

@@ -8,6 +8,7 @@ import Dropdown from '../components/ui/Dropdown';
 import { ROUTES } from '../constants/routes';
 import { useBranch } from '../context/BranchContext';
 import RequiredMark from '../components/ui/RequiredMark';
+import LoadingOverlay from '../components/ui/LoadingOverlay';
 
 const TYPES = ['consultation', 'treatment', 'medicine', 'lab_test', 'procedure', 'other'];
 
@@ -82,7 +83,8 @@ export default function InvoiceEditor() {
   };
 
   return (
-    <div className="page-container">
+    <div className="page-container relative">
+      <LoadingOverlay show={saving} message="Creating invoice…" />
       <PageHeader title="New invoice" description="Add services, medicines or procedures." />
       <form onSubmit={submit} className="space-y-4">
         <div className="card space-y-3">

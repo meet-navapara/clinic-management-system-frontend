@@ -1,17 +1,20 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useAuthRedirect } from '../hooks/useAuthRedirect';
 import toast from 'react-hot-toast';
-import { Mail, User, Phone } from 'lucide-react';
+import { Check, Mail, User, Phone } from 'lucide-react';
 import AuthPageLogo from '../components/AuthPageLogo';
 import AuthPageLayout from '../components/AuthPageLayout';
 import PasswordInput from '../components/PasswordInput';
+import Modal from '../components/ui/Modal';
 import { ROUTES } from '../constants/routes';
 import RequiredMark from '../components/ui/RequiredMark';
-import { normalizeIndianMobile, isValidEmail, meetsPasswordComplexity, STRONG_PASSWORD_MESSAGE } from '../utils/validation';
+import api from '../utils/api';
+import { normalizeIndianMobile, formatIndianMobileInput, isValidEmail, meetsPasswordComplexity, STRONG_PASSWORD_MESSAGE } from '../utils/validation';
 
 const REQUIRED_FIELDS = ['name', 'email', 'phone', 'password', 'confirmPassword', 'qualification', 'licenseNumber', 'city', 'clinicName', 'setupKey'];
+const RESEND_COOLDOWN_SEC = 60;
 
 function FieldError({ id, message }) {
   if (!message) return null;
@@ -35,7 +38,7 @@ function validateSignup(form) {
 
   if (!form.phone.trim()) errors.phone = 'Mobile number is required.';
   else if (!normalizeIndianMobile(form.phone)) {
-    errors.phone = 'Mobile number must be a valid 10-digit Indian number (+91).';
+    errors.phone = 'Mobile number must be exactly 10 digits.';
   }
 
   if (!form.password) errors.password = 'Password is required.';
@@ -83,12 +86,40 @@ export default function DoctorSignup() {
   });
   const [fieldErrors, setFieldErrors] = useState({});
   const [loading, setLoading] = useState(false);
+  const [emailVerified, setEmailVerified] = useState(false);
+  const [verifiedEmail, setVerifiedEmail] = useState('');
+  const [otpOpen, setOtpOpen] = useState(false);
+  const [otp, setOtp] = useState('');
+  const [otpError, setOtpError] = useState('');
+  const [sendingOtp, setSendingOtp] = useState(false);
+  const [verifyingOtp, setVerifyingOtp] = useState(false);
+  const [resendIn, setResendIn] = useState(0);
   const { registerDoctorAccount } = useAuth();
   const redirectAfterAuth = useAuthRedirect();
 
+  const emailIsVerified =
+    emailVerified && verifiedEmail && verifiedEmail === form.email.trim().toLowerCase();
+
+  useEffect(() => {
+    if (resendIn <= 0) return undefined;
+    const id = window.setInterval(() => {
+      setResendIn((s) => Math.max(0, s - 1));
+    }, 1000);
+    return () => window.clearInterval(id);
+  }, [resendIn]);
+
   const handleChange = (e) => {
     const { name, value } = e.target;
-    setForm((prev) => ({ ...prev, [name]: value }));
+    const nextValue = name === 'phone' ? formatIndianMobileInput(value) : value;
+    setForm((prev) => ({ ...prev, [name]: nextValue }));
+    if (name === 'email') {
+      const next = value.trim().toLowerCase();
+      if (!verifiedEmail || next !== verifiedEmail) {
+        setEmailVerified(false);
+      } else {
+        setEmailVerified(true);
+      }
+    }
     setFieldErrors((prev) => {
       if (!prev[name] && !(name === 'password' && prev.confirmPassword)) return prev;
       const next = { ...prev };
@@ -96,6 +127,69 @@ export default function DoctorSignup() {
       if (name === 'password') delete next.confirmPassword;
       return next;
     });
+  };
+
+  const sendOtp = async ({ openModal = true } = {}) => {
+    const email = form.email.trim();
+    if (!email) {
+      setFieldErrors((prev) => ({ ...prev, email: 'Email is required.' }));
+      toast.error('Email is required.');
+      return;
+    }
+    if (!isValidEmail(email)) {
+      setFieldErrors((prev) => ({ ...prev, email: 'Please enter a valid email address.' }));
+      toast.error('Please enter a valid email address.');
+      return;
+    }
+
+    setSendingOtp(true);
+    setOtpError('');
+    try {
+      const res = await api.post('/auth/email-otp/send', { email });
+      toast.success(res.data?.message || 'Verification code sent.');
+      setResendIn(res.data?.cooldownSeconds || RESEND_COOLDOWN_SEC);
+      setOtp('');
+      if (openModal) setOtpOpen(true);
+    } catch (err) {
+      const cooldown = err.response?.data?.cooldownSeconds;
+      if (cooldown) setResendIn(cooldown);
+      const message = err.response?.data?.message || 'Could not send verification code.';
+      const apiErrors = err.response?.data?.errors;
+      if (apiErrors?.email) setFieldErrors((prev) => ({ ...prev, email: apiErrors.email }));
+      toast.error(message);
+    } finally {
+      setSendingOtp(false);
+    }
+  };
+
+  const verifyOtp = async (e) => {
+    e?.preventDefault?.();
+    const code = String(otp || '').replace(/\D/g, '').slice(0, 6);
+    if (code.length !== 6) {
+      setOtpError('Enter the 6-digit verification code.');
+      return;
+    }
+    setVerifyingOtp(true);
+    setOtpError('');
+    try {
+      await api.post('/auth/email-otp/verify', { email: form.email.trim(), otp: code });
+      const normalized = form.email.trim().toLowerCase();
+      setEmailVerified(true);
+      setVerifiedEmail(normalized);
+      setOtpOpen(false);
+      setOtp('');
+      setFieldErrors((prev) => {
+        if (!prev.email) return prev;
+        const next = { ...prev };
+        delete next.email;
+        return next;
+      });
+      toast.success('Email verified.');
+    } catch (err) {
+      setOtpError(err.response?.data?.message || 'Incorrect or expired code.');
+    } finally {
+      setVerifyingOtp(false);
+    }
   };
 
   const handleConfirmPasswordBlur = (e) => {
@@ -121,6 +215,9 @@ export default function DoctorSignup() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     const errors = validateSignup(form);
+    if (!emailIsVerified) {
+      errors.email = 'Please verify your email before creating an account.';
+    }
     setFieldErrors(errors);
     if (Object.keys(errors).length) {
       const firstKey = REQUIRED_FIELDS.find((key) => errors[key]) || Object.keys(errors)[0];
@@ -148,11 +245,13 @@ export default function DoctorSignup() {
   };
 
   return (
-    <AuthPageLayout maxWidth="max-w-2xl" backTo={ROUTES.login}>
+    <AuthPageLayout maxWidth="max-w-2xl">
       <div className="text-center mb-3 sm:mb-5">
         <AuthPageLogo className="mb-3 sm:mb-4" />
-        <h1 className="text-lg sm:text-2xl font-bold text-gray-900">Doctor Sign up</h1>
-        <p className="text-xs md:text-sm text-gray-500 mt-1">Admin approval required before dashboard access</p>
+        <h1 className="text-lg sm:text-2xl font-bold text-gray-900">Sign up</h1>
+        <p className="text-xs md:text-sm text-gray-500 mt-1">
+          Verify your email, then wait for admin approval before dashboard access
+        </p>
       </div>
 
       <div className="card">
@@ -186,21 +285,38 @@ export default function DoctorSignup() {
                 <label htmlFor="signup-email" className="block text-sm font-medium text-gray-700 mb-1">
                   Email <RequiredMark />
                 </label>
-                <div className="relative">
-                  <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
-                  <input
-                    id="signup-email"
-                    name="email"
-                    type="email"
-                    className="input-field pl-10"
-                    placeholder="doctor@clinic.com"
-                    value={form.email}
-                    onChange={handleChange}
-                    required
-                    autoComplete="email"
-                    aria-invalid={Boolean(fieldErrors.email)}
-                    aria-describedby={fieldErrors.email ? 'signup-email-error' : undefined}
-                  />
+                <div className="flex gap-2 items-stretch">
+                  <div className="relative flex-1 min-w-0">
+                    <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+                    <input
+                      id="signup-email"
+                      name="email"
+                      type="email"
+                      className="input-field pl-10"
+                      placeholder="doctor@clinic.com"
+                      value={form.email}
+                      onChange={handleChange}
+                      required
+                      autoComplete="email"
+                      aria-invalid={Boolean(fieldErrors.email)}
+                      aria-describedby={fieldErrors.email ? 'signup-email-error' : undefined}
+                    />
+                  </div>
+                  {emailIsVerified ? (
+                    <span className="inline-flex items-center gap-1 shrink-0 px-2.5 text-xs sm:text-sm font-semibold text-emerald-700">
+                      <Check className="w-4 h-4" aria-hidden />
+                      Verified
+                    </span>
+                  ) : (
+                    <button
+                      type="button"
+                      className="btn-secondary shrink-0"
+                      disabled={sendingOtp || loading}
+                      onClick={() => sendOtp({ openModal: true })}
+                    >
+                      {sendingOtp ? 'Sending…' : 'Verify'}
+                    </button>
+                  )}
                 </div>
                 <FieldError id="signup-email-error" message={fieldErrors.email} />
               </div>
@@ -218,7 +334,8 @@ export default function DoctorSignup() {
                     value={form.phone}
                     onChange={handleChange}
                     required
-                    inputMode="tel"
+                    inputMode="numeric"
+                    maxLength={10}
                     autoComplete="tel"
                     aria-invalid={Boolean(fieldErrors.phone)}
                     aria-describedby={fieldErrors.phone ? 'signup-phone-error' : undefined}
@@ -408,7 +525,12 @@ export default function DoctorSignup() {
               />
             </div>
 
-            <button type="submit" className="btn-primary w-full !py-3">
+            <button
+              type="submit"
+              className="btn-primary w-full !py-3"
+              disabled={!emailIsVerified || loading}
+              title={!emailIsVerified ? 'Verify your email to continue' : undefined}
+            >
               {loading ? 'Creating...' : 'Create account'}
             </button>
           </fieldset>
@@ -421,6 +543,57 @@ export default function DoctorSignup() {
           </Link>
         </p>
       </div>
+
+      <Modal
+        open={otpOpen}
+        title="Verify email"
+        onClose={() => {
+          if (!verifyingOtp) setOtpOpen(false);
+        }}
+      >
+        <p className="text-xs sm:text-sm text-ink-muted mb-4">
+          Enter the 6-digit code sent to <span className="font-medium text-ink">{form.email.trim()}</span>.
+        </p>
+        <form onSubmit={verifyOtp} className="space-y-4">
+          <div>
+            <label htmlFor="signup-otp" className="label-field">
+              Verification code
+            </label>
+            <input
+              id="signup-otp"
+              inputMode="numeric"
+              autoComplete="one-time-code"
+              maxLength={6}
+              className="input-field tracking-[0.35em] text-center text-base font-semibold"
+              placeholder="••••••"
+              value={otp}
+              onChange={(e) => {
+                setOtp(e.target.value.replace(/\D/g, '').slice(0, 6));
+                setOtpError('');
+              }}
+              aria-invalid={Boolean(otpError)}
+              aria-describedby={otpError ? 'signup-otp-error' : undefined}
+              autoFocus
+            />
+            {otpError ? (
+              <p id="signup-otp-error" className="text-xs text-red-600 mt-1" role="alert">
+                {otpError}
+              </p>
+            ) : null}
+          </div>
+          <button type="submit" className="btn-primary w-full" disabled={verifyingOtp || otp.length !== 6}>
+            {verifyingOtp ? 'Verifying…' : 'Verify code'}
+          </button>
+          <button
+            type="button"
+            className="btn-secondary w-full"
+            disabled={sendingOtp || verifyingOtp || resendIn > 0}
+            onClick={() => sendOtp({ openModal: false })}
+          >
+            {resendIn > 0 ? `Resend in ${resendIn}s` : sendingOtp ? 'Sending…' : 'Resend code'}
+          </button>
+        </form>
+      </Modal>
     </AuthPageLayout>
   );
 }

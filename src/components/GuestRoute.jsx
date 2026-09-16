@@ -6,7 +6,7 @@ import AuthLoadingScreen from './AuthLoadingScreen';
 export default function GuestRoute({ children }) {
   const { user, loading } = useAuth();
 
-  if (loading) {
+  if (loading && !user) {
     return <AuthLoadingScreen />;
   }
 

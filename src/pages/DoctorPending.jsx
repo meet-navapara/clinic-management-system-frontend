@@ -116,7 +116,7 @@ export default function DoctorPending() {
   const Icon = view.icon;
 
   return (
-    <AuthPageLayout backTo={ROUTES.login}>
+    <AuthPageLayout>
       <div className="text-center mb-3 sm:mb-5">
         <AuthPageLogo className="mb-3 sm:mb-4" />
         <h1 className="text-lg sm:text-2xl font-bold text-gray-900">{view.title}</h1>
@@ -150,14 +150,14 @@ export default function DoctorPending() {
             {status === 'pending' && (
               <button
                 type="button"
-                className="btn-secondary flex-1 !min-h-11"
+                className="btn-secondary flex-1"
                 disabled={checking}
                 onClick={checkNow}
               >
                 {checking ? 'Checking…' : 'Check status'}
               </button>
             )}
-            <button type="button" className="btn-primary flex-1 !min-h-11" onClick={goLogin}>
+            <button type="button" className="btn-primary flex-1" onClick={goLogin}>
               Back to login
             </button>
           </div>

@@ -22,6 +22,7 @@ import Profile from './pages/Profile';
 import ClinicAdminRegister from './pages/ClinicAdminRegister';
 import AdminLogin from './pages/AdminLogin';
 import ClinicAdminDashboard from './pages/ClinicAdminDashboard';
+import AdminDoctorsPage from './pages/AdminDoctorsPage';
 import AdminDoctorDetail from './pages/AdminDoctorDetail';
 import BillingList from './pages/BillingList';
 import InvoiceEditor from './pages/InvoiceEditor';
@@ -186,6 +187,14 @@ export default function App() {
           element={
             <Staff roles={SUPER_ADMIN}>
               <ClinicAdminDashboard />
+            </Staff>
+          }
+        />
+        <Route
+          path={ROUTES.clinicAdminDoctors}
+          element={
+            <Staff roles={SUPER_ADMIN}>
+              <AdminDoctorsPage />
             </Staff>
           }
         />

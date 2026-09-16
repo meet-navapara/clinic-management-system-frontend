@@ -1,11 +1,11 @@
 import { useState } from 'react';
 import { Link, NavLink } from 'react-router-dom';
 import { Menu, X, Leaf } from 'lucide-react';
-import { LOGO_URL, APP_NAME, BRAND_NAME } from '../constants/branding';
+import { LOGO_URL, APP_NAME } from '../constants/branding';
 import { ROUTES } from '../constants/routes';
 
 const linkClass = ({ isActive }) =>
-  `px-3 py-2 rounded-lg text-sm font-medium min-h-10 inline-flex items-center ${
+  `px-2.5 sm:px-3 py-1.5 sm:py-2 rounded-lg text-xs sm:text-sm font-medium min-h-9 sm:min-h-10 inline-flex items-center ${
     isActive ? 'bg-[#f3efe8] text-ink' : 'text-ink-muted hover:text-ink hover:bg-[#faf8f3]'
   }`;
 
@@ -17,27 +17,26 @@ export default function Navbar() {
   return (
     <nav className="bg-white/95 backdrop-blur-sm border-b border-line sticky top-0 z-50 w-full">
       <div className="site-container">
-        <div className="flex items-center justify-between h-14">
-          <Link to="/" className="navbar-brand" onClick={closeMenu} aria-label={APP_NAME}>
+        <div className="flex items-center justify-between gap-2 h-14 min-w-0">
+          <Link to="/" className="navbar-brand min-w-0" onClick={closeMenu} aria-label={APP_NAME}>
             {!logoError ? (
               <img
                 src={LOGO_URL}
                 alt=""
-                className="h-8 w-auto object-contain"
+                className="navbar-brand-emblem-img"
                 draggable={false}
                 onError={() => setLogoError(true)}
               />
             ) : (
               <Leaf className="w-5 h-5 text-accent-600 shrink-0" />
             )}
-            <span className="navbar-brand-name">{BRAND_NAME}</span>
           </Link>
 
           <div className="hidden md:flex items-center gap-1">
             <NavLink to={ROUTES.login} className={linkClass}>
               Login
             </NavLink>
-            <Link to={ROUTES.doctorSignup} className="btn-primary !min-h-9 text-sm ml-1">
+            <Link to={ROUTES.doctorSignup} className="btn-primary ml-1">
               Sign up
             </Link>
           </div>
@@ -58,11 +57,7 @@ export default function Navbar() {
           <Link to={ROUTES.login} onClick={closeMenu} className="block text-center px-4 py-3 text-sm font-medium">
             Login
           </Link>
-          <Link
-            to={ROUTES.doctorSignup}
-            onClick={closeMenu}
-            className="btn-primary block text-center w-full"
-          >
+          <Link to={ROUTES.doctorSignup} onClick={closeMenu} className="btn-primary block text-center w-full">
             Sign up
           </Link>
         </div>

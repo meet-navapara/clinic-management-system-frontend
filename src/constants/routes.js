@@ -21,6 +21,7 @@ export const ROUTES = {
   clinicAdminRegister: '/admin/register',
   clinicAdminLogin: '/admin/login',
   clinicAdminDashboard: '/admin/dashboard',
+  clinicAdminDoctors: '/admin/doctors',
   clinicAdminDoctorDetail: (id) => `/admin/doctors/${id}`,
   forgotPassword: '/forgot-password',
   resetPassword: '/reset-password',
@@ -86,9 +87,14 @@ export function getPageMeta(pathname) {
   if (pathname === ROUTES.doctorInbox) return { title: 'Inbox', crumb: 'Practice' };
   if (pathname === ROUTES.doctorNotifications) return { title: 'Reminders', crumb: 'Practice' };
   if (pathname === ROUTES.profile) return { title: 'Settings', crumb: 'Account' };
-  if (pathname === ROUTES.clinicAdminDashboard) return { title: 'Super Admin', crumb: 'Platform' };
+  if (pathname === ROUTES.clinicAdminDashboard) {
+    return { title: 'Super Admin', crumb: 'Platform', hideTitle: true };
+  }
+  if (pathname === ROUTES.clinicAdminDoctors) {
+    return { title: 'Doctors', crumb: 'Platform', hideTitle: true };
+  }
   if (pathname.startsWith('/admin/doctors/')) {
-    return { title: 'Doctor', crumb: 'Admin', backTo: ROUTES.clinicAdminDashboard };
+    return { title: 'Doctor', crumb: 'Admin', backTo: ROUTES.clinicAdminDoctors, hideTitle: true };
   }
   if (pathname === ROUTES.billing) return { title: 'Billing', crumb: 'Finance' };
   if (pathname === ROUTES.billingNew) {
@@ -205,6 +211,7 @@ export function isPathAllowedForRole(pathname, role, user) {
   if (role === 'super_admin') {
     return (
       pathname === ROUTES.clinicAdminDashboard ||
+      pathname === ROUTES.clinicAdminDoctors ||
       pathname.startsWith('/admin/doctors/') ||
       pathname === ROUTES.profile
     );

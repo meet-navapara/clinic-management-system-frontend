@@ -14,8 +14,8 @@ import { useBranch } from '../context/BranchContext';
 import { useAuth } from '../context/AuthContext';
 import { can, P } from '../constants/permissions';
 import useDebouncedValue from '../hooks/useDebouncedValue';
+import { PAGE_SIZE } from '../constants/pagination';
 
-const PAGE_SIZE = 20;
 
 function visitLabel(visit) {
   if (!visit?.date) return '—';
@@ -97,7 +97,7 @@ export default function DoctorPatients() {
       </div>
 
       {loading ? (
-        <SkeletonRows />
+        <SkeletonRows count={PAGE_SIZE} />
       ) : error ? (
         <EmptyState
           title="Unable to load patients"
@@ -135,7 +135,6 @@ export default function DoctorPatients() {
         <>
           <p className="text-xs text-ink-faint mb-2">
             {meta.total} patient{meta.total === 1 ? '' : 's'}
-            {meta.pages > 1 ? ` · page ${page} of ${meta.pages}` : ''}
           </p>
           <div className="hidden md:block card !p-0 overflow-hidden">
             <div className="data-table-wrap">
@@ -216,7 +215,7 @@ export default function DoctorPatients() {
             ))}
           </div>
 
-          <Pagination page={page} pages={meta.pages} onPage={setPage} />
+          <Pagination page={page} pages={meta.pages} total={meta.total} limit={PAGE_SIZE} onPage={setPage} />
         </>
       )}
     </div>

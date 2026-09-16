@@ -301,7 +301,7 @@ export default function Datepicker({
           }
           setOpen((prev) => !prev);
         }}
-        className={`input-field box-border !h-10 !min-h-10 !py-0 flex items-center justify-between gap-3 text-left bg-white ${
+        className={`input-field box-border !py-0 flex items-center justify-between gap-2 sm:gap-3 text-left bg-white ${
           disabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer hover:border-[#d4af37]/60'
         } ${open ? 'ring-2 ring-[#d4af37] border-transparent' : ''}`}
       >

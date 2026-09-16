@@ -10,6 +10,9 @@ import { can, P } from '../constants/permissions';
 import { useAuth } from '../context/AuthContext';
 import { useBranch } from '../context/BranchContext';
 import RequiredMark from '../components/ui/RequiredMark';
+import { SkeletonCards } from '../components/ui/Skeleton';
+import LoadingOverlay from '../components/ui/LoadingOverlay';
+import { formatIndianMobileInput } from '../utils/validation';
 
 const EMPTY_FORM = {
   name: '',
@@ -32,19 +35,24 @@ export default function BranchesPage() {
   const { user } = useAuth();
   const { reload } = useBranch();
   const [rows, setRows] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [open, setOpen] = useState(false);
   const [editingId, setEditingId] = useState(null);
   const [form, setForm] = useState(EMPTY_FORM);
   const [newRoom, setNewRoom] = useState('');
   const [saving, setSaving] = useState(false);
 
-  const load = () => {
+  const load = (showLoader = false) => {
+    if (showLoader) setLoading(true);
     api
       .get('/branches', { params: { active: 'all' } })
       .then((res) => setRows(res.data.branches || []))
-      .catch((err) => toast.error(err.response?.data?.message || 'Could not load branches.'));
+      .catch((err) => toast.error(err.response?.data?.message || 'Could not load branches.'))
+      .finally(() => setLoading(false));
   };
-  useEffect(load, []);
+  useEffect(() => {
+    load(true);
+  }, []);
 
   const openCreate = () => {
     setEditingId(null);
@@ -144,7 +152,8 @@ export default function BranchesPage() {
   };
 
   return (
-    <div className="page-container">
+    <div className="page-container relative">
+      <LoadingOverlay show={saving} message="Saving…" />
       <PageHeader
         title="Branches"
         description="Each branch has its own appointments, billing and stock."
@@ -156,10 +165,12 @@ export default function BranchesPage() {
           )
         }
       />
-      {!rows.length ? (
+      {loading ? (
+        <SkeletonCards count={6} className="!grid-cols-1 sm:!grid-cols-2 xl:!grid-cols-3" />
+      ) : !rows.length ? (
         <EmptyState title="No branches" />
       ) : (
-        <div className="grid sm:grid-cols-2 xl:grid-cols-3 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3">
           {rows.map((b) => {
             const rooms = roomsFromBranch(b);
             return (
@@ -177,10 +188,10 @@ export default function BranchesPage() {
                 </p>
                 {can(user, P.BRANCHES_MANAGE) && (
                   <div className="flex flex-wrap gap-2 mt-3">
-                    <button type="button" className="btn-secondary !min-h-9" onClick={() => openEdit(b)}>
+                    <button type="button" className="btn-secondary btn-sm" onClick={() => openEdit(b)}>
                       Edit
                     </button>
-                    <button type="button" className="btn-ghost !min-h-9 text-xs" onClick={() => toggle(b)}>
+                    <button type="button" className="btn-ghost btn-sm" onClick={() => toggle(b)}>
                       {b.isActive ? 'Deactivate' : 'Activate'}
                     </button>
                   </div>
@@ -216,9 +227,16 @@ export default function BranchesPage() {
                 id={`branch-${f}`}
                 className="input-field"
                 required={required}
-                placeholder={label}
+                placeholder={f === 'phone' ? '9876543210' : label}
                 value={form[f]}
-                onChange={(e) => setForm({ ...form, [f]: e.target.value })}
+                inputMode={f === 'phone' ? 'numeric' : undefined}
+                maxLength={f === 'phone' ? 10 : undefined}
+                onChange={(e) =>
+                  setForm({
+                    ...form,
+                    [f]: f === 'phone' ? formatIndianMobileInput(e.target.value) : e.target.value,
+                  })
+                }
               />
             </div>
           ))}
@@ -274,7 +292,7 @@ export default function BranchesPage() {
                   }
                 }}
               />
-              <button type="button" className="btn-secondary !min-h-10 shrink-0" onClick={addRoom}>
+              <button type="button" className="btn-secondary shrink-0" onClick={addRoom}>
                 <Plus className="w-4 h-4" /> Add room
               </button>
             </div>

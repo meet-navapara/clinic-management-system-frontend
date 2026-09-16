@@ -237,7 +237,7 @@ export default function MedicineFormModal({ open, onClose, editing = null, onSav
             </div>
           </div>
 
-          <div className="grid grid-cols-3 gap-3">
+          <div className="grid grid-cols-1 xs:grid-cols-3 gap-3">
             <div>
               <label htmlFor={`${uid}-morning`} className="label-field">
                 Morning

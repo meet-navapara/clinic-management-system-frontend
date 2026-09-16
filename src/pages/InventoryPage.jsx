@@ -10,6 +10,11 @@ import { can, P } from '../constants/permissions';
 import { useAuth } from '../context/AuthContext';
 import { useBranch } from '../context/BranchContext';
 import RequiredMark from '../components/ui/RequiredMark';
+import Pagination from '../components/ui/Pagination';
+import { SkeletonCards, SkeletonRows } from '../components/ui/Skeleton';
+import LoadingOverlay from '../components/ui/LoadingOverlay';
+import { PAGE_SIZE } from '../constants/pagination';
+
 
 const EMPTY_STOCK = {
   medicineId: '',
@@ -25,30 +30,57 @@ export default function InventoryPage() {
   const { branchId } = useBranch();
   const [summary, setSummary] = useState(null);
   const [lots, setLots] = useState([]);
+  const [lotPage, setLotPage] = useState(1);
+  const [lotPages, setLotPages] = useState(1);
+  const [lotTotal, setLotTotal] = useState(0);
   const [transactions, setTransactions] = useState([]);
+  const [txPage, setTxPage] = useState(1);
+  const [txPages, setTxPages] = useState(1);
+  const [txTotal, setTxTotal] = useState(0);
   const [open, setOpen] = useState(false);
   const [adjustLot, setAdjustLot] = useState(null);
   const [adjustForm, setAdjustForm] = useState({ quantity: '', reason: '', type: 'adjustment' });
   const [meds, setMeds] = useState([]);
   const [form, setForm] = useState(EMPTY_STOCK);
   const [saving, setSaving] = useState(false);
+  const [loading, setLoading] = useState(true);
   const canManage = can(user, P.INVENTORY_MANAGE);
 
-  const load = () => {
+  const loadSummary = () =>
     api
       .get('/inventory/summary')
       .then((res) => setSummary(res.data.summary))
       .catch((err) => toast.error(err.response?.data?.message || 'Could not load inventory summary.'));
+
+  const loadLots = (p = 1) =>
     api
-      .get('/inventory/lots')
-      .then((res) => setLots(res.data.lots || []))
+      .get('/inventory/lots', { params: { page: p, limit: PAGE_SIZE } })
+      .then((res) => {
+        setLots(res.data.lots || []);
+        setLotPage(res.data.page || p);
+        setLotPages(res.data.pages || 1);
+        setLotTotal(res.data.total || 0);
+      })
       .catch((err) => toast.error(err.response?.data?.message || 'Could not load lots.'));
+
+  const loadTransactions = (p = 1) =>
     api
-      .get('/inventory/transactions', { params: { limit: 20 } })
-      .then((res) => setTransactions(res.data.transactions || []))
+      .get('/inventory/transactions', { params: { page: p, limit: PAGE_SIZE } })
+      .then((res) => {
+        setTransactions(res.data.transactions || []);
+        setTxPage(res.data.page || p);
+        setTxPages(res.data.pages || 1);
+        setTxTotal(res.data.total || 0);
+      })
       .catch(() => setTransactions([]));
+
+  const load = (showLoader = false) => {
+    if (showLoader) setLoading(true);
+    Promise.all([loadSummary(), loadLots(1), loadTransactions(1)]).finally(() => setLoading(false));
   };
-  useEffect(load, [branchId]);
+  useEffect(() => {
+    load(true);
+  }, [branchId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     if (!open) return;
@@ -102,7 +134,8 @@ export default function InventoryPage() {
   };
 
   return (
-    <div className="page-container">
+    <div className="page-container relative">
+      <LoadingOverlay show={saving} message="Saving…" />
       <PageHeader
         title="Inventory"
         description="Branch-wise medicine stock, batches and expiry."
@@ -121,7 +154,14 @@ export default function InventoryPage() {
           )
         }
       />
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-5">
+      {loading ? (
+        <>
+          <SkeletonCards count={4} className="mb-5" />
+          <SkeletonRows count={PAGE_SIZE} />
+        </>
+      ) : (
+        <>
+      <div className="stat-grid mb-5">
         <div className="card !p-4">
           <p className="section-label">SKUs</p>
           <p className="text-2xl font-semibold mt-1">{summary?.skuCount ?? '—'}</p>
@@ -157,7 +197,7 @@ export default function InventoryPage() {
       {!lots.length ? (
         <EmptyState title="No lots" description="Add stock for a branch." />
       ) : (
-        <div className="space-y-2 mb-6">
+        <div className="space-y-2 mb-2">
           {lots.map((lot) => (
             <div key={lot._id} className="card !p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
               <div>
@@ -173,7 +213,7 @@ export default function InventoryPage() {
                   Exp {lot.expiryDate && isValid(new Date(lot.expiryDate)) ? format(new Date(lot.expiryDate), 'dd MMM yyyy') : '—'}
                 </p>
                 {canManage && Number(lot.quantity) > 0 && (
-                  <button type="button" className="btn-secondary !min-h-9" onClick={() => openAdjust(lot)}>
+                  <button type="button" className="btn-secondary btn-sm" onClick={() => openAdjust(lot)}>
                     Adjust
                   </button>
                 )}
@@ -182,6 +222,14 @@ export default function InventoryPage() {
           ))}
         </div>
       )}
+      <Pagination
+        className="mb-6"
+        page={lotPage}
+        pages={lotPages}
+        total={lotTotal}
+        limit={PAGE_SIZE}
+        onPage={loadLots}
+      />
 
       <h3 className="text-sm font-semibold mb-2">Recent transactions</h3>
       {!transactions.length ? (
@@ -211,6 +259,9 @@ export default function InventoryPage() {
             </div>
           ))}
         </div>
+      )}
+      <Pagination page={txPage} pages={txPages} total={txTotal} limit={PAGE_SIZE} onPage={loadTransactions} />
+        </>
       )}
 
       <Modal

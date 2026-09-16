@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react';
-import { Link, NavLink, useNavigate, useLocation } from 'react-router-dom';
+import { Link, NavLink, useLocation } from 'react-router-dom';
 import {
-  LogOut,
   User,
   Calendar,
   CalendarDays,
@@ -17,7 +16,6 @@ import {
   GitBranch,
   IdCard,
   ListOrdered,
-  UserX,
   Megaphone,
   FileText,
   Printer,
@@ -25,16 +23,14 @@ import {
   ClipboardList,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
-import { useBranch } from '../context/BranchContext';
-import { LOGO_URL, APP_NAME, BRAND_NAME } from '../constants/branding';
+import { LOGO_URL, APP_NAME } from '../constants/branding';
 import { ROUTES, getDashboardPath } from '../constants/routes';
-import UserAvatar from './UserAvatar';
 import BranchSwitcher from './BranchSwitcher';
 import api from '../utils/api';
 import { can, P, isStaffUser } from '../constants/permissions';
 
 function navClass(active, collapsed) {
-  return `flex items-center ${collapsed ? 'justify-center px-0' : 'gap-3 px-3'} py-2.5 rounded-lg text-sm font-medium transition-colors min-h-10 ${
+  return `nav-item ${collapsed ? '!justify-center !px-0 !gap-0' : ''} ${
     active
       ? 'bg-[#1c2430] text-white'
       : 'text-ink-muted hover:text-ink hover:bg-[#f3efe8]'
@@ -46,9 +42,7 @@ function getNavLinks(user) {
   if (role === 'super_admin') {
     return [
       { to: ROUTES.clinicAdminDashboard, label: 'Dashboard', icon: LayoutDashboard, end: true },
-      { to: `${ROUTES.clinicAdminDashboard}?status=pending`, label: 'Doctor Approvals', icon: Users, end: false },
-      { to: `${ROUTES.clinicAdminDashboard}?status=staff`, label: 'Disabled staff', icon: UserX, end: false },
-      { to: `${ROUTES.clinicAdminDashboard}?status=all`, label: 'Doctors', icon: IdCard, end: false },
+      { to: ROUTES.clinicAdminDoctors, label: 'Doctors', icon: Users, end: true },
       { to: ROUTES.profile, label: 'Profile', icon: User, end: true },
     ];
   }
@@ -108,7 +102,10 @@ function isLinkActive(pathname, search, item, navActive) {
     return pathname === path && search.replace(/^\?/, '') === query;
   }
   if (item.to === ROUTES.clinicAdminDashboard) {
-    return pathname === ROUTES.clinicAdminDashboard && !search;
+    return pathname === ROUTES.clinicAdminDashboard;
+  }
+  if (item.to === ROUTES.clinicAdminDoctors) {
+    return pathname === ROUTES.clinicAdminDoctors || pathname.startsWith('/admin/doctors/');
   }
   return navActive;
 }
@@ -151,9 +148,7 @@ function NavList({ links, pathname, search, unread, collapsed, onNavigate }) {
 }
 
 export default function Sidebar({ open, onClose, unread = 0, onUnread }) {
-  const { user, logout } = useAuth();
-  const { current } = useBranch();
-  const navigate = useNavigate();
+  const { user } = useAuth();
   const { pathname, search } = useLocation();
   const [logoError, setLogoError] = useState(false);
 
@@ -165,7 +160,7 @@ export default function Sidebar({ open, onClose, unread = 0, onUnread }) {
     let cancelled = false;
     const load = () => {
       api
-        .get('/notifications/inbox')
+        .get('/notifications/inbox', { params: { page: 1, limit: 1 } })
         .then((res) => {
           if (!cancelled) onUnread?.(res.data.unreadCount || 0);
         })
@@ -179,35 +174,39 @@ export default function Sidebar({ open, onClose, unread = 0, onUnread }) {
     };
   }, [user, pathname, onUnread]);
 
-  const handleLogout = () => {
-    logout();
-    onClose?.();
-    navigate(user?.role === 'super_admin' ? ROUTES.clinicAdminLogin : ROUTES.login);
-  };
-
   const panel = (collapsed) => (
     <aside className={`flex h-full flex-col bg-white border-r border-line ${collapsed ? 'w-[4.25rem]' : 'w-60'}`}>
-      <div className={`flex items-center h-14 border-b border-line shrink-0 ${collapsed ? 'justify-center px-1' : 'gap-2 px-4'}`}>
-        <Link to={brandPath} className="navbar-brand" onClick={onClose} aria-label={APP_NAME}>
+      <div
+        className={`relative flex items-center justify-start border-b border-line shrink-0 ${
+          collapsed ? 'h-14 px-1' : 'h-16 px-3'
+        }`}
+      >
+        <Link
+          to={brandPath}
+          className="navbar-brand justify-center"
+          onClick={onClose}
+          aria-label={APP_NAME}
+        >
           {!logoError ? (
             <img
               src={LOGO_URL}
               alt=""
-              className="h-8 w-auto object-contain shrink-0"
+              className={
+                collapsed
+                  ? 'h-10 w-auto max-w-[3rem] object-contain rounded-md'
+                  : 'block h-11 w-auto max-w-[11.5rem] object-contain rounded-md'
+              }
               draggable={false}
               onError={() => setLogoError(true)}
             />
           ) : (
-            <Leaf className="w-5 h-5 text-accent-600 shrink-0" />
-          )}
-          {!collapsed && (
-            <span className="navbar-brand-name">{BRAND_NAME}</span>
+            <Leaf className="w-7 h-7 text-accent-600 shrink-0" />
           )}
         </Link>
         {!collapsed && (
           <button
             type="button"
-            className="ml-auto lg:hidden p-2 rounded-lg text-ink-muted hover:bg-[#f3efe8]"
+            className="absolute right-2 top-1/2 -translate-y-1/2 lg:hidden p-2 rounded-lg text-ink-muted hover:bg-[#f3efe8]"
             onClick={onClose}
             aria-label="Close menu"
           >
@@ -216,7 +215,7 @@ export default function Sidebar({ open, onClose, unread = 0, onUnread }) {
         )}
       </div>
 
-      {!collapsed && (
+      {!collapsed && user?.role !== 'super_admin' && (
         <div className="md:hidden px-2.5 pt-3 pb-2 border-b border-line">
           <p className="px-1 mb-1.5 text-[11px] font-medium uppercase tracking-wider text-ink-faint">
             Branch
@@ -233,41 +232,6 @@ export default function Sidebar({ open, onClose, unread = 0, onUnread }) {
         collapsed={collapsed}
         onNavigate={onClose}
       />
-
-      <div className={`border-t border-line shrink-0 ${collapsed ? 'p-2' : 'p-3'} space-y-2`}>
-        {!collapsed && (
-          <div className="flex items-center gap-2.5 min-w-0 px-1">
-            <UserAvatar name={user?.name} profilePhoto={user?.profilePhoto} role={user?.role} size="sm" />
-            <div className="min-w-0">
-              <p className="text-sm font-medium text-ink truncate">{user?.name}</p>
-              <p className="text-xs text-ink-faint">
-                {user?.role === 'super_admin'
-                  ? 'Super Admin'
-                  : user?.role === 'doctor'
-                    ? 'Doctor'
-                    : (user?.staffType || user?.role || 'Staff').replace(/_/g, ' ')}
-              </p>
-              {isStaffUser(user) && (
-                <p className="text-[11px] text-ink-faint truncate">
-                  {user?.clinicName ? `${user.clinicName}` : 'Clinic'}
-                  {current?.name ? ` · ${current.name}` : ''}
-                </p>
-              )}
-            </div>
-          </div>
-        )}
-        <button
-          type="button"
-          onClick={handleLogout}
-          title="Logout"
-          className={`flex items-center min-h-10 rounded-lg text-sm font-medium text-[#9b2c2c] hover:bg-[#fef2f2] ${
-            collapsed ? 'w-full justify-center' : 'w-full justify-center gap-2 px-3'
-          }`}
-        >
-          <LogOut className="w-4 h-4" />
-          {!collapsed && 'Logout'}
-        </button>
-      </div>
     </aside>
   );
 

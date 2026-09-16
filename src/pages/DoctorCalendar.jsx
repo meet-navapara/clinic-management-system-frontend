@@ -19,6 +19,7 @@ import { patientDisplayName } from '../utils/display';
 import { useBranch } from '../context/BranchContext';
 import { useAuth } from '../context/AuthContext';
 import { can, P } from '../constants/permissions';
+import { Skeleton } from '../components/ui/Skeleton';
 
 function toDateKey(d) {
   return format(d, 'yyyy-MM-dd');
@@ -230,12 +231,18 @@ export default function DoctorCalendar() {
             style={{ boxShadow: '0 1px 2px rgba(28, 36, 48, 0.04)' }}
           >
             {loading ? (
-              <div className={`grid flex-1 ${view === 'week' ? 'grid-cols-7' : 'grid-cols-1'} divide-x divide-[#eef0f3]`}>
+              <div
+                className={`grid flex-1 ${view === 'week' ? 'grid-cols-7' : 'grid-cols-1'} divide-x divide-[#eef0f3]`}
+                role="status"
+                aria-label="Loading"
+                aria-busy="true"
+              >
                 {days.map((day) => (
-                  <div key={toDateKey(day)} className="p-3 animate-pulse">
-                    <div className="h-3 w-8 rounded bg-[#eceff3] mb-2" />
-                    <div className="h-6 w-7 rounded-full bg-[#eceff3] mb-4" />
-                    <div className="h-16 rounded-[10px] bg-[#f3f4f6]" />
+                  <div key={toDateKey(day)} className="p-3 space-y-3">
+                    <Skeleton className="h-3 w-8" />
+                    <Skeleton className="h-6 w-7 rounded-full" />
+                    <Skeleton className="h-16 rounded-[10px]" />
+                    <Skeleton className="h-12 rounded-[10px] w-[90%]" />
                   </div>
                 ))}
               </div>

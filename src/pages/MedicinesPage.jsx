@@ -11,6 +11,7 @@ import { can, P } from '../constants/permissions';
 import { useAuth } from '../context/AuthContext';
 import { useBranch } from '../context/BranchContext';
 import { confirmAction } from '../utils/display';
+import { PAGE_SIZE } from '../constants/pagination';
 
 function strengthLabel(m) {
   const parts = [m.strength, m.strengthUnit].filter(Boolean);
@@ -29,6 +30,7 @@ export default function MedicinesPage() {
   const [q, setQ] = useState('');
   const [page, setPage] = useState(1);
   const [pages, setPages] = useState(1);
+  const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState(null);
@@ -36,11 +38,12 @@ export default function MedicinesPage() {
   const load = (p = 1) => {
     setLoading(true);
     api
-      .get('/medicines', { params: { page: p, q, limit: 20 } })
+      .get('/medicines', { params: { page: p, q, limit: PAGE_SIZE } })
       .then((res) => {
         setRows(res.data.medicines || []);
         setPages(res.data.pages || 1);
         setPage(res.data.page || 1);
+        setTotal(res.data.total || 0);
       })
       .catch((err) => toast.error(err.response?.data?.message || 'Load failed.'))
       .finally(() => setLoading(false));
@@ -109,7 +112,7 @@ export default function MedicinesPage() {
       </form>
 
       {loading ? (
-        <SkeletonRows />
+        <SkeletonRows count={PAGE_SIZE} />
       ) : !rows.length ? (
         <EmptyState
           title="No medicines"
@@ -152,7 +155,7 @@ export default function MedicinesPage() {
                           <div className="flex items-center justify-end gap-1">
                             <button
                               type="button"
-                              className="btn-ghost !min-h-9 !px-2 text-sky-700"
+                              className="btn-ghost btn-sm text-sky-700"
                               aria-label={`Edit ${m.name}`}
                               onClick={() => openEdit(m)}
                             >
@@ -160,7 +163,7 @@ export default function MedicinesPage() {
                             </button>
                             <button
                               type="button"
-                              className="btn-ghost !min-h-9 !px-2 text-red-600"
+                              className="btn-ghost btn-sm text-red-600"
                               aria-label={`Delete ${m.name}`}
                               onClick={() => removeMedicine(m)}
                             >
@@ -193,7 +196,7 @@ export default function MedicinesPage() {
                     <div className="flex shrink-0 gap-1">
                       <button
                         type="button"
-                        className="btn-ghost !min-h-9 !px-2 text-sky-700"
+                        className="btn-ghost btn-sm text-sky-700"
                         aria-label={`Edit ${m.name}`}
                         onClick={() => openEdit(m)}
                       >
@@ -201,7 +204,7 @@ export default function MedicinesPage() {
                       </button>
                       <button
                         type="button"
-                        className="btn-ghost !min-h-9 !px-2 text-red-600"
+                        className="btn-ghost btn-sm text-red-600"
                         aria-label={`Delete ${m.name}`}
                         onClick={() => removeMedicine(m)}
                       >
@@ -216,7 +219,7 @@ export default function MedicinesPage() {
         </>
       )}
 
-      <Pagination page={page} pages={pages} onPage={load} />
+      <Pagination page={page} pages={pages} total={total} limit={PAGE_SIZE} onPage={load} />
 
       <MedicineFormModal
         open={open}

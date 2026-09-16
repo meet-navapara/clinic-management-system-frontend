@@ -8,6 +8,7 @@ import PrintLetterhead from '../components/print/PrintLetterhead';
 import { BRAND_NAME } from '../constants/branding';
 import { useAuth } from '../context/AuthContext';
 import { getDashboardPath } from '../constants/routes';
+import SkeletonPage from '../components/ui/Skeleton';
 
 function SignatureBlock({ branding }) {
   const showLeft = Boolean(branding.showLeftSignature);
@@ -111,7 +112,7 @@ export default function PrintDocument() {
     navigate(getDashboardPath(user?.role, user));
   };
 
-  if (!data) return <div className="p-8">Loading document…</div>;
+  if (!data) return <SkeletonPage cards={0} rows={8} />;
   if (data.error) return <div className="p-8">Document not found.</div>;
 
   const { branding } = data;

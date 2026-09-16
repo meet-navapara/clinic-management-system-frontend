@@ -149,7 +149,7 @@ export default function SearchPage() {
           description="Type at least 2 characters. Try a patient name, medicine, invoice number, or staff member from the chips above."
         />
       ) : loading ? (
-        <SkeletonRows />
+        <SkeletonRows count={8} />
       ) : error ? (
         <EmptyState
           title="Search unavailable"

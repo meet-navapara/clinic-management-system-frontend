@@ -9,7 +9,8 @@ import Badge from '../components/ui/Badge';
 import Money from '../components/ui/Money';
 import Modal from '../components/ui/Modal';
 import Dropdown from '../components/ui/Dropdown';
-import { Skeleton } from '../components/ui/Skeleton';
+import { SkeletonDetail } from '../components/ui/Skeleton';
+import LoadingOverlay from '../components/ui/LoadingOverlay';
 import { ROUTES } from '../constants/routes';
 import { can, P } from '../constants/permissions';
 import { useAuth } from '../context/AuthContext';
@@ -30,7 +31,8 @@ export default function InvoiceDetail() {
   const [busy, setBusy] = useState(false);
 
   const load = useCallback(() => {
-    api
+    setLoading(true);
+    return api
       .get(`/billing/${id}`)
       .then((res) => {
         setInvoice(res.data.invoice);
@@ -39,6 +41,17 @@ export default function InvoiceDetail() {
       })
       .catch((err) => toast.error(err.response?.data?.message || 'Invoice not found.'))
       .finally(() => setLoading(false));
+  }, [id]);
+
+  const refresh = useCallback(() => {
+    api
+      .get(`/billing/${id}`)
+      .then((res) => {
+        setInvoice(res.data.invoice);
+        setPayments(res.data.payments || []);
+        setAmount(String(res.data.invoice?.dueAmount || ''));
+      })
+      .catch((err) => toast.error(err.response?.data?.message || 'Invoice not found.'));
   }, [id]);
 
   useEffect(() => {
@@ -52,7 +65,7 @@ export default function InvoiceDetail() {
       await api.post(`/billing/${id}/payments`, { amount: Number(amount), paymentMethod: method, transactionReference: ref });
       toast.success('Payment recorded.');
       setPayOpen(false);
-      load();
+      refresh();
     } catch (err) {
       toast.error(err.response?.data?.message || 'Payment failed.');
     } finally {
@@ -66,7 +79,7 @@ export default function InvoiceDetail() {
     try {
       await api.post(`/billing/${id}/refund`, {});
       toast.success('Refund recorded.');
-      load();
+      refresh();
     } catch (err) {
       toast.error(err.response?.data?.message || 'Refund failed.');
     } finally {
@@ -80,7 +93,7 @@ export default function InvoiceDetail() {
     try {
       await api.post(`/billing/${id}/cancel`);
       toast.success('Invoice cancelled.');
-      load();
+      refresh();
     } catch (err) {
       toast.error(err.response?.data?.message || 'Cancel failed.');
     } finally {
@@ -89,17 +102,13 @@ export default function InvoiceDetail() {
   };
 
   if (loading) {
-    return (
-      <div className="page-container space-y-3">
-        <Skeleton className="h-8 w-48" />
-        <Skeleton className="h-40" />
-      </div>
-    );
+    return <SkeletonDetail />;
   }
   if (!invoice) return null;
 
   return (
-    <div className="page-container">
+    <div className="page-container relative">
+      <LoadingOverlay show={busy} message="Processing…" />
       <PageHeader
         title={invoice.invoiceNumber}
         description={invoice.patientId?.name}

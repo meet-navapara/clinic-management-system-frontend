@@ -1,7 +1,10 @@
-import logoUrl from '@website-logo/logo(1).webp';
+import logoUrl from '@website-logo/Z-Health-logo.png';
 
-/** Primary brand logo — source file lives in frontend/website-logo/ */
-export const LOGO_FILE = 'logo(1).webp';
+/** Full lockup for public/auth/landing and sidebar */
+export const LOGO_FILE = 'Z-Health-logo.png';
 export const LOGO_URL = logoUrl;
-export const BRAND_NAME = 'Shreeshakti';
-export const APP_NAME = 'Shreeshakti Ayurveda';
+/** Compact mark for favicon / tight UI slots */
+export const LOGO_MARK_URL = '/logo.webp';
+export const BRAND_NAME = 'Z Health';
+export const APP_NAME = 'Z Health';
+export const BRAND_TAGLINE = 'Better health. Brighter you.';

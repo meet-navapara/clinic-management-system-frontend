@@ -237,17 +237,17 @@ export default function DoctorPatientNew() {
     if (form.middleName.trim().length > 80) errors.middleName = 'Middle name is too long.';
 
     const phone = normalizeIndianMobile(form.phone);
-    if (!phone) errors.phone = 'Enter a valid 10-digit Indian mobile (starts with 6–9).';
+    if (!phone) errors.phone = 'Enter a valid 10-digit mobile number.';
 
     if (!form.gender) errors.gender = 'Gender is required.';
 
     if (form.email && !isValidEmail(form.email)) errors.email = 'Email address is invalid.';
 
     if (form.secondaryPhone && !normalizeIndianMobile(form.secondaryPhone)) {
-      errors.secondaryPhone = 'Secondary number must be a valid 10-digit Indian mobile.';
+      errors.secondaryPhone = 'Secondary number must be exactly 10 digits.';
     }
     if (form.emergencyContactPhone && !normalizeIndianMobile(form.emergencyContactPhone)) {
-      errors.emergencyContactPhone = 'Relative contact must be a valid 10-digit Indian mobile.';
+      errors.emergencyContactPhone = 'Relative contact must be exactly 10 digits.';
     }
 
     if (form.aadharNumber && !/^\d{12}$/.test(form.aadharNumber)) {
@@ -456,11 +456,11 @@ export default function DoctorPatientNew() {
                   inputMode="numeric"
                   autoComplete="tel"
                   className="input-field w-full"
-                  placeholder="+91 9876543210"
+                  placeholder="9876543210"
                   value={form.phone}
                   onChange={handlePhoneChange('phone')}
                   onKeyDown={handlePhoneKeyDown('phone')}
-                  maxLength={14}
+                  maxLength={10}
                   required
                 />
               </Field>
@@ -487,13 +487,13 @@ export default function DoctorPatientNew() {
                   <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={onPhoto} />
                   <button
                     type="button"
-                    className="btn-secondary !h-10 !min-h-10 grow"
+                    className="btn-secondary grow"
                     onClick={() => fileRef.current?.click()}
                   >
                     Upload
                   </button>
                   {form.profilePhoto ? (
-                    <button type="button" className="btn-ghost !h-10 text-xs" onClick={() => setField('profilePhoto', '')}>
+                    <button type="button" className="btn-ghost btn-sm" onClick={() => setField('profilePhoto', '')}>
                       Remove
                     </button>
                   ) : null}
@@ -553,11 +553,11 @@ export default function DoctorPatientNew() {
                   type="tel"
                   inputMode="numeric"
                   className="input-field w-full"
-                  placeholder="+91 9876543210"
+                  placeholder="9876543210"
                   value={form.emergencyContactPhone}
                   onChange={handlePhoneChange('emergencyContactPhone')}
                   onKeyDown={handlePhoneKeyDown('emergencyContactPhone')}
-                  maxLength={14}
+                  maxLength={10}
                 />
               </Field>
               <Field id="patient-emergencyContactRelationship" label="Relation" error={fieldErrors.emergencyContactRelationship}>
@@ -578,11 +578,11 @@ export default function DoctorPatientNew() {
                   type="tel"
                   inputMode="numeric"
                   className="input-field w-full"
-                  placeholder="+91 9876543210"
+                  placeholder="9876543210"
                   value={form.secondaryPhone}
                   onChange={handlePhoneChange('secondaryPhone')}
                   onKeyDown={handlePhoneKeyDown('secondaryPhone')}
-                  maxLength={14}
+                  maxLength={10}
                 />
               </Field>
               <Field id="patient-email" label="Email Id" error={fieldErrors.email}>
@@ -786,7 +786,7 @@ export default function DoctorPatientNew() {
                       }}
                       maxLength={80}
                     />
-                    <button type="button" className="btn-secondary shrink-0 !h-10 !min-h-10" onClick={addCustomTag}>
+                    <button type="button" className="btn-secondary shrink-0" onClick={addCustomTag}>
                       Add
                     </button>
                   </div>

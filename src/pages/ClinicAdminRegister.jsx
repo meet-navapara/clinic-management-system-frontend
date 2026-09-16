@@ -11,6 +11,7 @@ import PasswordInput from '../components/PasswordInput';
 import PageLoader from '../components/PageLoader';
 import { ROUTES } from '../constants/routes';
 import RequiredMark from '../components/ui/RequiredMark';
+import { formatIndianMobileInput, normalizeIndianMobile } from '../utils/validation';
 
 export default function ClinicAdminRegister() {
   const [form, setForm] = useState({
@@ -35,14 +36,23 @@ export default function ClinicAdminRegister() {
   }, []);
 
   const handleChange = (e) => {
-    setForm({ ...form, [e.target.name]: e.target.value });
+    const { name, value } = e.target;
+    setForm({
+      ...form,
+      [name]: name === 'phone' ? formatIndianMobileInput(value) : value,
+    });
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    const phone = normalizeIndianMobile(form.phone);
+    if (!phone) {
+      toast.error('Mobile number must be exactly 10 digits.');
+      return;
+    }
     setLoading(true);
     try {
-      const data = await registerClinicAdmin(form);
+      const data = await registerClinicAdmin({ ...form, phone });
       toast.success('Super Admin account created!');
       redirectAfterAuth(data.user.role);
     } catch (err) {
@@ -56,7 +66,7 @@ export default function ClinicAdminRegister() {
 
   if (checking) {
     return (
-      <AuthPageLayout backTo={ROUTES.home}>
+      <AuthPageLayout>
         <PageLoader message="Checking setup status..." compact />
       </AuthPageLayout>
     );
@@ -64,7 +74,7 @@ export default function ClinicAdminRegister() {
 
   if (clinicAdminExists) {
     return (
-      <AuthPageLayout backTo={ROUTES.home}>
+      <AuthPageLayout>
         <AuthPageLogo className="mb-3 sm:mb-4 mx-auto flex" />
         <div className="card text-center !p-3.5 sm:!p-6">
           <Building2 className="w-12 h-12 text-[#a8841f] mx-auto mb-4" />
@@ -81,7 +91,7 @@ export default function ClinicAdminRegister() {
   }
 
   return (
-    <AuthPageLayout maxWidth="max-w-lg" backTo={ROUTES.home}>
+    <AuthPageLayout maxWidth="max-w-lg">
       <div className="text-center mb-3 sm:mb-5">
         <AuthPageLogo className="mb-3 sm:mb-4" />
         <h1 className="text-lg sm:text-2xl font-bold text-gray-900">Super Admin Setup</h1>
@@ -149,6 +159,8 @@ export default function ClinicAdminRegister() {
                     value={form.phone}
                     onChange={handleChange}
                     required
+                    inputMode="numeric"
+                    maxLength={10}
                   />
                 </div>
               </div>

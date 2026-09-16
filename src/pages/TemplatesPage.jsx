@@ -157,7 +157,7 @@ export default function TemplatesPage() {
       />
 
       {loading ? (
-        <SkeletonRows />
+        <SkeletonRows count={8} />
       ) : error ? (
         <EmptyState
           title="Templates unavailable"
@@ -181,7 +181,7 @@ export default function TemplatesPage() {
           }
         />
       ) : (
-        <div className="grid sm:grid-cols-2 xl:grid-cols-3 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3">
           {rows.map((t) => {
             const id = t?._id || t?.name;
             const fields = t?.fields && typeof t.fields === 'object' ? t.fields : {};
@@ -198,10 +198,10 @@ export default function TemplatesPage() {
                 {preview ? <p className="text-xs text-ink-faint mt-2 line-clamp-3">{preview}</p> : null}
                 {canEdit && (
                   <div className="flex flex-wrap gap-2 mt-3">
-                    <button type="button" className="btn-secondary !min-h-9" onClick={() => openEdit(t)}>
+                    <button type="button" className="btn-secondary btn-sm" onClick={() => openEdit(t)}>
                       Edit
                     </button>
-                    <button type="button" className="btn-ghost !min-h-9 text-xs" onClick={() => deactivate(t)}>
+                    <button type="button" className="btn-ghost btn-sm" onClick={() => deactivate(t)}>
                       Deactivate
                     </button>
                   </div>

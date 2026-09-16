@@ -34,9 +34,13 @@ export const AuthProvider = ({ children }) => {
       return;
     }
 
+    let hasCachedUser = false;
     if (savedUser) {
       try {
         setUser(JSON.parse(savedUser));
+        hasCachedUser = true;
+        // Paint the app immediately; refresh session in the background.
+        setLoading(false);
       } catch {
         clearStoredAuth();
         setLoading(false);
@@ -54,7 +58,9 @@ export const AuthProvider = ({ children }) => {
         clearStoredAuth();
         setUser(null);
       })
-      .finally(() => setLoading(false));
+      .finally(() => {
+        if (!hasCachedUser) setLoading(false);
+      });
   }, []);
 
   const persistSession = (data) => {

@@ -10,7 +10,7 @@ export default function StatusBadge({ status, className = '' }) {
   );
 }
 
-export function ApprovalBadge({ status }) {
+export function ApprovalBadge({ status, className = '' }) {
   const map = {
     pending: 'bg-[#f8f1de] text-[#7a5d16] ring-[#d4af37]/30',
     approved: 'bg-[#eef6f1] text-[#2d5a40] ring-[#c5ddd0]/80',
@@ -20,10 +20,10 @@ export function ApprovalBadge({ status }) {
   };
   const labels = {
     inactive: 'Disabled',
-    suspended: 'Disabled',
+    suspended: 'Suspended',
   };
   return (
-    <span className={`status-badge capitalize ${map[status] || map.pending}`}>
+    <span className={`status-badge capitalize ${map[status] || map.pending} ${className}`.trim()}>
       {labels[status] || status || 'pending'}
     </span>
   );

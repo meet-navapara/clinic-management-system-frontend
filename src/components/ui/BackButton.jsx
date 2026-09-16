@@ -37,7 +37,7 @@ export default function BackButton({ to, label = 'Back', className = '', variant
       type="button"
       onClick={goBack}
       aria-label={label}
-      className={`inline-flex items-center justify-center gap-1.5 min-h-10 min-w-10 px-2 rounded-lg text-sm font-medium transition-colors ${
+      className={`inline-flex items-center justify-center gap-1.5 min-h-9 min-w-9 sm:min-h-10 sm:min-w-10 px-2 rounded-lg text-xs sm:text-sm font-medium transition-colors ${
         onDark
           ? 'text-white/80 hover:text-white hover:bg-white/10'
           : 'text-ink-muted hover:text-ink hover:bg-white'

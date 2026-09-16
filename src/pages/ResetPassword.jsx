@@ -55,7 +55,7 @@ export default function ResetPassword() {
   };
 
   return (
-    <AuthPageLayout maxWidth="max-w-md" backTo={ROUTES.login}>
+    <AuthPageLayout maxWidth="max-w-md">
       <div className="text-center mb-5">
         <AuthPageLogo className="mb-4" />
         <h1 className="text-xl font-semibold text-gray-900">Reset password</h1>

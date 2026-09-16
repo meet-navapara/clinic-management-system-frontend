@@ -12,6 +12,7 @@ import RequiredMark from '../components/ui/RequiredMark';
 import { ROUTES } from '../constants/routes';
 import { useBranch } from '../context/BranchContext';
 import { confirmAction } from '../utils/display';
+import { PAGE_SIZE } from '../constants/pagination';
 
 const CHANNELS = [
   { value: 'whatsapp', label: 'WhatsApp' },
@@ -91,18 +92,20 @@ export function CampaignsPage() {
   const [integrations, setIntegrations] = useState(null);
   const [page, setPage] = useState(1);
   const [pages, setPages] = useState(1);
+  const [total, setTotal] = useState(0);
 
   const load = useCallback(
     (p = 1) => {
       setLoading(true);
       Promise.all([
-        api.get('/campaigns', { params: { page: p, limit: 20 } }),
+        api.get('/campaigns', { params: { page: p, limit: PAGE_SIZE } }),
         api.get('/campaigns/integrations/status').catch(() => ({ data: { integrations: null } })),
       ])
         .then(([listRes, intRes]) => {
           setRows(listRes.data.campaigns || []);
           setPage(listRes.data.page || 1);
           setPages(listRes.data.pages || 1);
+          setTotal(listRes.data.total || 0);
           setIntegrations(intRes.data.integrations || null);
         })
         .catch((err) => toast.error(err.response?.data?.message || 'Could not load campaigns.'))
@@ -128,7 +131,7 @@ export function CampaignsPage() {
       />
 
       {integrations && (
-        <div className="grid sm:grid-cols-3 gap-2 mb-4">
+        <div className="grid grid-cols-1 xs:grid-cols-2 sm:grid-cols-3 gap-2 mb-4">
           {['whatsapp', 'sms', 'email'].map((ch) => (
             <div key={ch} className="card !p-3 text-sm">
               <p className="font-semibold capitalize">{ch}</p>
@@ -141,7 +144,7 @@ export function CampaignsPage() {
       )}
 
       {loading ? (
-        <SkeletonRows />
+        <SkeletonRows count={PAGE_SIZE} />
       ) : !rows.length ? (
         <EmptyState title="No campaigns" description="Create a campaign to message eligible patients." />
       ) : (
@@ -200,7 +203,7 @@ export function CampaignsPage() {
               </Link>
             ))}
           </div>
-          <Pagination page={page} pages={pages} onPage={load} />
+          <Pagination page={page} pages={pages} total={total} limit={PAGE_SIZE} onPage={load} />
         </>
       )}
     </div>
@@ -585,7 +588,7 @@ export function CampaignEditor() {
       {preview && (
         <div className="card mt-4 space-y-3">
           <p className="font-semibold">Audience preview</p>
-          <div className="grid sm:grid-cols-3 gap-2 text-sm">
+          <div className="grid grid-cols-1 xs:grid-cols-3 gap-2 text-sm">
             <div className="rounded-lg bg-[#f7f4ef] p-3">
               Total <strong>{preview.recipientCount}</strong>
             </div>
@@ -615,13 +618,13 @@ export function CampaignEditor() {
             </p>
           )}
           <div className="flex flex-wrap gap-2 items-end">
-            <div className="flex-1 min-w-[180px]">
+            <div className="flex-1 min-w-0 w-full sm:min-w-[180px]">
               <label className="label-field">
                 Send test {form.channel === 'email' ? 'email' : 'phone'}
               </label>
               <input
                 className="input-field"
-                placeholder={form.channel === 'email' ? 'you@example.com' : '+91 98XXXXXXXX'}
+                placeholder={form.channel === 'email' ? 'you@example.com' : '9876543210'}
                 value={testTo}
                 onChange={(e) => setTestTo(e.target.value)}
               />

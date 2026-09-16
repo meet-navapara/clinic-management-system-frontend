@@ -14,7 +14,7 @@ export default function ProtectedRoute({
   const { user, loading } = useAuth();
   const location = useLocation();
 
-  if (loading) {
+  if (loading && !user) {
     return <AuthLoadingScreen />;
   }
 

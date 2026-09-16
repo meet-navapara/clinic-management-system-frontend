@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import { format, isValid } from 'date-fns';
 import { MessageCircle } from 'lucide-react';
@@ -6,8 +6,11 @@ import api from '../utils/api';
 import toast from 'react-hot-toast';
 import EmptyState from '../components/ui/EmptyState';
 import { SkeletonRows } from '../components/ui/Skeleton';
+import Pagination from '../components/ui/Pagination';
 import { ROUTES } from '../constants/routes';
 import { useBranch } from '../context/BranchContext';
+import { PAGE_SIZE } from '../constants/pagination';
+
 
 function appointmentIdOf(n) {
   const raw = n.appointmentId;
@@ -18,16 +21,32 @@ function appointmentIdOf(n) {
 export default function DoctorNotifications() {
   const { branchId } = useBranch();
   const [items, setItems] = useState([]);
+  const [page, setPage] = useState(1);
+  const [pages, setPages] = useState(1);
+  const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
   const [waBusyId, setWaBusyId] = useState(null);
 
+  const load = useCallback(
+    (p = 1) => {
+      setLoading(true);
+      api
+        .get('/notifications', { params: { page: p, limit: PAGE_SIZE } })
+        .then((res) => {
+          setItems(res.data.notifications || []);
+          setPage(res.data.page || p);
+          setPages(res.data.pages || 1);
+          setTotal(res.data.total || 0);
+        })
+        .catch(() => toast.error('Could not load reminders.'))
+        .finally(() => setLoading(false));
+    },
+    []
+  );
+
   useEffect(() => {
-    api
-      .get('/notifications')
-      .then((res) => setItems(res.data.notifications || []))
-      .catch(() => toast.error('Could not load reminders.'))
-      .finally(() => setLoading(false));
-  }, [branchId]);
+    load(1);
+  }, [branchId, load]);
 
   const openWhatsApp = async (n) => {
     const existing = n.metadata?.whatsappUrl;
@@ -56,7 +75,7 @@ export default function DoctorNotifications() {
   return (
     <div className="page-container">
       {loading ? (
-        <SkeletonRows />
+        <SkeletonRows count={PAGE_SIZE} />
       ) : items.length === 0 ? (
         <EmptyState title="No reminders yet" description="They appear after you schedule a visit." />
       ) : (
@@ -84,14 +103,14 @@ export default function DoctorNotifications() {
                 </div>
                 <div className="mt-3 flex flex-wrap items-center gap-2">
                   {aid && (
-                    <Link to={ROUTES.doctorAppointmentDetail(aid)} className="btn-secondary !min-h-8 !py-1 !px-3 text-xs">
+                    <Link to={ROUTES.doctorAppointmentDetail(aid)} className="btn-secondary btn-sm">
                       Open appointment
                     </Link>
                   )}
                   {(n.metadata?.whatsappUrl || phone) && (
                     <button
                       type="button"
-                      className="btn-whatsapp !min-h-8 !py-1 !px-3 text-xs"
+                      className="btn-whatsapp btn-sm"
                       disabled={waBusyId === n._id}
                       onClick={() => openWhatsApp(n)}
                     >
@@ -105,6 +124,8 @@ export default function DoctorNotifications() {
           })}
         </div>
       )}
+
+      <Pagination page={page} pages={pages} total={total} limit={PAGE_SIZE} onPage={load} />
     </div>
   );
 }

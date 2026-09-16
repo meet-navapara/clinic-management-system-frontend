@@ -6,7 +6,7 @@
   html,
   body,
   #root {
-    @apply w-full min-h-dvh;
+    @apply w-full min-h-dvh max-w-[100vw] overflow-x-hidden;
   }
 
   html {
@@ -16,7 +16,7 @@
   body {
     background-color: #f6f4f0;
     color: #1c2430;
-    @apply antialiased overflow-x-hidden font-sans text-[15px] leading-6;
+    @apply antialiased overflow-x-hidden font-sans text-[13px] leading-5 sm:text-[15px] sm:leading-6;
   }
 
   :focus-visible {
@@ -36,12 +36,117 @@
       transform: translateY(0);
     }
   }
+
+  @keyframes heroRise {
+    from {
+      opacity: 0;
+      transform: translateY(18px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  @keyframes heroGlow {
+    0%,
+    100% {
+      opacity: 0.55;
+      transform: scale(1);
+    }
+    50% {
+      opacity: 0.85;
+      transform: scale(1.04);
+    }
+  }
+
+  @keyframes scrollCue {
+    0%,
+    100% {
+      opacity: 0.35;
+      transform: translateY(0);
+    }
+    50% {
+      opacity: 0.9;
+      transform: translateY(6px);
+    }
+  }
+}
+
+/* Landing scroll reveals — outside @layer so they win over utilities when needed */
+.reveal {
+  opacity: 0;
+  transform: translateY(22px);
+  transition:
+    opacity 0.7s cubic-bezier(0.22, 1, 0.36, 1),
+    transform 0.7s cubic-bezier(0.22, 1, 0.36, 1);
+  will-change: opacity, transform;
+}
+
+.reveal.is-revealed {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.landing-hero {
+  min-height: calc(100dvh - 3.5rem);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.landing-hero-atmosphere {
+  animation: heroGlow 10s ease-in-out infinite;
+}
+
+.landing-hero-item {
+  opacity: 0;
+  animation: heroRise 0.85s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+.landing-hero-item-1 {
+  animation-delay: 0.08s;
+}
+.landing-hero-item-2 {
+  animation-delay: 0.22s;
+}
+.landing-hero-item-3 {
+  animation-delay: 0.36s;
+}
+.landing-hero-item-4 {
+  animation-delay: 0.5s;
+}
+.landing-hero-item-5 {
+  animation-delay: 0.64s;
+}
+
+.landing-scroll-cue {
+  animation: scrollCue 1.8s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .reveal,
+  .reveal.is-revealed {
+    opacity: 1;
+    transform: none;
+    transition: none;
+  }
+
+  .landing-hero-atmosphere,
+  .landing-scroll-cue,
+  .landing-hero-item {
+    animation: none !important;
+    opacity: 1 !important;
+    transform: none !important;
+  }
 }
 
 @layer components {
+  /* Shared control sizing: compact on phones, comfortable from sm+ */
   .btn-primary {
-    @apply inline-flex items-center justify-center gap-2 min-h-10 px-4 py-2 rounded-lg
-           text-sm font-semibold text-white
+    @apply inline-flex items-center justify-center gap-1.5 sm:gap-2
+           min-h-9 sm:min-h-10 px-3 sm:px-4 py-1.5 sm:py-2 rounded-lg
+           text-xs sm:text-sm font-semibold text-white
            transition-colors duration-150
            focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-400/70 focus-visible:ring-offset-2
            disabled:opacity-50 disabled:cursor-not-allowed;
@@ -53,8 +158,9 @@
   }
 
   .btn-secondary {
-    @apply inline-flex items-center justify-center gap-2 min-h-10 px-4 py-2 rounded-lg
-           text-sm font-semibold bg-white text-ink
+    @apply inline-flex items-center justify-center gap-1.5 sm:gap-2
+           min-h-9 sm:min-h-10 px-3 sm:px-4 py-1.5 sm:py-2 rounded-lg
+           text-xs sm:text-sm font-semibold bg-white text-ink
            transition-colors duration-150
            focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-400/70 focus-visible:ring-offset-2
            disabled:opacity-50 disabled:cursor-not-allowed;
@@ -67,29 +173,33 @@
   }
 
   .btn-ghost {
-    @apply inline-flex items-center justify-center gap-2 min-h-10 px-3 py-2 rounded-lg
-           text-sm font-medium text-ink-muted hover:text-ink hover:bg-white/80
+    @apply inline-flex items-center justify-center gap-1.5 sm:gap-2
+           min-h-9 sm:min-h-10 px-2.5 sm:px-3 py-1.5 sm:py-2 rounded-lg
+           text-xs sm:text-sm font-medium text-ink-muted hover:text-ink hover:bg-white/80
            transition-colors duration-150;
   }
 
   .btn-danger {
-    @apply inline-flex items-center justify-center gap-2 min-h-10 px-4 py-2 rounded-lg
-           text-sm font-semibold text-[#9b2c2c] bg-[#fef2f2]
+    @apply inline-flex items-center justify-center gap-1.5 sm:gap-2
+           min-h-9 sm:min-h-10 px-3 sm:px-4 py-1.5 sm:py-2 rounded-lg
+           text-xs sm:text-sm font-semibold text-[#9b2c2c] bg-[#fef2f2]
            border border-[#f0c9c9] hover:bg-[#fee2e2]
            transition-colors duration-150
            disabled:opacity-50 disabled:cursor-not-allowed;
   }
 
   .btn-whatsapp {
-    @apply inline-flex items-center justify-center gap-2 min-h-10 px-4 py-2 rounded-lg
-           text-sm font-semibold bg-[#25D366] text-white hover:bg-[#1da851]
+    @apply inline-flex items-center justify-center gap-1.5 sm:gap-2
+           min-h-9 sm:min-h-10 px-3 sm:px-4 py-1.5 sm:py-2 rounded-lg
+           text-xs sm:text-sm font-semibold bg-[#25D366] text-white hover:bg-[#1da851]
            transition-colors duration-150
            focus:outline-none focus-visible:ring-2 focus-visible:ring-[#25D366] focus-visible:ring-offset-2;
   }
 
   .btn-gold {
-    @apply inline-flex items-center justify-center gap-2 min-h-11 px-6 py-2.5 rounded-lg
-           font-semibold text-sm text-[#1c1814] transition-colors duration-150;
+    @apply inline-flex items-center justify-center gap-1.5 sm:gap-2
+           min-h-10 sm:min-h-11 px-4 sm:px-6 py-2 sm:py-2.5 rounded-lg
+           font-semibold text-xs sm:text-sm text-[#1c1814] transition-colors duration-150;
     background: #d4af37;
   }
 
@@ -98,13 +208,20 @@
   }
 
   .btn-outline-light {
-    @apply inline-flex items-center justify-center gap-2 min-h-11 px-6 py-2.5 rounded-lg
-           font-semibold text-sm text-white border border-white/30 hover:bg-white/10
+    @apply inline-flex items-center justify-center gap-1.5 sm:gap-2
+           min-h-10 sm:min-h-11 px-4 sm:px-6 py-2 sm:py-2.5 rounded-lg
+           font-semibold text-xs sm:text-sm text-white border border-white/30 hover:bg-white/10
            transition-colors duration-150;
   }
 
+  /** Compact actions inside dense lists / cards */
+  .btn-sm {
+    @apply !min-h-8 !px-2 !py-1 !text-[11px] sm:!min-h-9 sm:!px-2.5 sm:!text-xs !gap-1;
+  }
+
   .input-field {
-    @apply w-full min-h-10 px-3 py-2 rounded-lg text-sm text-ink bg-white
+    @apply w-full min-h-9 sm:min-h-10 px-2.5 sm:px-3 py-1.5 sm:py-2 rounded-lg
+           text-xs sm:text-sm text-ink bg-white
            placeholder:text-ink-faint transition-colors duration-150
            disabled:bg-[#f4f2ee] disabled:text-ink-faint disabled:cursor-not-allowed disabled:opacity-80;
     border: 1px solid #d9d3c8;
@@ -117,46 +234,55 @@
   }
 
   .label-field {
-    @apply block text-[13px] font-medium text-ink mb-1.5;
+    @apply block text-[12px] sm:text-[13px] font-medium text-ink mb-1 sm:mb-1.5;
   }
 
   .card {
-    @apply bg-white rounded-xl p-4 sm:p-5;
+    @apply bg-white rounded-lg sm:rounded-xl p-3.5 sm:p-4 md:p-5 min-w-0 w-full;
     border: 1px solid #e6e1d8;
     box-shadow: 0 1px 2px rgba(28, 36, 48, 0.04);
   }
 
+  .card-grid {
+    @apply grid grid-cols-1 xs:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 auto-rows-fr;
+  }
+
+  .stat-grid {
+    @apply grid grid-cols-1 xs:grid-cols-2 xl:grid-cols-4 gap-2.5 sm:gap-3;
+  }
+
   .page-container {
     @apply w-full min-w-0 flex-1 flex flex-col
-           px-4 sm:px-5 lg:px-6 xl:px-8 py-4 sm:py-5;
+           px-3 xs:px-4 sm:px-5 lg:px-6 xl:px-8 py-3 sm:py-4 md:py-5;
   }
 
   .site-container {
-    @apply w-full max-w-app mx-auto px-4 sm:px-6 lg:px-8;
+    @apply w-full max-w-app mx-auto px-3 xs:px-4 sm:px-6 lg:px-8;
   }
 
   .page-title {
-    @apply text-xl sm:text-[22px] font-semibold tracking-tight text-ink;
+    @apply text-lg sm:text-xl md:text-[22px] font-semibold tracking-tight text-ink;
   }
 
   .page-subtitle {
-    @apply text-sm text-ink-muted mt-1;
+    @apply text-xs sm:text-sm text-ink-muted mt-0.5 sm:mt-1;
   }
 
   .section-label {
-    @apply text-[11px] font-semibold uppercase tracking-[0.14em] text-ink-faint;
+    @apply text-[10px] sm:text-[11px] font-semibold uppercase tracking-[0.12em] sm:tracking-[0.14em] text-ink-faint;
   }
 
   .navbar-brand {
-    @apply flex items-center gap-2 shrink-0 min-w-0;
+    @apply flex items-center gap-1.5 sm:gap-2 shrink-0 min-w-0;
   }
 
   .navbar-brand-emblem-img {
-    @apply block h-8 w-auto object-contain object-left pointer-events-none select-none shrink-0;
+    @apply block h-8 xs:h-9 sm:h-10 w-auto max-w-[9.5rem] xs:max-w-[13rem] sm:max-w-[16rem]
+           object-contain object-left pointer-events-none select-none shrink-0 rounded-md;
   }
 
   .navbar-brand-name {
-    @apply font-semibold text-sm text-ink truncate;
+    @apply font-semibold text-xs sm:text-sm text-ink truncate;
   }
 
   .navbar-brand-tagline {
@@ -164,33 +290,34 @@
   }
 
   .status-badge {
-    @apply inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-semibold tracking-wide ring-1;
+    @apply inline-flex items-center px-1.5 sm:px-2 py-0.5 rounded-md
+           text-[10px] sm:text-[11px] font-semibold tracking-wide ring-1;
   }
 
   .hero-section {
-    @apply relative w-full overflow-hidden text-white;
-    background: #1c2430;
+    @apply relative w-full overflow-hidden text-[#1c1814];
+    background: #FFFEFE;
   }
 
   .hero-title {
-    @apply font-serif font-bold leading-tight;
+    @apply font-serif font-bold leading-tight text-2xl sm:text-3xl md:text-4xl;
   }
 
   .data-table-wrap {
-    @apply overflow-x-auto -mx-4 sm:mx-0;
+    @apply overflow-x-auto -mx-3 xs:-mx-4 sm:mx-0;
   }
 
   .data-table {
-    @apply w-full text-sm text-left min-w-[640px];
+    @apply w-full text-xs sm:text-sm text-left min-w-[640px];
   }
 
   .data-table th {
-    @apply px-4 py-3 text-[11px] font-semibold uppercase tracking-wider text-ink-faint
+    @apply px-3 sm:px-4 py-2 sm:py-3 text-[10px] sm:text-[11px] font-semibold uppercase tracking-wider text-ink-faint
            border-b border-line whitespace-nowrap;
   }
 
   .data-table td {
-    @apply px-4 py-3 border-b border-line align-middle;
+    @apply px-3 sm:px-4 py-2 sm:py-3 border-b border-line align-middle;
   }
 
   .data-table tbody tr:hover {
@@ -198,11 +325,20 @@
   }
 
   .slot-chip {
-    @apply min-h-10 px-3 rounded-lg text-sm font-medium ring-1 transition-colors;
+    @apply min-h-9 sm:min-h-10 px-2.5 sm:px-3 rounded-lg text-xs sm:text-sm font-medium ring-1 transition-colors;
   }
 
   .tab-chip {
-    @apply px-3 py-2 rounded-lg text-xs font-semibold capitalize whitespace-nowrap transition-colors;
+    @apply inline-flex items-center justify-center
+           min-h-8 sm:min-h-9 md:min-h-10
+           px-2 sm:px-2.5 md:px-3 py-1 sm:py-1.5 md:py-2
+           rounded-md sm:rounded-lg
+           text-[11px] sm:text-xs font-semibold whitespace-nowrap transition-colors;
+  }
+
+  .nav-item {
+    @apply flex items-center gap-2.5 sm:gap-3 px-2.5 sm:px-3 py-2 sm:py-2.5 rounded-lg
+           text-xs sm:text-sm font-medium transition-colors min-h-9 sm:min-h-10;
   }
 }
 

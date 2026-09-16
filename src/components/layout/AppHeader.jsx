@@ -1,20 +1,25 @@
-import { Link, useLocation } from 'react-router-dom';
-import { Bell, Inbox } from 'lucide-react';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { Bell, Inbox, LogOut } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { ROUTES, getPageMeta } from '../../constants/routes';
-import UserAvatar from '../UserAvatar';
 import BranchSwitcher from '../BranchSwitcher';
 import BackButton from '../ui/BackButton';
 
 export default function AppHeader({ unread = 0, onMenu }) {
-  const { user } = useAuth();
+  const { user, logout } = useAuth();
   const { pathname } = useLocation();
+  const navigate = useNavigate();
   const meta = getPageMeta(pathname);
   const isDoctor = user?.role === 'doctor';
 
+  const handleLogout = async () => {
+    await logout();
+    navigate(user?.role === 'super_admin' ? ROUTES.clinicAdminLogin : ROUTES.login);
+  };
+
   return (
     <header className="sticky top-0 z-20 h-14 shrink-0 bg-[#f6f4f0]/90 backdrop-blur-md border-b border-line">
-      <div className="h-full w-full min-w-0 px-4 sm:px-5 lg:px-6 xl:px-8 flex items-center gap-2 sm:gap-3">
+      <div className="h-full w-full min-w-0 px-4 sm:px-5 lg:px-6 xl:px-8 flex items-center gap-1.5 sm:gap-2.5">
         <button
           type="button"
           className="md:hidden min-h-10 min-w-10 inline-flex items-center justify-center rounded-lg text-ink-muted hover:bg-white"
@@ -32,18 +37,20 @@ export default function AppHeader({ unread = 0, onMenu }) {
           {!meta.hideTitle && (
             <>
               {meta.crumb && (
-                <p className="hidden xs:block text-[11px] font-medium uppercase tracking-wider text-ink-faint leading-none mb-0.5">
+                <p className="hidden xs:block text-[10px] sm:text-[11px] font-medium uppercase tracking-wider text-ink-faint leading-none mb-0.5">
                   {meta.crumb}
                 </p>
               )}
-              <h1 className="text-[15px] sm:text-base font-semibold text-ink truncate">{meta.title}</h1>
+              <h1 className="text-sm sm:text-base font-semibold text-ink truncate">{meta.title}</h1>
             </>
           )}
         </div>
 
-        <div className="hidden md:block">
-          <BranchSwitcher compact />
-        </div>
+        {user?.role !== 'super_admin' && (
+          <div className="hidden md:block">
+            <BranchSwitcher compact />
+          </div>
+        )}
 
         {isDoctor && (
           <>
@@ -69,21 +76,18 @@ export default function AppHeader({ unread = 0, onMenu }) {
           </>
         )}
 
-        <Link
-          to={ROUTES.profile}
-          className="inline-flex items-center gap-2 min-h-10 pl-1 pr-1 sm:pr-2 rounded-lg hover:bg-white"
-          aria-label="Settings"
-        >
-          <UserAvatar
-            name={user?.name}
-            profilePhoto={user?.profilePhoto}
-            role={user?.role}
-            size="sm"
-          />
-          <span className="hidden sm:block text-sm font-medium text-ink truncate max-w-[9rem]">
-            {user?.name}
-          </span>
-        </Link>
+        <div className="flex items-center gap-0.5 sm:gap-1 pl-0.5 sm:pl-1 border-l border-line/80 ml-0.5">
+          <button
+            type="button"
+            onClick={handleLogout}
+            className="min-h-10 min-w-10 sm:min-w-0 sm:px-2.5 inline-flex items-center justify-center gap-1.5 rounded-lg text-ink-muted hover:text-[#9b2c2c] hover:bg-[#fef2f2] transition-colors"
+            aria-label="Logout"
+            title="Logout"
+          >
+            <LogOut className="w-4 h-4 shrink-0" />
+            <span className="hidden lg:inline text-xs sm:text-sm font-medium">Logout</span>
+          </button>
+        </div>
       </div>
     </header>
   );

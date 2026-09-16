@@ -8,6 +8,8 @@ import SimpleRichEditor from '../components/print/SimpleRichEditor';
 import PrintLetterhead from '../components/print/PrintLetterhead';
 import { BRAND_NAME } from '../constants/branding';
 import { ROUTES } from '../constants/routes';
+import SkeletonPage from '../components/ui/Skeleton';
+import LoadingOverlay from '../components/ui/LoadingOverlay';
 
 const FONT_SIZES = [8, 9, 10, 11, 12, 13, 14, 16, 18, 20, 22, 24, 28];
 
@@ -252,10 +254,11 @@ export default function PrintSettingsPage() {
     }
   };
 
-  if (!form) return <div className="page-container">Loading…</div>;
+  if (!form) return <SkeletonPage cards={0} rows={8} />;
 
   return (
-    <div className="page-container max-w-6xl">
+    <div className="page-container max-w-6xl relative">
+      <LoadingOverlay show={saving} message="Saving…" />
       <PageHeader
         title="Print settings"
         description="Customize letterhead, logo, margins and signatures for invoices, prescriptions and all clinic prints."

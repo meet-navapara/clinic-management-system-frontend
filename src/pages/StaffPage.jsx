@@ -13,8 +13,10 @@ import { SkeletonRows } from '../components/ui/Skeleton';
 import { useBranch } from '../context/BranchContext';
 import { STAFF_TYPES, STAFF_TYPE_PERMISSIONS, ACCESS_MODULES, togglePermission } from '../constants/permissions';
 import RequiredMark from '../components/ui/RequiredMark';
+import { PAGE_SIZE } from '../constants/pagination';
 import {
   normalizeIndianMobile,
+  formatIndianMobileInput,
   isValidEmail,
   meetsPasswordComplexity,
   STRONG_PASSWORD_MESSAGE,
@@ -54,7 +56,7 @@ function validateStaffForm(form, editing) {
 
   if (!form.phone.trim()) errors.phone = 'Mobile number is required.';
   else if (!normalizeIndianMobile(form.phone)) {
-    errors.phone = 'Mobile number must be a valid 10-digit Indian number (+91).';
+    errors.phone = 'Mobile number must be exactly 10 digits.';
   }
 
   if (!form.staffType) errors.staffType = 'Staff type is required.';
@@ -112,6 +114,7 @@ export default function StaffPage() {
   const [rows, setRows] = useState([]);
   const [page, setPage] = useState(1);
   const [pages, setPages] = useState(1);
+  const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState(null);
@@ -122,7 +125,7 @@ export default function StaffPage() {
 
   const load = (p = 1) => {
     setLoading(true);
-    const params = { page: p, limit: 20 };
+    const params = { page: p, limit: PAGE_SIZE };
     if (branchId) params.branchId = branchId;
     if (statusFilter === 'disabled') params.status = 'inactive';
     else if (statusFilter === 'active') params.status = 'active';
@@ -131,6 +134,7 @@ export default function StaffPage() {
         setRows(res.data.staff || []);
         setPages(res.data.pages || 1);
         setPage(res.data.page || 1);
+        setTotal(res.data.total || 0);
       })
       .catch((err) => toast.error(err.response?.data?.message || 'Could not load staff.'))
       .finally(() => setLoading(false));
@@ -292,7 +296,7 @@ export default function StaffPage() {
           </button>
         ))}
       </div>
-      {loading ? <SkeletonRows /> : !rows.length ? (
+      {loading ? <SkeletonRows count={PAGE_SIZE} /> : !rows.length ? (
         <EmptyState
           title={statusFilter === 'disabled' ? 'No disabled staff' : 'No staff yet'}
           description={
@@ -312,15 +316,15 @@ export default function StaffPage() {
                 <div className="flex flex-wrap gap-2 mt-2">
                   <Badge value={s.staffStatus} />
                   {s.role !== 'doctor' && (
-                    <button type="button" className="btn-ghost !min-h-8 text-xs" onClick={() => openEdit(s)}>Manage Access</button>
+                    <button type="button" className="btn-ghost btn-sm" onClick={() => openEdit(s)}>Manage Access</button>
                   )}
                   {s.staffStatus !== 'inactive' && (
-                    <button type="button" className="btn-ghost !min-h-8 text-xs" onClick={() => setStatus(s, 'inactive')}>
+                    <button type="button" className="btn-ghost btn-sm" onClick={() => setStatus(s, 'inactive')}>
                       Disable
                     </button>
                   )}
                   {s.staffStatus !== 'active' && (
-                    <button type="button" className="btn-primary !min-h-8 text-xs" onClick={() => setStatus(s, 'active')}>
+                    <button type="button" className="btn-primary btn-sm" onClick={() => setStatus(s, 'active')}>
                       Approve
                     </button>
                   )}
@@ -356,10 +360,10 @@ export default function StaffPage() {
                       <td>
                         <div className="flex gap-2">
                           {s.role !== 'doctor' && (
-                            <button type="button" className="btn-ghost !min-h-8 text-xs" onClick={() => openEdit(s)}>Edit</button>
+                            <button type="button" className="btn-ghost btn-sm" onClick={() => openEdit(s)}>Edit</button>
                           )}
-                          {s.staffStatus !== 'inactive' && <button type="button" className="btn-ghost !min-h-8 text-xs" onClick={() => setStatus(s, 'inactive')}>Disable</button>}
-                          {s.staffStatus !== 'active' && <button type="button" className="btn-primary !min-h-8 text-xs" onClick={() => setStatus(s, 'active')}>Approve</button>}
+                          {s.staffStatus !== 'inactive' && <button type="button" className="btn-ghost btn-sm" onClick={() => setStatus(s, 'inactive')}>Disable</button>}
+                          {s.staffStatus !== 'active' && <button type="button" className="btn-primary btn-sm" onClick={() => setStatus(s, 'active')}>Approve</button>}
                         </div>
                       </td>
                     </tr>
@@ -368,7 +372,7 @@ export default function StaffPage() {
               </table>
             </div>
           </div>
-          <Pagination page={page} pages={pages} onPage={load} />
+          <Pagination page={page} pages={pages} total={total} limit={PAGE_SIZE} onPage={load} />
         </>
       )}
       <Modal open={open} title={editing ? 'Manage access' : 'Add staff'} onClose={closeModal} wide>
@@ -430,11 +434,12 @@ export default function StaffPage() {
               placeholder="9876543210"
               value={form.phone}
               onChange={(e) => {
-                setForm({ ...form, phone: e.target.value });
+                setForm({ ...form, phone: formatIndianMobileInput(e.target.value) });
                 clearFieldError('phone');
               }}
               required
-              inputMode="tel"
+              inputMode="numeric"
+              maxLength={10}
               autoComplete="tel"
               aria-invalid={Boolean(fieldErrors.phone)}
               aria-describedby={fieldErrors.phone ? 'staff-phone-error' : undefined}
@@ -524,7 +529,7 @@ export default function StaffPage() {
                 <p className="text-sm font-semibold text-ink">Access</p>
                 <button
                   type="button"
-                  className="btn-ghost !min-h-8 text-xs"
+                  className="btn-ghost btn-sm"
                   onClick={() => applyPreset(form.staffType)}
                 >
                   Apply {form.staffType} preset

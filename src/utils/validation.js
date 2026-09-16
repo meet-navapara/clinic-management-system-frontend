@@ -1,5 +1,6 @@
 /**
- * Canonical Indian mobile: "+91 9876543210"
+ * Canonical mobile: exactly 10 digits (Indian mobile starting 6–9).
+ * Accepts pasted forms with +91 / 0 prefix and returns digits only.
  */
 export function normalizeIndianMobile(input) {
   if (input == null || String(input).trim() === '') return null;
@@ -13,27 +14,22 @@ export function normalizeIndianMobile(input) {
   else return null;
 
   if (!/^[6-9]\d{9}$/.test(ten)) return null;
-  return `+91 ${ten}`;
+  return ten;
 }
 
 /**
- * Live input mask for Indian mobiles — caps at 10 local digits, shows "+91 …".
- * Strips the display prefix first so typing/backspace does not swallow "91" as part of the number.
+ * Live phone input — digits only, max 10.
+ * Strips +91 / 0 prefixes when pasting full numbers.
  */
 export function formatIndianMobileInput(raw) {
   const str = String(raw ?? '');
-  // Only the local part after +91 / 91 prefix (spaces/dashes allowed).
   const withoutCountry = str
     .replace(/^\s*\+?\s*91[\s-]*/i, '')
     .replace(/^\s*0+/, '');
   let digits = withoutCountry.replace(/\D/g, '');
 
-  // Pasted full number like 9198xxxxxxxx still in local segment
   if (digits.length >= 12 && digits.startsWith('91')) digits = digits.slice(2);
-  digits = digits.slice(0, 10);
-
-  if (!digits) return '';
-  return `+91 ${digits}`;
+  return digits.slice(0, 10);
 }
 
 /** Digits-only string, optionally capped. */

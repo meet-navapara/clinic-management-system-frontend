@@ -20,6 +20,7 @@ import StatCard from '../components/ui/StatCard';
 import EmptyState from '../components/ui/EmptyState';
 import StatusBadge from '../components/ui/StatusBadge';
 import { SkeletonCards, SkeletonRows } from '../components/ui/Skeleton';
+import { PAGE_SIZE } from '../constants/pagination';
 
 function greeting() {
   const h = new Date().getHours();
@@ -67,7 +68,7 @@ export default function DoctorDashboard() {
           </h2>
         </div>
         <div className="flex flex-wrap gap-2">
-          <Link to={ROUTES.doctorPatientNew} className="btn-secondary !min-h-10">
+          <Link to={ROUTES.doctorPatientNew} className="btn-secondary">
             <UserPlus className="w-4 h-4" /> Add patient
           </Link>
           <Link to={ROUTES.doctorBook} className="btn-primary">
@@ -79,7 +80,7 @@ export default function DoctorDashboard() {
       {loading ? (
         <div className="space-y-5">
           <SkeletonCards />
-          <SkeletonRows />
+          <SkeletonRows count={PAGE_SIZE} />
         </div>
       ) : error ? (
         <EmptyState
@@ -95,7 +96,7 @@ export default function DoctorDashboard() {
         <>
           <section className="mb-6">
             <h3 className="text-sm font-semibold text-ink mb-3">Today</h3>
-            <div className="grid grid-cols-2 xl:grid-cols-4 gap-3">
+            <div className="stat-grid">
               <StatCard label="Appointments" value={today.total ?? 0} icon={Calendar} />
               <StatCard label="Pending today" value={today.scheduled ?? 0} icon={Clock} />
               <StatCard label="Completed" value={today.completed ?? 0} icon={CheckCircle} />
@@ -107,7 +108,7 @@ export default function DoctorDashboard() {
               />
             </div>
             {(stats?.revenue || stats?.queue) && (
-              <div className="grid grid-cols-2 xl:grid-cols-4 gap-3 mt-3">
+              <div className="stat-grid mt-3">
                 <StatCard
                   label="Own collected"
                   value={`₹${Number(stats.revenue?.paid || 0).toLocaleString('en-IN')}`}
@@ -163,7 +164,7 @@ export default function DoctorDashboard() {
                   {stats.queue[0].appointmentId && (
                     <Link
                       to={ROUTES.doctorConsult(stats.queue[0].appointmentId._id || stats.queue[0].appointmentId)}
-                      className="btn-primary !min-h-9 mt-2 inline-flex text-sm"
+                      className="btn-primary btn-sm mt-2 inline-flex text-sm"
                     >
                       Start consultation
                     </Link>

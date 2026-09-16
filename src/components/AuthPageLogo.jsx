@@ -16,7 +16,7 @@ export default function AuthPageLogo({ className = '' }) {
         <img
           src={LOGO_URL}
           alt=""
-          className="navbar-brand-emblem-img !max-h-20 sm:!max-h-40"
+          className="h-auto w-auto max-h-16 xs:max-h-20 sm:max-h-24 max-w-[min(100%,12rem)] sm:max-w-[min(100%,14rem)] object-contain"
           draggable={false}
           onError={() => setLogoError(true)}
         />

@@ -8,6 +8,7 @@ import UserAvatar from '../components/UserAvatar';
 import Checkbox from '../components/ui/Checkbox';
 import RequiredMark from '../components/ui/RequiredMark';
 import { compressImageFile } from '../utils/image';
+import { formatIndianMobileInput, normalizeIndianMobile } from '../utils/validation';
 
 const DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
 const SLOTS = ['09:00', '10:00', '11:00', '12:00', '14:00', '15:00', '16:00', '17:00', '18:00', '19:00', '20:00', '21:00'];
@@ -50,7 +51,7 @@ export default function Profile() {
   const isDoctor = user?.role === 'doctor';
   const [form, setForm] = useState({
     name: user?.name || '',
-    phone: user?.phone || '',
+    phone: normalizeIndianMobile(user?.phone) || formatIndianMobileInput(user?.phone || ''),
     specialization: user?.specialization || '',
     qualification: user?.qualification || '',
     licenseNumber: user?.licenseNumber || '',
@@ -77,7 +78,13 @@ export default function Profile() {
   const [profilePhotoFile, setProfilePhotoFile] = useState(null);
   const [photoPreview, setPhotoPreview] = useState(null);
 
-  const handleChange = (e) => setForm({ ...form, [e.target.name]: e.target.value });
+  const handleChange = (e) => {
+    const { name, value } = e.target;
+    setForm({
+      ...form,
+      [name]: name === 'phone' ? formatIndianMobileInput(value) : value,
+    });
+  };
 
   const toggleDay = (day) => {
     setForm((prev) => ({
@@ -103,7 +110,13 @@ export default function Profile() {
     try {
       const formData = new FormData();
       formData.append('name', form.name);
-      formData.append('phone', form.phone);
+      const phone = normalizeIndianMobile(form.phone);
+      if (!phone) {
+        toast.error('Mobile number must be exactly 10 digits.');
+        setLoading(false);
+        return;
+      }
+      formData.append('phone', phone);
       if (isDoctor) {
         formData.append('specialization', form.specialization);
         formData.append('qualification', form.qualification);
@@ -191,7 +204,7 @@ export default function Profile() {
                 <button
                   type="button"
                   onClick={() => fileInputRef.current?.click()}
-                  className="btn-secondary !min-h-8 !py-1 !px-2.5 text-xs"
+                  className="btn-secondary btn-sm"
                 >
                   <Camera className="w-3.5 h-3.5" /> Photo
                 </button>
@@ -217,6 +230,9 @@ export default function Profile() {
                   value={form.phone}
                   onChange={handleChange}
                   required
+                  inputMode="numeric"
+                  maxLength={10}
+                  placeholder="9876543210"
                 />
               </Field>
               <Field id="profile-email" label={<><Mail className="w-4 h-4 inline mr-1" /> Email</>}>
@@ -450,7 +466,7 @@ export default function Profile() {
             </section>
           )}
 
-          <button type="submit" className="btn-primary inline-flex">
+          <button type="submit" className="btn-primary w-full sm:w-auto justify-center inline-flex">
             <Save className="w-4 h-4" />
             {loading ? 'Saving...' : 'Save'}
           </button>

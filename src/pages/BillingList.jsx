@@ -14,6 +14,7 @@ import { ROUTES } from '../constants/routes';
 import { can, P } from '../constants/permissions';
 import { useAuth } from '../context/AuthContext';
 import { useBranch } from '../context/BranchContext';
+import { PAGE_SIZE } from '../constants/pagination';
 
 const FILTERS = ['all', 'unpaid', 'partially_paid', 'paid', 'refunded'];
 
@@ -24,13 +25,14 @@ export default function BillingList() {
   const [rows, setRows] = useState([]);
   const [page, setPage] = useState(1);
   const [pages, setPages] = useState(1);
+  const [total, setTotal] = useState(0);
   const [status, setStatus] = useState('all');
   const [q, setQ] = useState('');
   const [loading, setLoading] = useState(true);
 
   const load = (p = page) => {
     setLoading(true);
-    const params = { page: p, limit: 20 };
+    const params = { page: p, limit: PAGE_SIZE };
     if (status !== 'all') params.status = status;
     if (q.trim()) params.q = q.trim();
     api
@@ -39,6 +41,7 @@ export default function BillingList() {
         setRows(res.data.invoices || []);
         setPages(res.data.pages || 1);
         setPage(res.data.page || 1);
+        setTotal(res.data.total || 0);
       })
       .catch((err) => toast.error(err.response?.data?.message || 'Could not load invoices.'))
       .finally(() => setLoading(false));
@@ -89,7 +92,7 @@ export default function BillingList() {
       </div>
 
       {loading ? (
-        <SkeletonRows />
+        <SkeletonRows count={PAGE_SIZE} />
       ) : rows.length === 0 ? (
         <EmptyState title="No invoices" description="Create a bill from a visit or the front desk." />
       ) : (
@@ -146,7 +149,7 @@ export default function BillingList() {
               </Link>
             ))}
           </div>
-          <Pagination page={page} pages={pages} onPage={load} />
+          <Pagination page={page} pages={pages} total={total} limit={PAGE_SIZE} onPage={load} />
         </>
       )}
     </div>

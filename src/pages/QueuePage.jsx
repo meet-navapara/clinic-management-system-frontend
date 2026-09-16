@@ -15,11 +15,11 @@ import { SkeletonRows } from '../components/ui/Skeleton';
 import { ROUTES } from '../constants/routes';
 import { useAuth } from '../context/AuthContext';
 import { useBranch } from '../context/BranchContext';
+import { PAGE_SIZE } from '../constants/pagination';
 
-const PAGE_SIZE = 20;
 const POLL_MS = 5000;
 const ACTION_BTN =
-  'flex-1 min-w-[calc(50%-0.25rem)] md:flex-none md:min-w-0 !min-h-10 md:!min-h-9 text-sm justify-center text-center px-2 leading-tight';
+  'btn-sm flex-1 min-w-[calc(50%-0.25rem)] md:flex-none md:min-w-0 justify-center text-center leading-tight';
 
 function TicketCard({ ticket: t, onStatus }) {
   return (
@@ -307,7 +307,7 @@ export default function QueuePage() {
           description="Queue is branch-specific. Pick a branch from the header (not All branches) to view tokens, check in patients, and call next."
         />
       ) : loading ? (
-        <SkeletonRows />
+        <SkeletonRows count={PAGE_SIZE} />
       ) : (
         <>
           {serving && (
@@ -339,7 +339,6 @@ export default function QueuePage() {
               <p className="text-xs text-ink-faint mb-2">
                 {waitingCount} waiting · {total} token{total === 1 ? '' : 's'}
                 {isDoctor ? ' · your lane' : ''}
-                {pages > 1 ? ` · page ${page} of ${pages}` : ''}
               </p>
               <div className="space-y-2">
                 {tickets.map((t) => (
@@ -347,7 +346,7 @@ export default function QueuePage() {
                 ))}
               </div>
               <div className="pb-[max(0.5rem,env(safe-area-inset-bottom))]">
-                <Pagination page={page} pages={pages} onPage={setPage} />
+                <Pagination page={page} pages={pages} total={total} limit={PAGE_SIZE} onPage={setPage} />
               </div>
             </>
           )}

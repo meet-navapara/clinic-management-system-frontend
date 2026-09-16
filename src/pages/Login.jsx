@@ -53,10 +53,10 @@ export default function Login() {
   };
 
   return (
-    <AuthPageLayout backTo={ROUTES.home}>
+    <AuthPageLayout>
       <div className="text-center mb-3 sm:mb-5">
         <AuthPageLogo className="mb-3 sm:mb-4" />
-        <h1 className="text-lg sm:text-2xl font-bold text-gray-900">Clinic sign in</h1>
+        <h1 className="text-lg sm:text-2xl font-bold text-gray-900">Sign in</h1>
       </div>
 
       <div className="card !p-3.5 sm:!p-6">
@@ -124,7 +124,7 @@ export default function Login() {
         </p>
 
         <p className="text-center text-xs sm:text-sm text-gray-500 mt-4 sm:mt-6">
-          New doctor?{' '}
+          Don't have an account?{' '}
           <Link to={ROUTES.doctorSignup} className="text-accent-700 font-semibold hover:underline">
             Sign up
           </Link>

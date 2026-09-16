@@ -5,23 +5,37 @@ import PageHeader from '../components/ui/PageHeader';
 import StatCard from '../components/ui/StatCard';
 import Money from '../components/ui/Money';
 import { useBranch } from '../context/BranchContext';
+import SkeletonPage from '../components/ui/Skeleton';
 
 export default function RevenuePage() {
   const { branchId } = useBranch();
   const [summary, setSummary] = useState(null);
+  const [loading, setLoading] = useState(true);
+
   useEffect(() => {
     setSummary(null);
-    api.get('/billing/revenue')
+    setLoading(true);
+    api
+      .get('/billing/revenue')
       .then((res) => setSummary(res.data.summary))
-      .catch((err) => toast.error(err.response?.data?.message || 'Not authorized or failed to load revenue.'));
+      .catch((err) => toast.error(err.response?.data?.message || 'Not authorized or failed to load revenue.'))
+      .finally(() => setLoading(false));
   }, [branchId]);
 
-  if (!summary) return <div className="page-container">Loading…</div>;
+  if (loading) return <SkeletonPage cards={4} rows={6} />;
+  if (!summary) {
+    return (
+      <div className="page-container">
+        <PageHeader title="Revenue" description="From recorded invoice payments — one financial source of truth." />
+        <p className="text-sm text-ink-muted">Could not load revenue data.</p>
+      </div>
+    );
+  }
 
   return (
     <div className="page-container">
       <PageHeader title="Revenue" description="From recorded invoice payments — one financial source of truth." />
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
+      <div className="stat-grid mb-6">
         <StatCard label="Collected" value={<Money value={summary.collected} />} />
         <StatCard label="Payments" value={summary.paymentCount} />
         <StatCard label="Outstanding" value={<Money value={summary.outstanding} />} />

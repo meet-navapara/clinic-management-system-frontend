@@ -7,6 +7,8 @@ import Dropdown from '../components/ui/Dropdown';
 import Checkbox from '../components/ui/Checkbox';
 import MedicineFormModal from '../components/MedicineFormModal';
 import { ROUTES } from '../constants/routes';
+import { SkeletonDetail } from '../components/ui/Skeleton';
+import LoadingOverlay from '../components/ui/LoadingOverlay';
 
 const FIELDS = [
   ['chiefComplaint', 'Chief complaint'],
@@ -50,6 +52,7 @@ export default function ConsultationPage() {
   const [addRowIndex, setAddRowIndex] = useState(0);
   const [createInvoice, setCreateInvoice] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [loading, setLoading] = useState(true);
 
   const loadCatalog = () => {
     api
@@ -59,30 +62,36 @@ export default function ConsultationPage() {
   };
 
   useEffect(() => {
-    api
-      .get(`/appointments/${appointmentId}`)
-      .then((res) => {
-        setAppointment(res.data.appointment);
-        const p = res.data.appointment?.patientId;
-        setForm((f) => ({ ...f, patientId: p?._id || p, appointmentId }));
-      })
-      .catch(() => toast.error('Appointment not found.'));
-    api
-      .get('/consultations/appointment/' + appointmentId)
-      .then((res) => {
-        if (res.data.consultation) setForm((f) => ({ ...f, ...res.data.consultation }));
-        if (res.data.prescription?.items?.length) setMeds(res.data.prescription.items);
-      })
-      .catch((err) => {
-        if (err.response?.status !== 404) {
-          toast.error(err.response?.data?.message || 'Could not load consultation.');
-        }
-      });
-    api
-      .get('/templates', { params: { type: 'consultation' } })
-      .then((res) => setTemplates(res.data.templates || []))
-      .catch((err) => toast.error(err.response?.data?.message || 'Could not load templates.'));
-    loadCatalog();
+    setLoading(true);
+    Promise.all([
+      api
+        .get(`/appointments/${appointmentId}`)
+        .then((res) => {
+          setAppointment(res.data.appointment);
+          const p = res.data.appointment?.patientId;
+          setForm((f) => ({ ...f, patientId: p?._id || p, appointmentId }));
+        })
+        .catch(() => toast.error('Appointment not found.')),
+      api
+        .get('/consultations/appointment/' + appointmentId)
+        .then((res) => {
+          if (res.data.consultation) setForm((f) => ({ ...f, ...res.data.consultation }));
+          if (res.data.prescription?.items?.length) setMeds(res.data.prescription.items);
+        })
+        .catch((err) => {
+          if (err.response?.status !== 404) {
+            toast.error(err.response?.data?.message || 'Could not load consultation.');
+          }
+        }),
+      api
+        .get('/templates', { params: { type: 'consultation' } })
+        .then((res) => setTemplates(res.data.templates || []))
+        .catch((err) => toast.error(err.response?.data?.message || 'Could not load templates.')),
+      api
+        .get('/medicines', { params: { limit: 100 } })
+        .then((res) => setCatalog(res.data.medicines || []))
+        .catch((err) => toast.error(err.response?.data?.message || 'Could not load medicines.')),
+    ]).finally(() => setLoading(false));
   }, [appointmentId]);
 
   const applyTemplate = (id) => {
@@ -148,8 +157,11 @@ export default function ConsultationPage() {
 
   const patient = appointment?.patientId;
 
+  if (loading) return <SkeletonDetail />;
+
   return (
-    <div className="page-container">
+    <div className="page-container relative">
+      <LoadingOverlay show={saving} message="Saving…" />
       <PageHeader title="Consultation" description={patient?.name || ''} />
       <div className="card space-y-3 mb-4">
         <label className="label-field">Use template</label>

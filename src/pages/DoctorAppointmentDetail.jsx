@@ -24,7 +24,8 @@ import { patientDisplayName, confirmAction } from '../utils/display';
 import StatusBadge from '../components/ui/StatusBadge';
 import EmptyState from '../components/ui/EmptyState';
 import UserAvatar from '../components/UserAvatar';
-import { Skeleton } from '../components/ui/Skeleton';
+import { SkeletonDetail } from '../components/ui/Skeleton';
+import LoadingOverlay from '../components/ui/LoadingOverlay';
 import { normalizeAppointmentStatus } from '../constants/appointmentStatus';
 import { can, P } from '../constants/permissions';
 
@@ -186,16 +187,7 @@ export default function DoctorAppointmentDetail() {
   };
 
   if (loading) {
-    return (
-      <div className="page-container space-y-4">
-        <Skeleton className="h-5 w-24" />
-        <Skeleton className="h-8 w-64" />
-        <div className="grid lg:grid-cols-2 gap-4">
-          <Skeleton className="h-40" />
-          <Skeleton className="h-40" />
-        </div>
-      </div>
-    );
+    return <SkeletonDetail />;
   }
 
   if (!appointment) {
@@ -224,7 +216,8 @@ export default function DoctorAppointmentDetail() {
   const dateObj = new Date(appointment.appointmentDate);
 
   return (
-    <div className="page-container">
+    <div className="page-container relative">
+      <LoadingOverlay show={busy || queueBusy} message="Updating…" />
       <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 mb-5">
         <div>
           <div className="flex flex-wrap items-center gap-2 mb-1">
@@ -241,7 +234,7 @@ export default function DoctorAppointmentDetail() {
             to={ROUTES.print('appointment_slip', id)}
             target="_blank"
             rel="noreferrer"
-            className="btn-secondary !min-h-10"
+            className="btn-secondary"
           >
             <Printer className="w-4 h-4" /> Print slip
           </Link>
@@ -284,7 +277,7 @@ export default function DoctorAppointmentDetail() {
               {patientId && (
                 <Link
                   to={ROUTES.doctorPatientDetail(patientId)}
-                  className="btn-secondary !min-h-9 !py-1.5 text-xs mt-3 inline-flex"
+                  className="btn-secondary btn-sm !py-1.5 text-xs mt-3 inline-flex"
                 >
                   View patient record
                 </Link>
@@ -340,14 +333,14 @@ export default function DoctorAppointmentDetail() {
           <p className="section-label mb-3">Actions</p>
           <div className="flex flex-wrap gap-2">
             {user?.role === 'doctor' && (
-              <Link to={ROUTES.doctorConsult(id)} className="btn-primary !min-h-10">
+              <Link to={ROUTES.doctorConsult(id)} className="btn-primary">
                 Start consultation
               </Link>
             )}
             {canQueue && (
               <button
                 type="button"
-                className="btn-secondary !min-h-10"
+                className="btn-secondary"
                 disabled={busy || queueBusy}
                 onClick={checkInToQueue}
               >
@@ -357,7 +350,7 @@ export default function DoctorAppointmentDetail() {
             )}
             <button
               type="button"
-              className="btn-primary !min-h-10"
+              className="btn-primary"
               disabled={busy}
               onClick={() => updateStatus('completed', true)}
             >

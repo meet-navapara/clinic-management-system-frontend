@@ -11,7 +11,6 @@ import {
 } from 'lucide-react';
 import api from '../utils/api';
 import toast from 'react-hot-toast';
-import PageLoader from '../components/PageLoader';
 import { patientDisplayName, formatPatientCode } from '../utils/display';
 import { ROUTES } from '../constants/routes';
 import Dropdown from '../components/ui/Dropdown';
@@ -20,7 +19,9 @@ import UserAvatar from '../components/UserAvatar';
 import StatusBadge from '../components/ui/StatusBadge';
 import EmptyState from '../components/ui/EmptyState';
 import RequiredMark from '../components/ui/RequiredMark';
-import { normalizeIndianMobile, isValidEmail } from '../utils/validation';
+import { SkeletonDetail } from '../components/ui/Skeleton';
+import LoadingOverlay from '../components/ui/LoadingOverlay';
+import { normalizeIndianMobile, formatIndianMobileInput, isValidEmail } from '../utils/validation';
 import { compressImageToDataUrl } from '../utils/image';
 import { useAuth } from '../context/AuthContext';
 import { can, P } from '../constants/permissions';
@@ -66,7 +67,8 @@ export default function DoctorPatientDetail() {
   const photoRef = useRef(null);
   const [photoSaving, setPhotoSaving] = useState(false);
 
-  const load = useCallback(async () => {
+  const load = useCallback(async (showLoader = true) => {
+    if (showLoader) setLoading(true);
     try {
       const res = await api.get(`/patients/${id}`);
       setPatient(res.data.patient);
@@ -86,7 +88,7 @@ export default function DoctorPatientDetail() {
         firstName: p.firstName || '',
         lastName: p.lastName || '',
         preferredName: p.preferredName || '',
-        phone: p.phone || '',
+        phone: normalizeIndianMobile(p.phone) || formatIndianMobileInput(p.phone || ''),
         email: p.email || '',
         gender: p.gender || '',
         dateOfBirth: p.dateOfBirth ? format(new Date(p.dateOfBirth), 'yyyy-MM-dd') : '',
@@ -96,7 +98,9 @@ export default function DoctorPatientDetail() {
         postalCode: p.postalCode || '',
         emergencyContactName: p.emergencyContact?.name || '',
         emergencyContactRelationship: p.emergencyContact?.relationship || '',
-        emergencyContactPhone: p.emergencyContact?.phone || '',
+        emergencyContactPhone:
+          normalizeIndianMobile(p.emergencyContact?.phone) ||
+          formatIndianMobileInput(p.emergencyContact?.phone || ''),
         allergies: (p.clinical?.allergies || []).join(', '),
         conditions: (p.clinical?.conditions || []).join(', '),
         medications: (p.clinical?.medications || []).join(', '),
@@ -110,7 +114,7 @@ export default function DoctorPatientDetail() {
       toast.error('Patient not found.');
       setPatient(null);
     } finally {
-      setLoading(false);
+      if (showLoader) setLoading(false);
     }
   }, [id]);
 
@@ -148,7 +152,7 @@ export default function DoctorPatientDetail() {
     if (!canManage) return;
     const phone = normalizeIndianMobile(form.phone);
     if (!phone) {
-      toast.error('Mobile number must contain exactly 10 digits (+91).');
+      toast.error('Mobile number must be exactly 10 digits.');
       return;
     }
     if (form.email && !isValidEmail(form.email)) {
@@ -167,7 +171,7 @@ export default function DoctorPatientDetail() {
       });
       setPatient(res.data.patient);
       toast.success('Patient updated successfully.');
-      await load();
+      await load(false);
     } catch (err) {
       toast.error(err.response?.data?.message || 'Failed to update patient.');
     } finally {
@@ -182,7 +186,7 @@ export default function DoctorPatientDetail() {
       await api.post(`/patients/${id}/notes`, { body: noteBody.trim() });
       setNoteBody('');
       toast.success('Note added.');
-      await load();
+      await load(false);
       setTab('notes');
     } catch (err) {
       toast.error(err.response?.data?.message || 'Could not add note.');
@@ -190,11 +194,7 @@ export default function DoctorPatientDetail() {
   };
 
   if (loading) {
-    return (
-      <div className="page-container">
-        <PageLoader message="Loading patient..." compact />
-      </div>
-    );
+    return <SkeletonDetail />;
   }
 
   if (!patient) {
@@ -217,7 +217,8 @@ export default function DoctorPatientDetail() {
   const age = ageLabel(patient);
 
   return (
-    <div className="page-container">
+    <div className="page-container relative">
+      <LoadingOverlay show={saving || photoSaving} message={photoSaving ? 'Updating photo…' : 'Saving…'} />
       <div className="card mb-4">
         <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
           <div className="flex items-start gap-3 min-w-0">
@@ -363,12 +364,18 @@ export default function DoctorPatientDetail() {
                 ) : (
                   <input
                     id={`edit-${key}`}
-                    type={type || 'text'}
+                    type={type === 'tel' ? 'text' : type || 'text'}
                     inputMode={type === 'tel' ? 'numeric' : undefined}
+                    maxLength={type === 'tel' ? 10 : undefined}
                     className="input-field mt-1"
                     value={form[key]}
                     required={required}
-                    onChange={(e) => setForm({ ...form, [key]: e.target.value })}
+                    onChange={(e) =>
+                      setForm({
+                        ...form,
+                        [key]: type === 'tel' ? formatIndianMobileInput(e.target.value) : e.target.value,
+                      })
+                    }
                   />
                 )}
               </label>
@@ -471,14 +478,14 @@ export default function DoctorPatientDetail() {
                   <div className="flex gap-2">
                     {c.appointmentId && (
                       <Link
-                        className="btn-ghost !min-h-9 text-xs"
+                        className="btn-ghost btn-sm"
                         to={ROUTES.doctorAppointmentDetail(c.appointmentId)}
                       >
                         Appointment
                       </Link>
                     )}
                     <Link
-                      className="btn-secondary !min-h-9 text-xs"
+                      className="btn-secondary btn-sm"
                       to={ROUTES.print('consultation', c._id)}
                       target="_blank"
                       rel="noreferrer"
