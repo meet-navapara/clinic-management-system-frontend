@@ -2,12 +2,11 @@ import axios from 'axios';
 import toast from 'react-hot-toast';
 import { ROUTES } from '../constants/routes';
 
-const backendOrigin = (import.meta.env.VITE_BACKEND_URL || '').replace(/\/$/, '');
-const apiBase = import.meta.env.VITE_API_BASE_URL || '/api';
+// Full API base URL, e.g. http://localhost:5000/api — empty falls back to same-origin /api
+const apiBaseURL = (import.meta.env.VITE_BACKEND_URL || '/api').replace(/\/$/, '');
 
 const api = axios.create({
-  // Empty VITE_BACKEND_URL → same-origin `/api` (Vite proxy / reverse proxy) so httpOnly cookies work.
-  baseURL: backendOrigin ? `${backendOrigin}${apiBase}` : apiBase,
+  baseURL: apiBaseURL,
   withCredentials: true,
   headers: {
     'Content-Type': 'application/json',
