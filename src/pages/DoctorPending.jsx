@@ -21,41 +21,12 @@ export default function DoctorPending() {
   useEffect(() => {
     if (status === 'approved') {
       window.location.assign(ROUTES.doctorDashboard);
-      return undefined;
     }
+  }, [status]);
 
-    let cancelled = false;
-
-    const check = async () => {
-      try {
-        const next = await refreshUser();
-        if (cancelled || !next) return;
-        if (next.approvalStatus === 'approved') {
-          toast.success('Your account is approved.');
-          window.location.assign(ROUTES.doctorDashboard);
-        }
-      } catch {
-        /* stay on this screen */
-      }
-    };
-
-    check();
-    const id = window.setInterval(check, 4000);
-    const onVisible = () => {
-      if (document.visibilityState === 'visible') check();
-    };
-    document.addEventListener('visibilitychange', onVisible);
-    window.addEventListener('focus', onVisible);
-
-    return () => {
-      cancelled = true;
-      window.clearInterval(id);
-      document.removeEventListener('visibilitychange', onVisible);
-      window.removeEventListener('focus', onVisible);
-    };
-  }, [refreshUser, status]);
-
+  // No automatic polling — only refresh when the user clicks "Check status"
   const checkNow = async () => {
+    if (checking) return;
     setChecking(true);
     try {
       const next = await refreshUser();
@@ -83,7 +54,7 @@ export default function DoctorPending() {
       eyebrow: 'Pending review',
       title: 'Waiting for approval',
       body: `Hi${firstName ? ` ${firstName}` : ''}, your doctor account is registered. A Super Admin will review it before you can sign in to your clinic.`,
-      hint: 'This page refreshes automatically once you are approved.',
+      hint: 'Click “Check status” after an admin reviews your account.',
       iconWrap: 'bg-[#f3efe8] text-[#a8841f]',
     },
     approved: {

@@ -1,7 +1,7 @@
-import { createContext, useContext, useEffect, useState, useCallback } from 'react';
+import { createContext, useContext, useEffect, useState, useCallback, useMemo, useRef } from 'react';
 import api, { setBranchHeader } from '../utils/api';
 import { useAuth } from './AuthContext';
-import { isStaffUser } from '../constants/permissions';
+import { can, isStaffUser, P } from '../constants/permissions';
 
 const BranchContext = createContext(null);
 const STORAGE_KEY = 'branchId';
@@ -16,38 +16,61 @@ function staffPrimaryBranchId(user) {
   return first ? String(first) : '';
 }
 
+function canListBranches(user) {
+  if (!user || user.role === 'super_admin') return false;
+  if (user.role === 'doctor') return user.approvalStatus === 'approved';
+  return can(user, P.BRANCHES_VIEW) || can(user, P.QUEUE_MANAGE) || can(user, P.BILLING_VIEW);
+}
+
+function userBranchKey(user) {
+  if (!user) return '';
+  return `${user._id || user.id || ''}:${user.role}:${user.approvalStatus || ''}`;
+}
+
 export function BranchProvider({ children }) {
   const { user } = useAuth();
   const [branches, setBranches] = useState([]);
   const [branchId, setBranchIdState] = useState(() => localStorage.getItem(STORAGE_KEY) || '');
+  const branchIdRef = useRef(branchId);
+  const failedKeyRef = useRef('');
 
   const setBranchId = useCallback((id) => {
     const next = id || '';
     setBranchIdState(next);
+    branchIdRef.current = next;
     if (next) localStorage.setItem(STORAGE_KEY, next);
     else localStorage.removeItem(STORAGE_KEY);
     setBranchHeader(next);
   }, []);
 
   useEffect(() => {
+    branchIdRef.current = branchId;
     setBranchHeader(branchId);
   }, [branchId]);
+
+  const sessionKey = useMemo(() => userBranchKey(user), [user]);
 
   useEffect(() => {
     if (isStaffUser(user)) {
       const locked = staffPrimaryBranchId(user);
-      if (locked && locked !== branchId) setBranchId(locked);
+      if (locked && locked !== branchIdRef.current) setBranchId(locked);
     }
-  }, [user, branchId, setBranchId]);
+  }, [sessionKey, user, setBranchId]);
 
   const load = useCallback(() => {
-    if (!user || user.role === 'super_admin') {
+    if (!canListBranches(user)) {
       setBranches([]);
       return;
     }
+    // Do not retry the same session after a 403/failure
+    if (failedKeyRef.current && failedKeyRef.current === userBranchKey(user)) {
+      return;
+    }
+
     api
       .get('/branches')
       .then((res) => {
+        failedKeyRef.current = '';
         const list = res.data.branches || [];
         setBranches(list);
         if (isStaffUser(user)) {
@@ -55,27 +78,33 @@ export function BranchProvider({ children }) {
           if (locked) setBranchId(locked);
           return;
         }
-        if (branchId && !list.some((b) => String(b._id) === String(branchId))) {
+        const currentId = branchIdRef.current;
+        if (currentId && !list.some((b) => String(b._id) === String(currentId))) {
           setBranchId('');
         }
       })
-      .catch(() => {
+      .catch((err) => {
         setBranches([]);
-        if (!isStaffUser(user) && branchId) setBranchId('');
+        if (err?.response?.status === 403 || err?.response?.status === 401) {
+          failedKeyRef.current = userBranchKey(user);
+        }
       });
-  }, [user, branchId, setBranchId]);
+  }, [user, setBranchId]);
 
   useEffect(() => {
+    // New user/approval session → allow a fresh attempt
+    failedKeyRef.current = '';
     load();
-  }, [user]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [sessionKey]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const current = branches.find((b) => String(b._id) === String(branchId)) || null;
 
-  return (
-    <BranchContext.Provider value={{ branches, branchId, setBranchId, current, reload: load }}>
-      {children}
-    </BranchContext.Provider>
+  const value = useMemo(
+    () => ({ branches, branchId, setBranchId, current, reload: load }),
+    [branches, branchId, setBranchId, current, load]
   );
+
+  return <BranchContext.Provider value={value}>{children}</BranchContext.Provider>;
 }
 
 export const useBranch = () => {

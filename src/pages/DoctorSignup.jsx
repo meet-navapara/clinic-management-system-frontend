@@ -13,7 +13,19 @@ import RequiredMark from '../components/ui/RequiredMark';
 import api from '../utils/api';
 import { normalizeIndianMobile, formatIndianMobileInput, isValidEmail, meetsPasswordComplexity, STRONG_PASSWORD_MESSAGE } from '../utils/validation';
 
-const REQUIRED_FIELDS = ['name', 'email', 'phone', 'password', 'confirmPassword', 'qualification', 'licenseNumber', 'city', 'clinicName', 'setupKey'];
+const REQUIRED_FIELDS = ['name', 'email', 'phone', 'password', 'confirmPassword', 'qualification', 'licenseNumber', 'city', 'clinicName'];
+const FIELD_LABELS = {
+  name: 'Full name',
+  email: 'Email',
+  phone: 'Phone',
+  password: 'Password',
+  confirmPassword: 'Confirm password',
+  qualification: 'Qualification',
+  licenseNumber: 'License no.',
+  city: 'City',
+  clinicName: 'Practice / clinic name',
+  experience: 'Years of experience',
+};
 const RESEND_COOLDOWN_SEC = 60;
 
 function FieldError({ id, message }) {
@@ -23,6 +35,33 @@ function FieldError({ id, message }) {
       {message}
     </p>
   );
+}
+
+function toastMissingFields(errors) {
+  const keys = [
+    ...REQUIRED_FIELDS.filter((key) => errors[key]),
+    ...Object.keys(errors).filter((key) => !REQUIRED_FIELDS.includes(key)),
+  ];
+  if (!keys.length) return;
+
+  // Email verification is the most common blocker — call it out first and clearly.
+  if (errors.email && /verif/i.test(errors.email)) {
+    toast.error('Email verification is missing. Click Verify next to Email, then enter the OTP.');
+    if (keys.length === 1) return;
+  }
+
+  if (keys.length === 1) {
+    toast.error(errors[keys[0]]);
+    return;
+  }
+
+  const labels = keys.map((key) => {
+    if (key === 'email' && errors.email && /verif/i.test(errors.email)) {
+      return 'Email verification';
+    }
+    return FIELD_LABELS[key] || key;
+  });
+  toast.error(`Please fix: ${labels.join(', ')}`);
 }
 
 function validateSignup(form) {
@@ -56,8 +95,6 @@ function validateSignup(form) {
 
   if (!form.clinicName.trim()) errors.clinicName = 'Practice / clinic name is required.';
 
-  if (!form.setupKey.trim()) errors.setupKey = 'Admin setup key is required.';
-
   if (form.experience !== '') {
     const years = Number(form.experience);
     if (!Number.isInteger(years) || years < 0) {
@@ -81,8 +118,6 @@ export default function DoctorSignup() {
     experience: '',
     clinicName: '',
     city: '',
-    bio: '',
-    setupKey: '',
   });
   const [fieldErrors, setFieldErrors] = useState({});
   const [loading, setLoading] = useState(false);
@@ -216,13 +251,13 @@ export default function DoctorSignup() {
     e.preventDefault();
     const errors = validateSignup(form);
     if (!emailIsVerified) {
-      errors.email = 'Please verify your email before creating an account.';
+      errors.email = 'Email verification is missing. Click Verify email to continue.';
     }
     setFieldErrors(errors);
     if (Object.keys(errors).length) {
       const firstKey = REQUIRED_FIELDS.find((key) => errors[key]) || Object.keys(errors)[0];
       document.getElementById(`signup-${firstKey}`)?.focus();
-      toast.error(errors[firstKey]);
+      toastMissingFields(errors);
       return;
     }
 
@@ -237,8 +272,10 @@ export default function DoctorSignup() {
         setFieldErrors(apiErrors);
         const firstKey = REQUIRED_FIELDS.find((key) => apiErrors[key]) || Object.keys(apiErrors)[0];
         document.getElementById(`signup-${firstKey}`)?.focus();
+        toastMissingFields(apiErrors);
+      } else {
+        toast.error(err.response?.data?.message || 'Signup failed.');
       }
-      toast.error(err.response?.data?.message || 'Signup failed.');
     } finally {
       setLoading(false);
     }
@@ -248,10 +285,6 @@ export default function DoctorSignup() {
     <AuthPageLayout maxWidth="max-w-2xl">
       <div className="text-center mb-3 sm:mb-5">
         <AuthPageLogo className="mb-3 sm:mb-4" />
-        <h1 className="text-lg sm:text-2xl font-bold text-gray-900">Sign up</h1>
-        <p className="text-xs md:text-sm text-gray-500 mt-1">
-          Verify your email, then wait for admin approval before dashboard access
-        </p>
       </div>
 
       <div className="card">
@@ -309,12 +342,13 @@ export default function DoctorSignup() {
                     </span>
                   ) : (
                     <button
+                      id="signup-verify-email"
                       type="button"
                       className="btn-secondary shrink-0"
                       disabled={sendingOtp || loading}
                       onClick={() => sendOtp({ openModal: true })}
                     >
-                      {sendingOtp ? 'Sending…' : 'Verify'}
+                      {sendingOtp ? 'Sending…' : 'Verify email'}
                     </button>
                   )}
                 </div>
@@ -490,46 +524,10 @@ export default function DoctorSignup() {
               </div>
             </div>
 
-            <div>
-              <label htmlFor="signup-setupKey" className="block text-sm font-medium text-gray-700 mb-1">
-                Admin setup key <RequiredMark />
-              </label>
-              <input
-                id="signup-setupKey"
-                name="setupKey"
-                type="password"
-                autoComplete="off"
-                className="input-field"
-                required
-                value={form.setupKey}
-                onChange={handleChange}
-                placeholder="Provided by Super Admin"
-                aria-invalid={Boolean(fieldErrors.setupKey)}
-                aria-describedby={fieldErrors.setupKey ? 'signup-setupKey-error' : undefined}
-              />
-              <FieldError id="signup-setupKey-error" message={fieldErrors.setupKey} />
-              <p className="text-xs text-gray-500 mt-1">Required to create or join a clinic in production.</p>
-            </div>
-
-            <div>
-              <label htmlFor="signup-bio" className="block text-sm font-medium text-gray-700 mb-1">
-                Short bio
-              </label>
-              <textarea
-                id="signup-bio"
-                name="bio"
-                className="input-field"
-                rows={2}
-                value={form.bio}
-                onChange={handleChange}
-              />
-            </div>
-
             <button
               type="submit"
               className="btn-primary w-full !py-3"
-              disabled={!emailIsVerified || loading}
-              title={!emailIsVerified ? 'Verify your email to continue' : undefined}
+              disabled={loading}
             >
               {loading ? 'Creating...' : 'Create account'}
             </button>

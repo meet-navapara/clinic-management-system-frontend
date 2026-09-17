@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import { createContext, useContext, useState, useEffect, useCallback, useMemo } from 'react';
 import api from '../utils/api';
 
 const AuthContext = createContext(null);
@@ -19,6 +19,20 @@ const storeSession = (data) => {
     localStorage.setItem('user', JSON.stringify(data.user));
   }
 };
+
+const usersRoughlyEqual = (a, b) => {
+  if (!a || !b) return a === b;
+  return (
+    String(a._id || a.id || '') === String(b._id || b.id || '') &&
+    a.role === b.role &&
+    a.approvalStatus === b.approvalStatus &&
+    a.email === b.email &&
+    a.name === b.name &&
+    Boolean(a.loginEnabled) === Boolean(b.loginEnabled)
+  );
+};
+
+let refreshInFlight = null;
 
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
@@ -48,45 +62,65 @@ export const AuthProvider = ({ children }) => {
       }
     }
 
-    api
-      .get('/auth/me')
-      .then((res) => {
-        setUser(res.data.user);
-        localStorage.setItem('user', JSON.stringify(res.data.user));
-      })
-      .catch(() => {
-        clearStoredAuth();
-        setUser(null);
-      })
-      .finally(() => {
-        if (!hasCachedUser) setLoading(false);
-      });
+    // Single session check on app load (deduped if Strict Mode double-invokes)
+    const run = () => {
+      if (!refreshInFlight) {
+        refreshInFlight = api
+          .get('/auth/me')
+          .then((res) => {
+            const next = res.data.user;
+            setUser((prev) => (usersRoughlyEqual(prev, next) ? prev : next));
+            if (next) localStorage.setItem('user', JSON.stringify(next));
+            return next;
+          })
+          .catch(() => {
+            clearStoredAuth();
+            setUser(null);
+            return null;
+          })
+          .finally(() => {
+            refreshInFlight = null;
+            if (!hasCachedUser) setLoading(false);
+          });
+      }
+      return refreshInFlight;
+    };
+    run();
   }, []);
 
-  const persistSession = (data) => {
+  const persistSession = useCallback((data) => {
     storeSession(data);
     setUser(data.user);
     return data;
-  };
+  }, []);
 
-  const login = async (email, password, role) => {
-    const payload = { email, password };
-    if (role) payload.role = role;
-    const res = await api.post('/auth/login', payload);
-    return persistSession(res.data);
-  };
+  const login = useCallback(
+    async (email, password, role) => {
+      const payload = { email, password };
+      if (role) payload.role = role;
+      const res = await api.post('/auth/login', payload);
+      return persistSession(res.data);
+    },
+    [persistSession]
+  );
 
-  const registerClinicAdmin = async (userData) => {
-    const res = await api.post('/auth/register/clinic-admin', userData);
-    return persistSession(res.data);
-  };
+  const registerClinicAdmin = useCallback(
+    async (userData) => {
+      const res = await api.post('/auth/register/clinic-admin', userData);
+      return persistSession(res.data);
+    },
+    [persistSession]
+  );
 
-  const registerDoctorAccount = async (userData) => {
-    const res = await api.post('/auth/register/doctor', userData);
-    return persistSession(res.data);
-  };
+  const registerDoctorAccount = useCallback(
+    async (userData) => {
+      const res = await api.post('/auth/register/doctor', userData);
+      return persistSession(res.data);
+    },
+    [persistSession]
+  );
 
-  const logout = async () => {
+  const logout = useCallback(async () => {
     try {
       await api.post('/auth/logout');
     } catch {
@@ -94,39 +128,58 @@ export const AuthProvider = ({ children }) => {
     }
     clearStoredAuth();
     setUser(null);
-  };
-
-  const updateUser = (updatedUser) => {
-    setUser(updatedUser);
-    localStorage.setItem('user', JSON.stringify(updatedUser));
-  };
-
-  const refreshUser = useCallback(async () => {
-    const res = await api.get('/auth/me');
-    const next = res.data.user;
-    if (next) {
-      setUser(next);
-      localStorage.setItem('user', JSON.stringify(next));
-    }
-    return next;
   }, []);
 
-  return (
-    <AuthContext.Provider
-      value={{
-        user,
-        loading,
-        login,
-        registerClinicAdmin,
-        registerDoctorAccount,
-        logout,
-        updateUser,
-        refreshUser,
-      }}
-    >
-      {children}
-    </AuthContext.Provider>
+  const updateUser = useCallback((updatedUser) => {
+    setUser(updatedUser);
+    localStorage.setItem('user', JSON.stringify(updatedUser));
+  }, []);
+
+  const refreshUser = useCallback(async () => {
+    if (refreshInFlight) return refreshInFlight;
+    refreshInFlight = api
+      .get('/auth/me')
+      .then((res) => {
+        const next = res.data.user;
+        if (next) {
+          setUser((prev) => {
+            if (usersRoughlyEqual(prev, next)) return prev;
+            localStorage.setItem('user', JSON.stringify(next));
+            return next;
+          });
+        }
+        return next;
+      })
+      .finally(() => {
+        refreshInFlight = null;
+      });
+    return refreshInFlight;
+  }, []);
+
+  const value = useMemo(
+    () => ({
+      user,
+      loading,
+      login,
+      registerClinicAdmin,
+      registerDoctorAccount,
+      logout,
+      updateUser,
+      refreshUser,
+    }),
+    [
+      user,
+      loading,
+      login,
+      registerClinicAdmin,
+      registerDoctorAccount,
+      logout,
+      updateUser,
+      refreshUser,
+    ]
   );
+
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };
 
 export const useAuth = () => {
