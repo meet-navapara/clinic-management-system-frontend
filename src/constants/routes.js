@@ -185,7 +185,7 @@ function permissionForPath(pathname) {
   if (pathname === ROUTES.printSettings) return P.PRINT_SETTINGS;
   if (pathname === ROUTES.search) return P.SEARCH;
   if (pathname.startsWith('/consult/')) return P.CONSULTATION;
-  if (pathname.startsWith('/print/')) return P.BILLING_VIEW;
+  if (pathname.startsWith('/print/')) return null; // print routes check Staff anyPermission at the Route level
   return false;
 }
 

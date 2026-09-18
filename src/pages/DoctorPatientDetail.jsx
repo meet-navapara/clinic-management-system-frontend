@@ -60,6 +60,7 @@ export default function DoctorPatientDetail() {
   const [timeline, setTimeline] = useState([]);
   const [invoices, setInvoices] = useState([]);
   const [consultations, setConsultations] = useState([]);
+  const [expandedConsultId, setExpandedConsultId] = useState(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [noteBody, setNoteBody] = useState('');
@@ -75,14 +76,15 @@ export default function DoctorPatientDetail() {
       setAppointments(res.data.appointments || { upcoming: [], past: [] });
       setNotes(res.data.notes || []);
       setTimeline(res.data.timeline || []);
-      api
-        .get(`/billing/patient/${id}`)
-        .then((b) => setInvoices(b.data.invoices || []))
-        .catch(() => setInvoices([]));
-      api
-        .get(`/consultations/patient/${id}`)
-        .then((c) => setConsultations(c.data.consultations || []))
-        .catch(() => setConsultations([]));
+      const [billRes, consultRes] = await Promise.all([
+        api.get(`/billing/patient/${id}`).catch(() => ({ data: { invoices: [] } })),
+        api.get(`/consultations/patient/${id}`).catch((err) => {
+          toast.error(err.response?.data?.message || 'Could not load consultations.');
+          return { data: { consultations: [] } };
+        }),
+      ]);
+      setInvoices(billRes.data.invoices || []);
+      setConsultations(consultRes.data.consultations || []);
       const p = res.data.patient;
       setForm({
         firstName: p.firstName || '',
@@ -454,55 +456,178 @@ export default function DoctorPatientDetail() {
       )}
 
       {tab === 'consultations' && (
-        <div className="space-y-2">
+        <div className="space-y-3">
           {!consultations.length ? (
             <EmptyState
               title="No consultations yet"
-              description="Completed visits will appear here after you save a consultation."
+              description="Saved consultation notes for this patient will appear here. Appointments alone do not create a consultation until you start and save one."
             />
           ) : (
-            consultations.map((c) => (
-              <article key={c._id} className="card !p-4 space-y-2">
-                <div className="flex flex-wrap items-center justify-between gap-2">
-                  <div>
-                    <p className="font-medium text-ink">
-                      {c.createdAt && isValid(new Date(c.createdAt))
-                        ? format(new Date(c.createdAt), 'PPP')
-                        : 'Consultation'}
-                    </p>
-                    <p className="text-xs text-ink-faint">
-                      {c.doctorId?.name ? `Dr. ${c.doctorId.name}` : 'Doctor'}
-                      {c.status ? ` · ${c.status}` : ''}
-                    </p>
-                  </div>
-                  <div className="flex gap-2">
-                    {c.appointmentId && (
-                      <Link
-                        className="btn-ghost btn-sm"
-                        to={ROUTES.doctorAppointmentDetail(c.appointmentId)}
-                      >
-                        Appointment
-                      </Link>
+            <>
+              <p className="text-sm text-ink-muted">
+                {consultations.length} consultation{consultations.length === 1 ? '' : 's'}
+              </p>
+              {consultations.map((c) => {
+                const appointmentId =
+                  c.appointmentId?._id || c.appointmentId || null;
+                const apptDate = c.appointmentId?.appointmentDate;
+                const expanded = expandedConsultId === String(c._id);
+                const vitals = c.vitals || {};
+                const vitalEntries = Object.entries(vitals).filter(([, v]) => v);
+                const rxItems = c.prescription?.items || [];
+                const detailFields = [
+                  ['chiefComplaint', 'Complaint'],
+                  ['symptoms', 'Symptoms'],
+                  ['observation', 'Observation'],
+                  ['diagnosis', 'Diagnosis'],
+                  ['treatment', 'Treatment'],
+                  ['advice', 'Advice'],
+                  ['followUp', 'Follow-up'],
+                ];
+                const openPrint = (type, docId) => {
+                  window.open(ROUTES.print(type, docId), '_blank', 'noopener,noreferrer');
+                };
+
+                return (
+                  <article key={c._id} className="card !p-4 space-y-3">
+                    <div className="flex flex-wrap items-start justify-between gap-2">
+                      <div>
+                        <p className="font-medium text-ink">
+                          {apptDate && isValid(new Date(apptDate))
+                            ? format(new Date(apptDate), 'PPP')
+                            : c.createdAt && isValid(new Date(c.createdAt))
+                              ? format(new Date(c.createdAt), 'PPP')
+                              : 'Consultation'}
+                          {c.appointmentId?.timeSlot ? ` · ${c.appointmentId.timeSlot}` : ''}
+                        </p>
+                        <p className="text-xs text-ink-faint mt-0.5">
+                          {c.doctorId?.name ? `Dr. ${c.doctorId.name}` : 'Doctor'}
+                          {c.status ? ` · ${c.status}` : ''}
+                          {rxItems.length ? ` · ${rxItems.length} medicine(s)` : ''}
+                        </p>
+                      </div>
+                      <div className="flex flex-wrap gap-2">
+                        <button
+                          type="button"
+                          className="btn-ghost btn-sm"
+                          onClick={() =>
+                            setExpandedConsultId(expanded ? null : String(c._id))
+                          }
+                        >
+                          {expanded ? 'Hide details' : 'View details'}
+                        </button>
+                        {appointmentId && (
+                          <Link
+                            className="btn-secondary btn-sm"
+                            to={ROUTES.doctorConsult(appointmentId)}
+                          >
+                            Open consultation
+                          </Link>
+                        )}
+                        <button
+                          type="button"
+                          className="btn-ghost btn-sm"
+                          onClick={() => openPrint('consultation', c._id)}
+                        >
+                          Print summary
+                        </button>
+                        {c.prescription?._id && (
+                          <button
+                            type="button"
+                            className="btn-primary btn-sm"
+                            onClick={() => openPrint('prescription', c.prescription._id)}
+                          >
+                            Print Rx
+                          </button>
+                        )}
+                      </div>
+                    </div>
+
+                    {!expanded && (c.chiefComplaint || c.diagnosis || rxItems.length > 0) && (
+                      <div className="text-sm text-ink-muted space-y-1">
+                        {c.chiefComplaint ? (
+                          <p>
+                            <span className="font-medium text-ink">Complaint:</span>{' '}
+                            {c.chiefComplaint}
+                          </p>
+                        ) : null}
+                        {c.diagnosis ? (
+                          <p>
+                            <span className="font-medium text-ink">Diagnosis:</span>{' '}
+                            {c.diagnosis}
+                          </p>
+                        ) : null}
+                        {rxItems.length > 0 ? (
+                          <p>
+                            <span className="font-medium text-ink">Rx:</span>{' '}
+                            {rxItems.map((m) => m.name).filter(Boolean).join(', ')}
+                          </p>
+                        ) : null}
+                      </div>
                     )}
-                    <Link
-                      className="btn-secondary btn-sm"
-                      to={ROUTES.print('consultation', c._id)}
-                      target="_blank"
-                      rel="noreferrer"
-                    >
-                      Print
-                    </Link>
-                  </div>
-                </div>
-                {(c.chiefComplaint || c.diagnosis || c.treatment) && (
-                  <div className="text-sm text-ink-muted space-y-1">
-                    {c.chiefComplaint ? <p><span className="font-medium text-ink">Complaint:</span> {c.chiefComplaint}</p> : null}
-                    {c.diagnosis ? <p><span className="font-medium text-ink">Diagnosis:</span> {c.diagnosis}</p> : null}
-                    {c.treatment ? <p><span className="font-medium text-ink">Treatment:</span> {c.treatment}</p> : null}
-                  </div>
-                )}
-              </article>
-            ))
+
+                    {expanded && (
+                      <div className="space-y-3 border-t border-line pt-3">
+                        {vitalEntries.length > 0 && (
+                          <div>
+                            <p className="text-xs font-semibold uppercase tracking-wide text-ink-faint mb-1">
+                              Vitals
+                            </p>
+                            <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm text-ink-muted">
+                              {vitalEntries.map(([k, v]) => (
+                                <span key={k}>
+                                  <span className="capitalize text-ink">{k}:</span> {v}
+                                </span>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                        <div className="text-sm text-ink-muted space-y-2">
+                          {detailFields.map(([key, label]) =>
+                            c[key] ? (
+                              <p key={key}>
+                                <span className="font-medium text-ink">{label}:</span> {c[key]}
+                              </p>
+                            ) : null
+                          )}
+                          {!detailFields.some(([key]) => c[key]) && vitalEntries.length === 0 && (
+                            <p className="text-ink-faint">No clinical notes were saved for this visit.</p>
+                          )}
+                        </div>
+                        {rxItems.length > 0 && (
+                          <div>
+                            <p className="text-xs font-semibold uppercase tracking-wide text-ink-faint mb-2">
+                              Prescription
+                            </p>
+                            <ul className="space-y-2">
+                              {rxItems.map((m, idx) => (
+                                <li
+                                  key={`${m.name}-${idx}`}
+                                  className="text-sm rounded-lg bg-canvas px-3 py-2 ring-1 ring-line"
+                                >
+                                  <p className="font-medium text-ink">{m.name}</p>
+                                  <p className="text-ink-muted text-xs mt-0.5">
+                                    {[m.dosage, m.frequency, m.duration].filter(Boolean).join(' · ') ||
+                                      'No dosage details'}
+                                    {m.instructions ? ` — ${m.instructions}` : ''}
+                                  </p>
+                                </li>
+                              ))}
+                            </ul>
+                            {c.prescription?.notes ? (
+                              <p className="text-sm text-ink-muted mt-2">
+                                <span className="font-medium text-ink">Notes:</span>{' '}
+                                {c.prescription.notes}
+                              </p>
+                            ) : null}
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </article>
+                );
+              })}
+            </>
           )}
         </div>
       )}

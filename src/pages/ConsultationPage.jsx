@@ -144,10 +144,13 @@ export default function ConsultationPage() {
         createInvoice: status === 'completed' && createInvoice,
       });
       toast.success(status === 'completed' ? 'Consultation saved.' : 'Draft saved.');
-      if (status === 'completed' && res.data.prescription) {
-        window.open(ROUTES.print('prescription', res.data.prescription._id), '_blank');
+      if (status === 'completed' && res.data.prescription?._id) {
+        window.open(ROUTES.print('prescription', res.data.prescription._id), '_blank', 'noopener,noreferrer');
       }
-      navigate(ROUTES.doctorAppointmentDetail(appointmentId));
+      // Stay on consultation after draft; after complete return to the appointment (same visit).
+      if (status === 'completed') {
+        navigate(ROUTES.doctorAppointmentDetail(appointmentId));
+      }
     } catch (err) {
       toast.error(err.response?.data?.message || 'Save failed.');
     } finally {

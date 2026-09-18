@@ -130,7 +130,7 @@ export default function PrintDocument() {
       className={`print-root ${paper} bg-white min-h-dvh text-ink ${branding.coloredPrint === false ? 'print-grayscale' : ''}`}
     >
       <div className="print-toolbar no-print sticky top-0 z-10 bg-canvas border-b border-line px-4 py-2 flex items-center gap-2">
-        <BackButton to={getDashboardPath(user?.role, user)} />
+        <BackButton />
         <button type="button" className="btn-primary" onClick={() => window.print()}>
           Print / Save PDF
         </button>
@@ -327,17 +327,83 @@ export default function PrintDocument() {
 
         {type === 'consultation' && data.consultation && (
           <>
-            <h2 className="print-heading font-semibold mb-2">Consultation summary</h2>
-            <p className="print-sub mb-3">
-              {data.consultation.patientId?.name} · {data.consultation.doctorId?.name}
-            </p>
-            {['chiefComplaint', 'symptoms', 'observation', 'diagnosis', 'treatment', 'advice', 'followUp'].map((k) =>
-              data.consultation[k] ? (
-                <p key={k} className="mb-2">
-                  <strong className="capitalize">{k.replace(/([A-Z])/g, ' $1')}: </strong>
-                  {data.consultation[k]}
+            <div className="flex items-baseline justify-between gap-3 mb-3 border-b border-line pb-2">
+              <h2 className="print-heading font-semibold tracking-wide">CONSULTATION SUMMARY</h2>
+              <p className="print-sub text-ink-faint">
+                {data.consultation.completedAt && isValid(new Date(data.consultation.completedAt))
+                  ? format(new Date(data.consultation.completedAt), 'dd MMM yyyy')
+                  : data.consultation.createdAt && isValid(new Date(data.consultation.createdAt))
+                    ? format(new Date(data.consultation.createdAt), 'dd MMM yyyy')
+                    : ''}
+              </p>
+            </div>
+            <div className="grid sm:grid-cols-2 gap-2 print-sub mb-4">
+              <div>
+                <p>
+                  <span className="text-ink-faint">Patient: </span>
+                  <strong>{data.consultation.patientId?.name}</strong>
                 </p>
-              ) : null
+              </div>
+              <div className="sm:text-right">
+                <p>
+                  <span className="text-ink-faint">Doctor: </span>
+                  <strong>{data.consultation.doctorId?.name}</strong>
+                </p>
+              </div>
+            </div>
+            {data.consultation.vitals &&
+              Object.values(data.consultation.vitals).some((v) => v) && (
+                <div className="mb-4 print-sub border border-line rounded-md p-3">
+                  <p className="font-semibold mb-1">Vitals</p>
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-1">
+                    {Object.entries(data.consultation.vitals)
+                      .filter(([, v]) => v)
+                      .map(([k, v]) => (
+                        <p key={k}>
+                          <span className="text-ink-faint capitalize">{k}: </span>
+                          {v}
+                        </p>
+                      ))}
+                  </div>
+                </div>
+              )}
+            {['chiefComplaint', 'symptoms', 'observation', 'diagnosis', 'treatment', 'advice', 'followUp'].map(
+              (k) =>
+                data.consultation[k] ? (
+                  <p key={k} className="mb-2">
+                    <strong className="capitalize">{k.replace(/([A-Z])/g, ' $1')}: </strong>
+                    {data.consultation[k]}
+                  </p>
+                ) : null
+            )}
+            {data.prescription?.items?.length > 0 && (
+              <>
+                <h3 className="print-heading font-semibold mt-4 mb-2">Prescription</h3>
+                <table className="w-full mb-4 text-sm">
+                  <thead>
+                    <tr className="border-b border-line text-left">
+                      <th className="py-1.5 pr-2 w-8">#</th>
+                      <th className="py-1.5 pr-2">Medicine</th>
+                      <th className="py-1.5 pr-2">Dosage</th>
+                      <th className="py-1.5 pr-2">Frequency</th>
+                      <th className="py-1.5 pr-2">Duration</th>
+                      <th className="py-1.5">Notes</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {data.prescription.items.map((m, i) => (
+                      <tr key={i} className="border-b border-line align-top">
+                        <td className="py-2 pr-2 text-ink-faint">{i + 1}</td>
+                        <td className="py-2 pr-2 font-medium">{m.name}</td>
+                        <td className="py-2 pr-2">{m.dosage || '—'}</td>
+                        <td className="py-2 pr-2">{m.frequency || '—'}</td>
+                        <td className="py-2 pr-2">{m.duration || '—'}</td>
+                        <td className="py-2 text-ink-muted">{m.instructions || '—'}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </>
             )}
             <SignatureBlock branding={branding} />
           </>
