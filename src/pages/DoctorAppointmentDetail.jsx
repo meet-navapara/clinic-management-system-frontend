@@ -143,12 +143,10 @@ export default function DoctorAppointmentDetail() {
   const openWhatsApp = async () => {
     setWaBusy(true);
     try {
-      const res = await api.get(`/appointments/${id}/whatsapp`);
-      if (res.data.whatsappUrl) {
-        window.open(res.data.whatsappUrl, '_blank', 'noopener,noreferrer');
-      }
+      await api.post(`/appointments/${id}/whatsapp`);
+      toast.success('WhatsApp template sent to the patient.');
     } catch (err) {
-      toast.error(err.response?.data?.message || 'Could not open WhatsApp.');
+      toast.error(err.response?.data?.message || 'Could not send WhatsApp.');
     } finally {
       setWaBusy(false);
     }
@@ -246,7 +244,7 @@ export default function DoctorAppointmentDetail() {
               onClick={openWhatsApp}
             >
               <MessageCircle className="w-4 h-4" />
-              {waBusy ? 'Opening…' : 'Notify on WhatsApp'}
+              {waBusy ? 'Sending…' : 'Send WhatsApp'}
             </button>
           )}
         </div>
@@ -332,7 +330,7 @@ export default function DoctorAppointmentDetail() {
         <section className="card mb-4">
           <p className="section-label mb-3">Actions</p>
           <div className="flex flex-wrap gap-2">
-            {user?.role === 'doctor' && (
+            {can(user, P.CONSULTATION) && (
               <Link to={ROUTES.doctorConsult(id)} className="btn-primary">
                 Start consultation
               </Link>

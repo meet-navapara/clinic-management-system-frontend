@@ -10,7 +10,13 @@ import { useBranch } from '../context/BranchContext';
 import RequiredMark from '../components/ui/RequiredMark';
 import LoadingOverlay from '../components/ui/LoadingOverlay';
 
-const TYPES = ['consultation', 'treatment', 'medicine', 'lab_test', 'procedure', 'other'];
+const TYPES = [
+  { value: 'consultation', label: 'Consultation' },
+  { value: 'treatment', label: 'Treatment' },
+  { value: 'procedure', label: 'Procedure' },
+  { value: 'lab_test', label: 'Lab test' },
+  { value: 'other', label: 'Other' },
+];
 
 const emptyLine = () => ({ type: 'consultation', name: '', quantity: 1, unitPrice: 0, discount: 0 });
 
@@ -38,7 +44,9 @@ export default function InvoiceEditor() {
         setQ(p.name || '');
         setPatients([p]);
       })
-      .catch(() => {});
+      .catch(() => {
+        toast.error('Could not load the selected patient.');
+      });
   }, [preselectedPatientId, branchId]);
 
   useEffect(() => {
@@ -65,11 +73,13 @@ export default function InvoiceEditor() {
   const submit = async (e) => {
     e.preventDefault();
     if (!patientId) return toast.error('Select a patient.');
+    const lines = items.filter((i) => String(i.name || '').trim());
+    if (!lines.length) return toast.error('Add at least one line item with a name.');
     setSaving(true);
     try {
       const res = await api.post('/billing', {
         patientId,
-        items: items.filter((i) => i.name),
+        items: lines,
         discount: Number(discount) || 0,
         notes,
       });
@@ -85,7 +95,7 @@ export default function InvoiceEditor() {
   return (
     <div className="page-container relative">
       <LoadingOverlay show={saving} message="Creating invoice…" />
-      <PageHeader title="New invoice" description="Add services, medicines or procedures." />
+      <PageHeader title="New invoice" description="Add services or procedures for this visit." />
       <form onSubmit={submit} className="space-y-4">
         <div className="card space-y-3">
           <label className="label-field">Patient <RequiredMark /></label>
@@ -116,7 +126,7 @@ export default function InvoiceEditor() {
                 value={row.type}
                 onChange={(type) => setItem(idx, { type })}
                 ariaLabel="Line item type"
-                options={TYPES.map((t) => ({ value: t, label: t.replace('_', ' ') }))}
+                options={TYPES}
               />
               <input className="input-field sm:col-span-4" placeholder="Description" value={row.name} onChange={(e) => setItem(idx, { name: e.target.value })} />
               <input className="input-field sm:col-span-1" type="number" min="0" placeholder="Qty" value={row.quantity} onChange={(e) => setItem(idx, { quantity: e.target.value })} />

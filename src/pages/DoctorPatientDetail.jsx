@@ -53,12 +53,14 @@ export default function DoctorPatientDetail() {
   const canNote = canManage || can(user, P.CONSULTATION);
   const canSchedule = can(user, P.APPOINTMENTS_MANAGE);
   const canBill = can(user, P.BILLING_MANAGE);
+  const canViewBilling = can(user, P.BILLING_VIEW);
   const [tab, setTab] = useState('overview');
   const [patient, setPatient] = useState(null);
   const [appointments, setAppointments] = useState({ upcoming: [], past: [] });
   const [notes, setNotes] = useState([]);
   const [timeline, setTimeline] = useState([]);
   const [invoices, setInvoices] = useState([]);
+  const [billingDenied, setBillingDenied] = useState(false);
   const [consultations, setConsultations] = useState([]);
   const [expandedConsultId, setExpandedConsultId] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -77,12 +79,23 @@ export default function DoctorPatientDetail() {
       setNotes(res.data.notes || []);
       setTimeline(res.data.timeline || []);
       const [billRes, consultRes] = await Promise.all([
-        api.get(`/billing/patient/${id}`).catch(() => ({ data: { invoices: [] } })),
+        canViewBilling
+          ? api.get(`/billing/patient/${id}`).catch((err) => {
+              if (err.response?.status === 403) {
+                setBillingDenied(true);
+                toast.error('You do not have access to billing for this patient.');
+              } else if (err.response?.status !== 404) {
+                toast.error(err.response?.data?.message || 'Could not load billing.');
+              }
+              return { data: { invoices: [] } };
+            })
+          : Promise.resolve({ data: { invoices: [] } }),
         api.get(`/consultations/patient/${id}`).catch((err) => {
           toast.error(err.response?.data?.message || 'Could not load consultations.');
           return { data: { consultations: [] } };
         }),
       ]);
+      if (canViewBilling) setBillingDenied(false);
       setInvoices(billRes.data.invoices || []);
       setConsultations(consultRes.data.consultations || []);
       const p = res.data.patient;
@@ -118,7 +131,7 @@ export default function DoctorPatientDetail() {
     } finally {
       if (showLoader) setLoading(false);
     }
-  }, [id]);
+  }, [id, canViewBilling]);
 
   const onPhoto = async (e) => {
     const file = e.target.files?.[0];
@@ -303,7 +316,7 @@ export default function DoctorPatientDetail() {
       </div>
 
       <div className="flex gap-1 overflow-x-auto mb-4 pb-1">
-        {TABS.map((key) => (
+        {(canViewBilling ? TABS : TABS.filter((key) => key !== 'billing')).map((key) => (
           <button
             key={key}
             type="button"
@@ -483,6 +496,7 @@ export default function DoctorPatientDetail() {
                   ['treatment', 'Treatment'],
                   ['advice', 'Advice'],
                   ['followUp', 'Follow-up'],
+                  ['instructions', 'Instructions'],
                 ];
                 const openPrint = (type, docId) => {
                   window.open(ROUTES.print(type, docId), '_blank', 'noopener,noreferrer');
@@ -516,7 +530,7 @@ export default function DoctorPatientDetail() {
                         >
                           {expanded ? 'Hide details' : 'View details'}
                         </button>
-                        {appointmentId && (
+                        {appointmentId && can(user, P.CONSULTATION) && (
                           <Link
                             className="btn-secondary btn-sm"
                             to={ROUTES.doctorConsult(appointmentId)}
@@ -753,7 +767,7 @@ export default function DoctorPatientDetail() {
         </div>
       )}
 
-      {tab === 'billing' && (
+      {tab === 'billing' && canViewBilling && (
         <div className="space-y-2">
           {canBill && (
             <Link
@@ -763,7 +777,9 @@ export default function DoctorPatientDetail() {
               New invoice
             </Link>
           )}
-          {!invoices.length ? (
+          {billingDenied ? (
+            <p className="text-sm text-ink-muted card">Billing is not available for your account.</p>
+          ) : !invoices.length ? (
             <p className="text-sm text-ink-muted card">No billing history.</p>
           ) : (
             invoices.map((inv) => (

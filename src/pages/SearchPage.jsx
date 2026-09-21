@@ -9,13 +9,12 @@ import { SkeletonRows } from '../components/ui/Skeleton';
 import { ROUTES } from '../constants/routes';
 import { useBranch } from '../context/BranchContext';
 
-const EXAMPLES = ['Aarav', 'Ashwagandha', 'INV-', 'Anita', 'Diya', 'panchakarma'];
+const EXAMPLES = ['Aarav', 'INV-', 'Anita', '98765', 'PAT-'];
 const SECTIONS = [
   { key: 'patients', label: 'Patients' },
   { key: 'appointments', label: 'Appointments' },
   { key: 'invoices', label: 'Invoices' },
   { key: 'staff', label: 'Staff' },
-  { key: 'medicines', label: 'Medicines' },
 ];
 
 function rowLabel(key, row) {
@@ -35,9 +34,6 @@ function rowLabel(key, row) {
   if (key === 'staff') {
     return `${row.name || 'Staff'}${row.role ? ` · ${row.role.replace(/_/g, ' ')}` : ''}${row.specialization ? ` · ${row.specialization}` : ''}`;
   }
-  if (key === 'medicines') {
-    return `${row.name || 'Medicine'}${row.strength ? ` · ${row.strength}` : ''}${row.genericName ? ` · ${row.genericName}` : ''}`;
-  }
   return row.name || 'Record';
 }
 
@@ -46,8 +42,7 @@ function rowLink(key, row) {
   if (key === 'patients') return ROUTES.doctorPatientDetail(id);
   if (key === 'appointments') return ROUTES.doctorAppointmentDetail(id);
   if (key === 'invoices') return ROUTES.invoice(id);
-  if (key === 'medicines') return ROUTES.medicines;
-  if (key === 'staff') return ROUTES.staff;
+  if (key === 'staff') return `${ROUTES.staff}?q=${encodeURIComponent(row.name || '')}`;
   return '#';
 }
 
@@ -106,7 +101,7 @@ export default function SearchPage() {
     <div className="page-container">
       <PageHeader
         title="Search"
-        description="Find patients, visits, invoices, staff and medicines across the clinic."
+        description="Find patients, visits, invoices and staff across the clinic."
       />
       <form
         className="relative max-w-xl mb-4"
@@ -121,7 +116,7 @@ export default function SearchPage() {
           className="input-field !pl-9"
           value={q}
           onChange={(e) => setQ(e.target.value)}
-          placeholder="Try Aarav, Ashwagandha, INV- or a phone number"
+          placeholder="Try a patient name, phone, PAT-ID, or invoice number"
           autoComplete="off"
           aria-label="Search clinic"
         />
@@ -146,7 +141,7 @@ export default function SearchPage() {
         <EmptyState
           icon={Search}
           title="Search the clinic"
-          description="Type at least 2 characters. Try a patient name, medicine, invoice number, or staff member from the chips above."
+          description="Type at least 2 characters. Try a patient name, invoice number, or staff member from the chips above."
         />
       ) : loading ? (
         <SkeletonRows count={8} />

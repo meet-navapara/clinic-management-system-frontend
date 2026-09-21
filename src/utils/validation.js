@@ -65,9 +65,15 @@ export function validateLoginFields({ email, password }) {
 }
 
 export const STRONG_PASSWORD_MESSAGE =
-  'Password must contain at least one uppercase letter, one lowercase letter, one digit, and one special character.';
+  'Password must be at least 8 characters and include upper, lower, digit, and special character.';
 
 export function meetsPasswordComplexity(password) {
   const value = String(password || '');
-  return /[A-Z]/.test(value) && /[a-z]/.test(value) && /\d/.test(value) && /[^A-Za-z0-9]/.test(value);
+  return (
+    value.length >= 8 &&
+    /[A-Z]/.test(value) &&
+    /[a-z]/.test(value) &&
+    /\d/.test(value) &&
+    /[^A-Za-z0-9]/.test(value)
+  );
 }

@@ -18,7 +18,7 @@ export default function AppHeader({ unread = 0, onMenu }) {
   };
 
   return (
-    <header className="sticky top-0 z-20 h-14 shrink-0 bg-[#f6f4f0]/90 backdrop-blur-md border-b border-line">
+    <header className="sticky top-0 z-20 h-14 shrink-0 bg-[#f6f4f0]/90 backdrop-blur-md border-b border-line relative">
       <div className="h-full w-full min-w-0 px-4 sm:px-5 lg:px-6 xl:px-8 flex items-center gap-1.5 sm:gap-2.5">
         <button
           type="button"

@@ -103,6 +103,21 @@ function branchLabel(s) {
     .join(', ') || '—';
 }
 
+function statusBadgeValue(s) {
+  if (s.staffStatus === 'inactive') return 'inactive';
+  if (s.role === 'doctor' && s.approvalStatus === 'pending') return 'pending';
+  if (s.role === 'doctor' && s.approvalStatus === 'suspended') return 'suspended';
+  return s.staffStatus || 'active';
+}
+
+function needsDoctorApproval(s) {
+  return s.role === 'doctor' && s.approvalStatus === 'pending' && s.staffStatus !== 'inactive';
+}
+
+function canApprove(s) {
+  return needsDoctorApproval(s) || s.staffStatus === 'inactive';
+}
+
 function accessCount(s) {
   if (s.role === 'doctor') return 'All';
   const n = (s.permissions || []).length;
@@ -219,7 +234,11 @@ export default function StaffPage() {
         payload.email = form.email.trim();
         payload.password = form.password;
         await api.post('/staff', payload);
-        toast.success(form.staffType === 'doctor' ? 'Doctor added.' : 'Staff added.');
+        toast.success(
+          form.staffType === 'doctor'
+            ? 'Doctor added — approve them before they can sign in.'
+            : 'Staff added.'
+        );
       } else {
         if (form.password) payload.password = form.password;
         await api.patch(`/staff/${editing.id || editing._id}`, payload);
@@ -245,11 +264,13 @@ export default function StaffPage() {
   const setStatus = async (s, staffStatus) => {
     try {
       await api.patch(`/staff/${s.id || s._id}`, { staffStatus });
-      toast.success(
-        staffStatus === 'inactive'
-          ? 'Staff disabled. Super Admin can approve them again.'
-          : 'Staff approved.'
-      );
+      if (staffStatus === 'inactive') {
+        toast.success('Account disabled.');
+      } else if (s.role === 'doctor' && s.approvalStatus === 'pending') {
+        toast.success('Doctor approved. They can sign in now.');
+      } else {
+        toast.success('Account re-enabled.');
+      }
       load(page);
     } catch (err) {
       toast.error(err.response?.data?.message || 'Update failed.');
@@ -257,7 +278,11 @@ export default function StaffPage() {
   };
 
   const isDoctorRow = form.staffType === 'doctor';
-  const showPassword = !isDoctorRow && (form.loginEnabled || Boolean(form.password));
+  const editingDoctor = Boolean(editing && editing.role === 'doctor');
+  const showPassword = editingDoctor
+    ? true
+    : !isDoctorRow && (form.loginEnabled || Boolean(form.password) || !editing);
+  const typeLocked = editingDoctor;
   const branchOptions = (() => {
     const map = new Map(branches.map((b) => [String(b._id), b]));
     if (editing) {
@@ -275,7 +300,7 @@ export default function StaffPage() {
     <div className="page-container">
       <PageHeader
         title="Staff"
-        description="Clinic staff records and additional doctors. Enable login and set module access for each staff member."
+        description="Add receptionists, nurses, and additional doctors. New doctors stay Pending until you approve them."
         actions={<button type="button" className="btn-primary" onClick={openCreate}>Add staff</button>}
       />
       <div className="flex flex-wrap gap-2 mb-4">
@@ -301,7 +326,7 @@ export default function StaffPage() {
           title={statusFilter === 'disabled' ? 'No disabled staff' : 'No staff yet'}
           description={
             statusFilter === 'disabled'
-              ? 'Disabled staff appear here until they are approved again.'
+              ? 'Disabled accounts appear here until you re-enable them.'
               : undefined
           }
         />
@@ -314,18 +339,18 @@ export default function StaffPage() {
                 <p className="text-sm text-ink-muted capitalize">{staffLabel(s)} · {s.email}</p>
                 <p className="text-xs text-ink-faint mt-1">{branchLabel(s)} · Login {s.role === 'doctor' || s.loginEnabled ? 'enabled' : 'disabled'}</p>
                 <div className="flex flex-wrap gap-2 mt-2">
-                  <Badge value={s.staffStatus} />
-                  {s.role !== 'doctor' && (
-                    <button type="button" className="btn-ghost btn-sm" onClick={() => openEdit(s)}>Manage Access</button>
-                  )}
+                  <Badge value={statusBadgeValue(s)} />
+                  <button type="button" className="btn-ghost btn-sm" onClick={() => openEdit(s)}>
+                    {s.role === 'doctor' ? 'Edit' : 'Manage Access'}
+                  </button>
                   {s.staffStatus !== 'inactive' && (
                     <button type="button" className="btn-ghost btn-sm" onClick={() => setStatus(s, 'inactive')}>
                       Disable
                     </button>
                   )}
-                  {s.staffStatus !== 'active' && (
+                  {canApprove(s) && (
                     <button type="button" className="btn-primary btn-sm" onClick={() => setStatus(s, 'active')}>
-                      Approve
+                      {needsDoctorApproval(s) ? 'Approve doctor' : 'Re-enable'}
                     </button>
                   )}
                 </div>
@@ -355,15 +380,21 @@ export default function StaffPage() {
                       <td className="text-ink-muted">{branchLabel(s)}</td>
                       <td>{s.email}</td>
                       <td>{s.role === 'doctor' || s.loginEnabled ? 'Enabled' : 'Disabled'}</td>
-                      <td><Badge value={s.staffStatus} /></td>
+                      <td><Badge value={statusBadgeValue(s)} /></td>
                       <td>{accessCount(s)}{s.role === 'doctor' ? '' : ' modules'}</td>
                       <td>
                         <div className="flex gap-2">
-                          {s.role !== 'doctor' && (
-                            <button type="button" className="btn-ghost btn-sm" onClick={() => openEdit(s)}>Edit</button>
+                          <button type="button" className="btn-ghost btn-sm" onClick={() => openEdit(s)}>Edit</button>
+                          {s.staffStatus !== 'inactive' && (
+                            <button type="button" className="btn-ghost btn-sm" onClick={() => setStatus(s, 'inactive')}>
+                              Disable
+                            </button>
                           )}
-                          {s.staffStatus !== 'inactive' && <button type="button" className="btn-ghost btn-sm" onClick={() => setStatus(s, 'inactive')}>Disable</button>}
-                          {s.staffStatus !== 'active' && <button type="button" className="btn-primary btn-sm" onClick={() => setStatus(s, 'active')}>Approve</button>}
+                          {canApprove(s) && (
+                            <button type="button" className="btn-primary btn-sm" onClick={() => setStatus(s, 'active')}>
+                              {needsDoctorApproval(s) ? 'Approve' : 'Re-enable'}
+                            </button>
+                          )}
                         </div>
                       </td>
                     </tr>
@@ -375,7 +406,12 @@ export default function StaffPage() {
           <Pagination page={page} pages={pages} total={total} limit={PAGE_SIZE} onPage={load} />
         </>
       )}
-      <Modal open={open} title={editing ? 'Manage access' : 'Add staff'} onClose={closeModal} wide>
+      <Modal
+        open={open}
+        title={editing ? (editingDoctor ? 'Edit doctor' : 'Manage access') : 'Add staff'}
+        onClose={closeModal}
+        wide
+      >
         <form onSubmit={submit} className="space-y-3" noValidate>
           <fieldset disabled={saving} className="space-y-3 border-0 p-0 m-0 min-w-0">
           <div>
@@ -455,7 +491,7 @@ export default function StaffPage() {
               className="mt-0"
               value={form.staffType}
               onChange={applyPreset}
-              disabled={editing?.role === 'doctor'}
+              disabled={typeLocked}
               ariaLabel="Staff type"
               options={TYPES.map((r) => ({ value: r, label: r.replace(/_/g, ' ') }))}
             />

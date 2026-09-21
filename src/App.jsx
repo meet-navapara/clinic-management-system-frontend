@@ -24,13 +24,12 @@ import AdminLogin from './pages/AdminLogin';
 import ClinicAdminDashboard from './pages/ClinicAdminDashboard';
 import AdminDoctorsPage from './pages/AdminDoctorsPage';
 import AdminDoctorDetail from './pages/AdminDoctorDetail';
+import AdminCampaignTemplatesPage from './pages/AdminCampaignTemplatesPage';
 import BillingList from './pages/BillingList';
 import InvoiceEditor from './pages/InvoiceEditor';
 import InvoiceDetail from './pages/InvoiceDetail';
 import BranchesPage from './pages/BranchesPage';
 import StaffPage from './pages/StaffPage';
-import MedicinesPage from './pages/MedicinesPage';
-import InventoryPage from './pages/InventoryPage';
 import TemplatesPage from './pages/TemplatesPage';
 import ConsentPage from './pages/ConsentPage';
 import QueuePage from './pages/QueuePage';
@@ -167,7 +166,7 @@ export default function App() {
       <Route
         path={ROUTES.printPreview}
         element={
-          <Staff anyPermission={[P.PRINT_SETTINGS, P.BILLING_VIEW, P.CONSULTATION, P.QUEUE_MANAGE, P.CONSENT_CAPTURE]}>
+          <Staff anyPermission={[P.PRINT_SETTINGS, P.BILLING_VIEW, P.CONSULTATION, P.QUEUE_MANAGE, P.CONSENT_CAPTURE, P.CONSENT_TEMPLATES, P.APPOINTMENTS_VIEW]}>
             <PrintDocument />
           </Staff>
         }
@@ -175,7 +174,7 @@ export default function App() {
       <Route
         path="/print/:type/:id"
         element={
-          <Staff anyPermission={[P.BILLING_VIEW, P.CONSULTATION, P.QUEUE_MANAGE, P.CONSENT_CAPTURE]}>
+          <Staff anyPermission={[P.BILLING_VIEW, P.CONSULTATION, P.QUEUE_MANAGE, P.CONSENT_CAPTURE, P.CONSENT_TEMPLATES, P.APPOINTMENTS_VIEW]}>
             <PrintDocument />
           </Staff>
         }
@@ -195,6 +194,14 @@ export default function App() {
           element={
             <Staff roles={SUPER_ADMIN}>
               <AdminDoctorsPage />
+            </Staff>
+          }
+        />
+        <Route
+          path={ROUTES.clinicAdminCampaignTemplates}
+          element={
+            <Staff roles={SUPER_ADMIN}>
+              <AdminCampaignTemplatesPage />
             </Staff>
           }
         />
@@ -300,8 +307,6 @@ export default function App() {
         <Route path={ROUTES.revenue} element={<Staff permission={P.REVENUE_ALL}><RevenuePage /></Staff>} />
         <Route path={ROUTES.branches} element={<Staff anyPermission={[P.BRANCHES_VIEW, P.BRANCHES_MANAGE]}><BranchesPage /></Staff>} />
         <Route path={ROUTES.staff} element={<Staff roles={['doctor']}><StaffPage /></Staff>} />
-        <Route path={ROUTES.medicines} element={<Staff anyPermission={[P.MEDICINE_USE, P.MEDICINE_MANAGE]}><MedicinesPage /></Staff>} />
-        <Route path={ROUTES.inventory} element={<Staff anyPermission={[P.INVENTORY_VIEW, P.INVENTORY_MANAGE]}><InventoryPage /></Staff>} />
         <Route path={ROUTES.templates} element={<Staff anyPermission={[P.TEMPLATES_OWN, P.TEMPLATES_CLINIC]}><TemplatesPage /></Staff>} />
         <Route path={ROUTES.consent} element={<Staff anyPermission={[P.CONSENT_CAPTURE, P.CONSENT_TEMPLATES]}><ConsentPage /></Staff>} />
         <Route path={ROUTES.queue} element={<Staff permission={P.QUEUE_MANAGE}><QueuePage /></Staff>} />

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Link, NavLink } from 'react-router-dom';
+import { Link, NavLink, useLocation } from 'react-router-dom';
 import { Menu, X, Leaf } from 'lucide-react';
 import { LOGO_URL, APP_NAME } from '../constants/branding';
 import { ROUTES } from '../constants/routes';
@@ -9,9 +9,14 @@ const linkClass = ({ isActive }) =>
     isActive ? 'bg-[#f3efe8] text-ink' : 'text-ink-muted hover:text-ink hover:bg-[#faf8f3]'
   }`;
 
+const anchorClass =
+  'px-2.5 sm:px-3 py-1.5 sm:py-2 rounded-lg text-xs sm:text-sm font-medium min-h-9 sm:min-h-10 inline-flex items-center text-ink-muted hover:text-ink hover:bg-[#faf8f3]';
+
 export default function Navbar() {
   const [menuOpen, setMenuOpen] = useState(false);
   const [logoError, setLogoError] = useState(false);
+  const { pathname } = useLocation();
+  const onLanding = pathname === ROUTES.home;
   const closeMenu = () => setMenuOpen(false);
 
   return (
@@ -33,6 +38,16 @@ export default function Navbar() {
           </Link>
 
           <div className="hidden md:flex items-center gap-1">
+            {onLanding && (
+              <>
+                <a href="#features" className={anchorClass}>
+                  Features
+                </a>
+                <a href="#how-it-works" className={anchorClass}>
+                  How it works
+                </a>
+              </>
+            )}
             <NavLink to={ROUTES.login} className={linkClass}>
               Login
             </NavLink>
@@ -46,6 +61,7 @@ export default function Navbar() {
             onClick={() => setMenuOpen(!menuOpen)}
             className="md:hidden min-h-10 min-w-10 inline-flex items-center justify-center rounded-lg text-ink-muted"
             aria-label={menuOpen ? 'Close menu' : 'Open menu'}
+            aria-expanded={menuOpen}
           >
             {menuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
           </button>
@@ -53,7 +69,25 @@ export default function Navbar() {
       </div>
 
       {menuOpen && (
-        <div className="md:hidden border-t border-line px-4 py-3 space-y-2 bg-white">
+        <div className="md:hidden border-t border-line px-4 py-3 space-y-1 bg-white">
+          {onLanding && (
+            <>
+              <a
+                href="#features"
+                onClick={closeMenu}
+                className="block text-center px-4 py-3 text-sm font-medium text-ink-muted hover:text-ink"
+              >
+                Features
+              </a>
+              <a
+                href="#how-it-works"
+                onClick={closeMenu}
+                className="block text-center px-4 py-3 text-sm font-medium text-ink-muted hover:text-ink"
+              >
+                How it works
+              </a>
+            </>
+          )}
           <Link to={ROUTES.login} onClick={closeMenu} className="block text-center px-4 py-3 text-sm font-medium">
             Login
           </Link>

@@ -6,6 +6,7 @@ import api from '../utils/api';
 import toast from 'react-hot-toast';
 import { ROUTES } from '../constants/routes';
 import { useAuth } from '../context/AuthContext';
+import { can, P } from '../constants/permissions';
 import { useBranch } from '../context/BranchContext';
 import {
   normalizeIndianMobile,
@@ -96,7 +97,7 @@ const EMPTY_FORM = {
 export default function DoctorPatientNew() {
   const navigate = useNavigate();
   const { user } = useAuth();
-  const { branches, current } = useBranch();
+  const { branches, current, branchId } = useBranch();
   const fileRef = useRef(null);
   const [loading, setLoading] = useState(false);
   const [doctors, setDoctors] = useState([]);
@@ -105,22 +106,41 @@ export default function DoctorPatientNew() {
   const [fieldErrors, setFieldErrors] = useState({});
   const [form, setForm] = useState(EMPTY_FORM);
 
+  // When header is "All branches", creates land on the clinic default — use that branch's rooms only.
+  const writeBranch = useMemo(() => {
+    if (current) return current;
+    return (
+      branches.find((b) => b.isDefault && b.isActive !== false) ||
+      branches.find((b) => b.isActive !== false) ||
+      null
+    );
+  }, [current, branches]);
+
   const roomOptions = useMemo(() => {
-    const fromBranches = branches.flatMap((b) => {
-      const list = Array.isArray(b.rooms) && b.rooms.length ? b.rooms : [];
-      if (list.length) return list;
-      return b.roomLabel ? [b.roomLabel] : [];
-    });
-    const unique = [...new Set(fromBranches.map((r) => String(r || '').trim()).filter(Boolean))];
-    if (unique.length) return unique;
-    return FALLBACK_ROOMS;
-  }, [branches]);
+    if (!writeBranch) return FALLBACK_ROOMS;
+    const list =
+      Array.isArray(writeBranch.rooms) && writeBranch.rooms.length
+        ? writeBranch.rooms
+        : writeBranch.roomLabel
+          ? [writeBranch.roomLabel]
+          : [];
+    const unique = [...new Set(list.map((r) => String(r || '').trim()).filter(Boolean))];
+    return unique.length ? unique : FALLBACK_ROOMS;
+  }, [writeBranch]);
 
   useEffect(() => {
-    if (!form.room && current?.roomLabel) {
-      setForm((prev) => (prev.room ? prev : { ...prev, room: current.roomLabel }));
-    }
-  }, [current?.roomLabel]); // eslint-disable-line react-hooks/exhaustive-deps
+    if (!writeBranch) return;
+    setForm((prev) => {
+      const nextRoom =
+        prev.room && roomOptions.includes(prev.room)
+          ? prev.room
+          : writeBranch.roomLabel && roomOptions.includes(writeBranch.roomLabel)
+            ? writeBranch.roomLabel
+            : roomOptions[0] || '';
+      if (prev.room === nextRoom) return prev;
+      return { ...prev, room: nextRoom };
+    });
+  }, [writeBranch, roomOptions]);
 
   useEffect(() => {
     if (user?.role === 'doctor') return;
@@ -388,6 +408,13 @@ export default function DoctorPatientNew() {
       <div className="mb-4">
         <h1 className="page-title">Patient Registration</h1>
         <p className="text-sm text-ink-muted mt-1">Capture full patient details for clinical records.</p>
+        {user?.role === 'doctor' && !branchId && writeBranch ? (
+          <p className="mt-2 text-sm rounded-[10px] border border-[#e5e7eb] bg-[#f8f9fb] px-3 py-2 text-ink-muted">
+            Header is on <span className="font-medium text-ink">All branches</span> — this patient will be
+            saved to <span className="font-medium text-ink">{writeBranch.name}</span> (default). Pick a
+            branch in the header to register elsewhere.
+          </p>
+        ) : null}
       </div>
 
       <form
@@ -822,22 +849,26 @@ export default function DoctorPatientNew() {
             >
               Add Patient and Go to Profile
             </button>
-            <button
-              type="button"
-              className="inline-flex items-center justify-center min-h-10 px-3 rounded-md text-sm font-semibold text-white bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50"
-              disabled={loading}
-              onClick={() => savePatient('book')}
-            >
-              Add Patient & Book Appointment
-            </button>
-            <button
-              type="button"
-              className="inline-flex items-center justify-center min-h-10 px-3 rounded-md text-sm font-semibold text-white bg-orange-500 hover:bg-orange-600 disabled:opacity-50"
-              disabled={loading}
-              onClick={() => savePatient('consent')}
-            >
-              Add Patient & Consent
-            </button>
+            {can(user, P.APPOINTMENTS_MANAGE) && (
+              <button
+                type="button"
+                className="inline-flex items-center justify-center min-h-10 px-3 rounded-md text-sm font-semibold text-white bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50"
+                disabled={loading}
+                onClick={() => savePatient('book')}
+              >
+                Add Patient & Book Appointment
+              </button>
+            )}
+            {can(user, P.CONSENT_CAPTURE) && (
+              <button
+                type="button"
+                className="inline-flex items-center justify-center min-h-10 px-3 rounded-md text-sm font-semibold text-white bg-orange-500 hover:bg-orange-600 disabled:opacity-50"
+                disabled={loading}
+                onClick={() => savePatient('consent')}
+              >
+                Add Patient & Consent
+              </button>
+            )}
             <Link to={ROUTES.doctorPatients} className="btn-secondary">
               Cancel
             </Link>

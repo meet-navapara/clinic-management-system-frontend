@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
-import { Link, useNavigate, useParams } from 'react-router-dom';
+import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { format, isValid } from 'date-fns';
+import { Search } from 'lucide-react';
 import api from '../utils/api';
 import toast from 'react-hot-toast';
 import PageHeader from '../components/ui/PageHeader';
@@ -11,12 +12,12 @@ import { SkeletonRows } from '../components/ui/Skeleton';
 import RequiredMark from '../components/ui/RequiredMark';
 import { ROUTES } from '../constants/routes';
 import { useBranch } from '../context/BranchContext';
+import { useAuth } from '../context/AuthContext';
 import { confirmAction } from '../utils/display';
 import { PAGE_SIZE } from '../constants/pagination';
 
 const CHANNELS = [
   { value: 'whatsapp', label: 'WhatsApp' },
-  { value: 'sms', label: 'SMS' },
   { value: 'email', label: 'Email' },
 ];
 
@@ -24,7 +25,7 @@ const AUDIENCES = [
   { value: 'all', label: 'All eligible patients' },
   { value: 'new', label: 'New patients (30 days)' },
   { value: 'inactive', label: 'Inactive / reactivation' },
-  { value: 'followup', label: 'Follow-up due' },
+  { value: 'followup', label: 'Booked as Follow-up' },
   { value: 'upcoming', label: 'Upcoming appointments' },
   { value: 'missed', label: 'Missed appointments' },
   { value: 'birthday', label: 'Birthday today' },
@@ -65,27 +66,35 @@ function fmt(dt) {
 
 function IntegrationBanner({ integrations, channel }) {
   if (!integrations) return null;
-  const cfg = integrations[channel];
+  const cfg =
+    channel === 'whatsapp' ? integrations.whatsapp?.campaign : integrations[channel];
   if (!cfg) return null;
   if (cfg.configured) {
     return (
       <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-900">
-        {channel.toUpperCase()} provider connected ({cfg.provider}).
+        {channel === 'whatsapp'
+          ? `WhatsApp campaign template approved (${cfg.campaignTemplate || cfg.approvedName})`
+          : `EMAIL provider connected (${cfg.provider}).`}
       </div>
     );
   }
   return (
     <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-950">
-      <p className="font-semibold">Provider not configured</p>
+      <p className="font-semibold">
+        {channel === 'whatsapp' ? 'Clinic WhatsApp template not approved' : 'Provider not configured'}
+      </p>
       <p className="mt-1">
-        {channel.toUpperCase()} integration required before sending. Missing:{' '}
-        {(cfg.missing || []).join(', ') || 'credentials'}.
+        {(cfg.missing || []).join(', ') ||
+          (channel === 'whatsapp'
+            ? 'Submit a template for Super Admin approval after MSG91 Meta approval.'
+            : 'credentials')}
       </p>
     </div>
   );
 }
 
 export function CampaignsPage() {
+  const { user } = useAuth();
   const { branchId } = useBranch();
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -93,12 +102,29 @@ export function CampaignsPage() {
   const [page, setPage] = useState(1);
   const [pages, setPages] = useState(1);
   const [total, setTotal] = useState(0);
+  const [q, setQ] = useState('');
+  const [search, setSearch] = useState('');
+  const [statusFilter, setStatusFilter] = useState('all');
+  const [channelFilter, setChannelFilter] = useState('all');
+  const [tplForm, setTplForm] = useState({
+    requestedName: 'clinic_campaign_update',
+    sampleBody:
+      'Hello {{1}},\n\n{{3}}\n\n— {{2}}',
+    requestedBodyVars: 'patientName,clinicName,_message',
+    category: 'MARKETING',
+    language: 'en',
+  });
+  const [tplSaving, setTplSaving] = useState(false);
 
   const load = useCallback(
     (p = 1) => {
       setLoading(true);
+      const params = { page: p, limit: PAGE_SIZE };
+      if (statusFilter !== 'all') params.status = statusFilter;
+      if (channelFilter !== 'all') params.channel = channelFilter;
+      if (search.trim()) params.q = search.trim();
       Promise.all([
-        api.get('/campaigns', { params: { page: p, limit: PAGE_SIZE } }),
+        api.get('/campaigns', { params }),
         api.get('/campaigns/integrations/status').catch(() => ({ data: { integrations: null } })),
       ])
         .then(([listRes, intRes]) => {
@@ -107,11 +133,22 @@ export function CampaignsPage() {
           setPages(listRes.data.pages || 1);
           setTotal(listRes.data.total || 0);
           setIntegrations(intRes.data.integrations || null);
+          const camp = intRes.data.integrations?.whatsapp?.campaign;
+          if (camp?.requestedName) {
+            setTplForm((f) => ({
+              ...f,
+              requestedName: camp.requestedName || f.requestedName,
+              sampleBody: camp.sampleBody || f.sampleBody,
+              requestedBodyVars: camp.requestedBodyVars || f.requestedBodyVars,
+              category: camp.category || f.category,
+              language: camp.language || f.language,
+            }));
+          }
         })
         .catch((err) => toast.error(err.response?.data?.message || 'Could not load campaigns.'))
         .finally(() => setLoading(false));
     },
-    []
+    [statusFilter, channelFilter, search]
   );
 
   useEffect(() => {
@@ -122,7 +159,7 @@ export function CampaignsPage() {
     <div className="page-container">
       <PageHeader
         title="Campaigns"
-        description="Real clinic messaging via configured WhatsApp, SMS, or Email providers."
+        description="Message eligible patients via WhatsApp or Email when providers are configured."
         actions={
           <Link to={ROUTES.campaignNew} className="btn-primary">
             New campaign
@@ -131,24 +168,179 @@ export function CampaignsPage() {
       />
 
       {integrations && (
-        <div className="grid grid-cols-1 xs:grid-cols-2 sm:grid-cols-3 gap-2 mb-4">
-          {['whatsapp', 'sms', 'email'].map((ch) => (
-            <div key={ch} className="card !p-3 text-sm">
-              <p className="font-semibold capitalize">{ch}</p>
-              <p className={integrations[ch]?.configured ? 'text-emerald-700' : 'text-amber-700'}>
-                {integrations[ch]?.configured ? 'Connected' : 'Not configured'}
-              </p>
-            </div>
-          ))}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mb-4">
+          <div className="card !p-3 text-sm">
+            <p className="font-semibold">WhatsApp (campaigns)</p>
+            {integrations.whatsapp?.campaign?.configured ? (
+              <>
+                <p className="text-emerald-700">Approved for this clinic</p>
+                <p className="text-xs text-ink-faint mt-1 font-mono">
+                  Template: {integrations.whatsapp.campaign.campaignTemplate}
+                </p>
+              </>
+            ) : (
+              <>
+                <p className="text-amber-700">
+                  {integrations.whatsapp?.campaign?.status === 'pending'
+                    ? 'Pending Super Admin approval'
+                    : integrations.whatsapp?.campaign?.status === 'rejected'
+                      ? 'Rejected — submit again'
+                      : 'Not approved yet'}
+                </p>
+                <p className="text-xs text-ink-muted mt-1">
+                  Appointment confirmation template is never used for campaigns. Doctor submits → Super
+                  Admin creates on MSG91 → approves for your clinic.
+                </p>
+              </>
+            )}
+          </div>
+          <div className="card !p-3 text-sm">
+            <p className="font-semibold">Email</p>
+            <p className={integrations.email?.configured ? 'text-emerald-700' : 'text-amber-700'}>
+              {integrations.email?.configured ? 'Connected' : 'Not configured'}
+            </p>
+          </div>
         </div>
       )}
+
+      {user?.role === 'doctor' &&
+        integrations?.whatsapp?.campaign?.status !== 'approved' &&
+        integrations?.whatsapp?.campaign?.status !== 'pending' && (
+          <div className="card mb-4 space-y-3">
+            <p className="font-semibold text-ink">Request WhatsApp campaign template</p>
+            <p className="text-sm text-ink-muted">
+              Super Admin will create this exact template on MSG91. After Meta shows Approved, they
+              approve it for your clinic only.
+            </p>
+            <div className="grid sm:grid-cols-2 gap-3">
+              <div>
+                <label className="label-field">Template name (MSG91)</label>
+                <input
+                  className="input-field font-mono"
+                  value={tplForm.requestedName}
+                  onChange={(e) => setTplForm((f) => ({ ...f, requestedName: e.target.value }))}
+                  placeholder="clinic_campaign_update"
+                />
+              </div>
+              <div>
+                <label className="label-field">Body variable order</label>
+                <input
+                  className="input-field font-mono text-sm"
+                  value={tplForm.requestedBodyVars}
+                  onChange={(e) => setTplForm((f) => ({ ...f, requestedBodyVars: e.target.value }))}
+                  placeholder="patientName,clinicName,_message"
+                />
+              </div>
+              <div className="sm:col-span-2">
+                <label className="label-field">Template body for MSG91 (use {'{{1}}'}, {'{{2}}'}, …)</label>
+                <textarea
+                  className="input-field"
+                  rows={5}
+                  value={tplForm.sampleBody}
+                  onChange={(e) => setTplForm((f) => ({ ...f, sampleBody: e.target.value }))}
+                />
+              </div>
+            </div>
+            <button
+              type="button"
+              className="btn-primary"
+              disabled={tplSaving}
+              onClick={async () => {
+                setTplSaving(true);
+                try {
+                  const res = await api.post('/campaigns/whatsapp-template', tplForm);
+                  toast.success(res.data.message || 'Submitted for Super Admin.');
+                  load(page);
+                } catch (err) {
+                  toast.error(err.response?.data?.message || 'Submit failed.');
+                } finally {
+                  setTplSaving(false);
+                }
+              }}
+            >
+              {tplSaving ? 'Submitting…' : 'Submit for Super Admin approval'}
+            </button>
+          </div>
+        )}
+
+      {user?.role === 'doctor' && integrations?.whatsapp?.campaign?.status === 'pending' && (
+        <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-950 mb-4">
+          Template <code className="font-mono">{integrations.whatsapp.campaign.requestedName}</code> is
+          waiting for Super Admin (MSG91 create + approve).
+        </div>
+      )}
+
+      <div className="flex flex-col sm:flex-row gap-3 mb-4">
+        <form
+          className="relative flex-1 max-w-md"
+          onSubmit={(e) => {
+            e.preventDefault();
+            setSearch(q.trim());
+          }}
+        >
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-ink-faint" />
+          <input
+            className="input-field !pl-9"
+            placeholder="Search by name"
+            value={q}
+            onChange={(e) => setQ(e.target.value)}
+          />
+        </form>
+        <select
+          className="input-field sm:w-40"
+          value={statusFilter}
+          onChange={(e) => setStatusFilter(e.target.value)}
+          aria-label="Status filter"
+        >
+          <option value="all">All statuses</option>
+          <option value="draft">Draft</option>
+          <option value="scheduled">Scheduled</option>
+          <option value="queued">Queued</option>
+          <option value="processing">Processing</option>
+          <option value="completed">Completed</option>
+          <option value="partially_completed">Partial</option>
+          <option value="failed">Failed</option>
+          <option value="cancelled">Cancelled</option>
+        </select>
+        <select
+          className="input-field sm:w-36"
+          value={channelFilter}
+          onChange={(e) => setChannelFilter(e.target.value)}
+          aria-label="Channel filter"
+        >
+          <option value="all">All channels</option>
+          {CHANNELS.map((c) => (
+            <option key={c.value} value={c.value}>
+              {c.label}
+            </option>
+          ))}
+        </select>
+      </div>
 
       {loading ? (
         <SkeletonRows count={PAGE_SIZE} />
       ) : !rows.length ? (
-        <EmptyState title="No campaigns" description="Create a campaign to message eligible patients." />
+        <EmptyState
+          title={search.trim() || statusFilter !== 'all' || channelFilter !== 'all' ? 'No matches' : 'No campaigns'}
+          description={
+            search.trim() || statusFilter !== 'all' || channelFilter !== 'all'
+              ? 'Try another search or filter.'
+              : 'Create a campaign to message eligible patients.'
+          }
+          action={
+            !search.trim() && statusFilter === 'all' && channelFilter === 'all' ? (
+              <Link to={ROUTES.campaignNew} className="btn-primary">
+                New campaign
+              </Link>
+            ) : null
+          }
+        />
       ) : (
         <>
+          <p className="text-xs text-ink-faint mb-2">
+            {total} campaign{total === 1 ? '' : 's'}
+            {pages > 1 ? ` · page ${page} of ${pages}` : ''}
+          </p>
           <div className="hidden md:block card !p-0 overflow-hidden">
             <div className="data-table-wrap">
               <table className="data-table">
@@ -213,42 +405,81 @@ export function CampaignsPage() {
 export function CampaignEditor() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const isNew = !id;
   const [form, setForm] = useState(EMPTY);
   const [campaign, setCampaign] = useState(null);
   const [campaignId, setCampaignId] = useState(id || null);
   const [preview, setPreview] = useState(null);
+  const [previewStale, setPreviewStale] = useState(false);
   const [integrations, setIntegrations] = useState(null);
   const [deliveries, setDeliveries] = useState([]);
+  const [deliveryPage, setDeliveryPage] = useState(1);
+  const [deliveryPages, setDeliveryPages] = useState(1);
+  const [deliveryTotal, setDeliveryTotal] = useState(0);
   const [analytics, setAnalytics] = useState(null);
   const [saving, setSaving] = useState(false);
   const [testTo, setTestTo] = useState('');
   const [mode, setMode] = useState('now');
 
-  const setField = (k, v) => setForm((p) => ({ ...p, [k]: v }));
+  const setField = (k, v) => {
+    setForm((p) => ({ ...p, [k]: v }));
+    setPreviewStale(true);
+  };
 
-  const loadDetail = async (cid) => {
-    const res = await api.get(`/campaigns/${cid}`);
+  const applyDetail = (res, { syncForm = true } = {}) => {
     const c = res.data.campaign;
     setCampaign(c);
     setCampaignId(c._id);
-    setForm({
-      name: c.name || '',
-      description: c.description || '',
-      campaignType: c.campaignType || 'general',
-      purpose: c.purpose || 'marketing',
-      channel: c.channel || 'whatsapp',
-      audienceType: c.audienceType || 'all',
-      message: c.message || '',
-      subject: c.subject || '',
-      scheduledAt: c.scheduledAt ? format(new Date(c.scheduledAt), "yyyy-MM-dd'T'HH:mm") : '',
-      inactiveDays: c.audienceFilter?.inactiveDays || 90,
-      upcomingHours: c.audienceFilter?.upcomingHours || 48,
-    });
+    if (syncForm) {
+      setForm({
+        name: c.name || '',
+        description: c.description || '',
+        campaignType: c.campaignType || 'general',
+        purpose: c.purpose || 'marketing',
+        channel: c.channel === 'sms' ? 'whatsapp' : c.channel || 'whatsapp',
+        audienceType: c.audienceType || 'all',
+        message: c.message || '',
+        subject: c.subject || '',
+        scheduledAt: c.scheduledAt ? format(new Date(c.scheduledAt), "yyyy-MM-dd'T'HH:mm") : '',
+        inactiveDays: c.audienceFilter?.inactiveDays || 90,
+        upcomingHours: c.audienceFilter?.upcomingHours || 48,
+      });
+      setPreviewStale(false);
+      if (c.scheduledAt && new Date(c.scheduledAt) > new Date()) setMode('schedule');
+    }
     setDeliveries(res.data.deliveries || []);
+    setDeliveryPage(res.data.page || 1);
+    setDeliveryPages(res.data.pages || 1);
+    setDeliveryTotal(res.data.total || 0);
     setAnalytics(res.data.analytics || null);
     setIntegrations(res.data.integrations || null);
-    if (c.scheduledAt && new Date(c.scheduledAt) > new Date()) setMode('schedule');
+  };
+
+  const loadDetail = async (cid, delPage = 1, { syncForm = true } = {}) => {
+    const res = await api.get(`/campaigns/${cid}`, { params: { page: delPage, limit: PAGE_SIZE } });
+    applyDetail(res, { syncForm });
+    return res.data.campaign;
+  };
+
+  const runPreview = async (cid, channel) => {
+    const res = await api.post(`/campaigns/${cid}/preview`);
+    setPreview(res.data);
+    setPreviewStale(false);
+    if (res.data.integrationStatus) {
+      setIntegrations((prev) => {
+        if (channel === 'whatsapp') {
+          return {
+            ...(prev || {}),
+            whatsapp: {
+              ...(prev?.whatsapp || {}),
+              campaign: res.data.integrationStatus || prev?.whatsapp?.campaign,
+            },
+          };
+        }
+        return { ...(prev || {}), [channel]: res.data.integrationStatus };
+      });
+    }
   };
 
   useEffect(() => {
@@ -257,8 +488,27 @@ export function CampaignEditor() {
       .then((res) => setIntegrations(res.data.integrations))
       .catch(() => {});
     if (!id) return;
-    loadDetail(id).catch(() => toast.error('Campaign not found.'));
+    const wantsPreview = searchParams.get('preview') === '1';
+    loadDetail(id)
+      .then((c) => {
+        if (!wantsPreview) return;
+        setSearchParams({}, { replace: true });
+        return runPreview(id, c?.channel || 'whatsapp');
+      })
+      .catch(() => toast.error('Campaign not found.'));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
+
+  // Light poll while campaign is actively sending — do not overwrite the form
+  useEffect(() => {
+    if (!campaignId) return undefined;
+    if (!['queued', 'processing', 'scheduled'].includes(campaign?.status)) return undefined;
+    const t = setInterval(() => {
+      loadDetail(campaignId, deliveryPage, { syncForm: false }).catch(() => {});
+    }, 8000);
+    return () => clearInterval(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [campaignId, campaign?.status, deliveryPage]);
 
   const buildPayload = () => ({
     name: form.name.trim(),
@@ -276,7 +526,7 @@ export function CampaignEditor() {
     },
   });
 
-  const save = async (e) => {
+  const save = async (e, { silent = false, previewAfter = false } = {}) => {
     e?.preventDefault?.();
     if (!form.name.trim() || !form.message.trim()) {
       toast.error('Name and message are required.');
@@ -288,15 +538,18 @@ export function CampaignEditor() {
       if (campaignId) {
         const res = await api.patch(`/campaigns/${campaignId}`, payload);
         setCampaign(res.data.campaign);
-        toast.success('Draft saved.');
+        if (!silent) toast.success('Draft saved.');
         return res.data.campaign._id;
       }
       const res = await api.post('/campaigns', payload);
-      setCampaignId(res.data.campaign._id);
+      const newId = res.data.campaign._id;
+      setCampaignId(newId);
       setCampaign(res.data.campaign);
-      navigate(ROUTES.campaign(res.data.campaign._id), { replace: true });
-      toast.success('Draft created.');
-      return res.data.campaign._id;
+      navigate(previewAfter ? `${ROUTES.campaign(newId)}?preview=1` : ROUTES.campaign(newId), {
+        replace: true,
+      });
+      if (!silent) toast.success('Draft created.');
+      return newId;
     } catch (err) {
       toast.error(err.response?.data?.message || 'Save failed.');
       return null;
@@ -306,15 +559,17 @@ export function CampaignEditor() {
   };
 
   const doPreview = async () => {
-    let cid = campaignId;
-    if (!cid) cid = await save();
-    if (!cid) return;
+    // New draft: create then land on detail with ?preview=1 so remount still shows preview
+    if (!campaignId) {
+      await save(null, { silent: true, previewAfter: true });
+      return;
+    }
+    if (editable) {
+      const cid = await save(null, { silent: true });
+      if (!cid) return;
+    }
     try {
-      const res = await api.post(`/campaigns/${cid}/preview`);
-      setPreview(res.data);
-      if (res.data.integrationStatus) {
-        setIntegrations((prev) => ({ ...(prev || {}), [form.channel]: res.data.integrationStatus }));
-      }
+      await runPreview(campaignId, form.channel);
     } catch (err) {
       toast.error(err.response?.data?.message || 'Preview failed.');
     }
@@ -323,6 +578,20 @@ export function CampaignEditor() {
   const sendTest = async () => {
     if (!campaignId) {
       toast.error('Save the campaign first.');
+      return;
+    }
+    if (previewStale && editable) {
+      const cid = await save(null, { silent: true });
+      if (!cid) return;
+    }
+    const waOk = form.channel !== 'whatsapp' || integrations?.whatsapp?.campaign?.configured;
+    const emailOk = form.channel !== 'email' || integrations?.email?.configured;
+    if (!waOk || !emailOk) {
+      toast.error(
+        form.channel === 'whatsapp'
+          ? 'Clinic WhatsApp campaign template is not approved yet.'
+          : 'Email provider is not configured.'
+      );
       return;
     }
     if (!testTo.trim()) {
@@ -341,8 +610,13 @@ export function CampaignEditor() {
 
   const send = async () => {
     if (!preview) return toast.error('Preview recipients first.');
+    if (previewStale) return toast.error('Audience changed — preview again before sending.');
     if (!preview.channelConfigured) {
-      return toast.error('Provider not configured. Integration required before sending.');
+      return toast.error(
+        form.channel === 'whatsapp'
+          ? 'Clinic WhatsApp campaign template is not approved by Super Admin yet.'
+          : 'Email provider is not configured.'
+      );
     }
     const label =
       mode === 'schedule'
@@ -355,7 +629,8 @@ export function CampaignEditor() {
         sendNow: mode === 'now',
       });
       toast.success(res.data.message || 'Campaign queued.');
-      await loadDetail(campaignId);
+      setPreview(null);
+      await loadDetail(campaignId, 1, { syncForm: false });
     } catch (err) {
       toast.error(err.response?.data?.message || 'Send failed.');
     }
@@ -399,6 +674,16 @@ export function CampaignEditor() {
     <div className="page-container max-w-5xl">
       <PageHeader
         title={isNew ? 'New campaign' : campaign?.name || 'Campaign'}
+        description={
+          campaign ? (
+            <span className="inline-flex items-center gap-2">
+              <Badge value={campaign.status} />
+              <span className="capitalize text-ink-muted">{campaign.channel}</span>
+            </span>
+          ) : (
+            'Draft a message, preview eligible patients, then send after WhatsApp template approval (or Email is configured).'
+          )
+        }
         actions={
           campaignId && (
             <div className="flex flex-wrap gap-2">
@@ -478,12 +763,18 @@ export function CampaignEditor() {
                 value={form.channel}
                 onChange={(e) => setField('channel', e.target.value)}
               >
-                {CHANNELS.map((c) => (
-                  <option key={c.value} value={c.value}>
-                    {c.label}
-                    {integrations?.[c.value]?.configured ? '' : ' — not configured'}
-                  </option>
-                ))}
+                {CHANNELS.map((c) => {
+                  const ok =
+                    c.value === 'whatsapp'
+                      ? integrations?.whatsapp?.campaign?.configured
+                      : integrations?.[c.value]?.configured;
+                  return (
+                    <option key={c.value} value={c.value}>
+                      {c.label}
+                      {ok ? '' : ' — not configured'}
+                    </option>
+                  );
+                })}
               </select>
             </div>
             <div>
@@ -552,6 +843,13 @@ export function CampaignEditor() {
                 Variables: {'{{patientName}}'}, {'{{doctorName}}'}, {'{{clinicName}}'}, {'{{branchName}}'},{' '}
                 {'{{appointmentDate}}'}, {'{{appointmentTime}}'}, {'{{followUpDate}}'}, {'{{campaignName}}'}
               </p>
+              {form.channel === 'whatsapp' && (
+                <p className="text-xs text-amber-900 mt-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2">
+                  WhatsApp campaigns only send after Super Admin approves <strong>your clinic’s</strong>{' '}
+                  MSG91 template. The message box fills <code className="font-mono">_message</code> when
+                  that variable is mapped — it never uses the appointment confirmation template.
+                </p>
+              )}
             </div>
           </div>
 
@@ -587,7 +885,14 @@ export function CampaignEditor() {
 
       {preview && (
         <div className="card mt-4 space-y-3">
-          <p className="font-semibold">Audience preview</p>
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <p className="font-semibold">Audience preview</p>
+            {previewStale && (
+              <p className="text-sm text-amber-800 font-medium">
+                Settings changed — preview again before sending.
+              </p>
+            )}
+          </div>
           <div className="grid grid-cols-1 xs:grid-cols-3 gap-2 text-sm">
             <div className="rounded-lg bg-[#f7f4ef] p-3">
               Total <strong>{preview.recipientCount}</strong>
@@ -608,13 +913,32 @@ export function CampaignEditor() {
               ))}
             </ul>
           )}
+          {Array.isArray(preview.preview) && preview.preview.length > 0 && (
+            <div>
+              <p className="text-xs uppercase tracking-wide text-ink-faint mb-2">
+                Sample eligible recipients (up to 20)
+              </p>
+              <ul className="text-sm divide-y divide-line rounded-lg border border-line overflow-hidden">
+                {preview.preview.map((p) => (
+                  <li key={p.id} className="flex justify-between gap-3 px-3 py-2 bg-white">
+                    <span className="font-medium truncate">{p.name}</span>
+                    <span className="text-ink-muted shrink-0 text-xs sm:text-sm">
+                      {p.phone || p.email || '—'}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
           <div className="rounded-lg border border-line p-3 bg-white">
             <p className="text-xs uppercase tracking-wide text-ink-faint mb-2">{preview.channel} preview</p>
             <pre className="whitespace-pre-wrap text-sm font-sans">{preview.messagePreview}</pre>
           </div>
           {!preview.channelConfigured && (
             <p className="text-sm text-amber-800 font-medium">
-              Integration required — sending is blocked until the provider is configured.
+              {form.channel === 'whatsapp'
+                ? 'WhatsApp campaigns need your clinic template approved by Super Admin (after MSG91 Meta approval).'
+                : 'Email integration required — configure Resend before sending.'}
             </p>
           )}
           <div className="flex flex-wrap gap-2 items-end">
@@ -629,14 +953,23 @@ export function CampaignEditor() {
                 onChange={(e) => setTestTo(e.target.value)}
               />
             </div>
-            <button type="button" className="btn-secondary" onClick={sendTest}>
+            <button
+              type="button"
+              className="btn-secondary"
+              onClick={sendTest}
+              disabled={
+                !preview.channelConfigured ||
+                (form.channel === 'whatsapp' && !integrations?.whatsapp?.campaign?.configured) ||
+                (form.channel === 'email' && !integrations?.email?.configured)
+              }
+            >
               Send test
             </button>
             <button
               type="button"
               className="btn-primary"
               onClick={send}
-              disabled={!preview.channelConfigured || preview.eligibleCount < 1}
+              disabled={previewStale || !preview.channelConfigured || preview.eligibleCount < 1}
             >
               {mode === 'schedule' ? 'Confirm schedule' : 'Confirm send'}
             </button>
@@ -646,7 +979,12 @@ export function CampaignEditor() {
 
       {analytics && campaign && !['draft'].includes(campaign.status) && (
         <div className="card mt-4 space-y-3">
-          <p className="font-semibold">Delivery analytics</p>
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <p className="font-semibold">Delivery analytics</p>
+            {['queued', 'processing', 'scheduled'].includes(campaign.status) && (
+              <p className="text-xs text-ink-faint">Refreshing every few seconds…</p>
+            )}
+          </div>
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-sm">
             {[
               ['Recipients', analytics.recipients],
@@ -664,36 +1002,51 @@ export function CampaignEditor() {
               </div>
             ))}
           </div>
-          {!!deliveries.length && (
-            <div className="data-table-wrap">
-              <table className="data-table">
-                <thead>
-                  <tr>
-                    <th>Recipient</th>
-                    <th>Status</th>
-                    <th>Provider ID</th>
-                    <th>Sent</th>
-                    <th>Error</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {deliveries.map((d) => (
-                    <tr key={d._id}>
-                      <td>
-                        {d.recipientName}
-                        <div className="text-xs text-ink-faint">{d.recipientPhone || d.recipientEmail}</div>
-                      </td>
-                      <td>
-                        <Badge value={d.status} />
-                      </td>
-                      <td className="font-mono text-xs">{d.providerMessageId || '—'}</td>
-                      <td className="text-xs whitespace-nowrap">{fmt(d.sentAt)}</td>
-                      <td className="text-xs text-red-700">{d.failureReason || '—'}</td>
+          {!!deliveries.length ? (
+            <>
+              <p className="text-xs text-ink-faint">
+                {deliveryTotal} delivery record{deliveryTotal === 1 ? '' : 's'}
+                {deliveryPages > 1 ? ` · page ${deliveryPage} of ${deliveryPages}` : ''}
+              </p>
+              <div className="data-table-wrap">
+                <table className="data-table">
+                  <thead>
+                    <tr>
+                      <th>Recipient</th>
+                      <th>Status</th>
+                      <th>Provider ID</th>
+                      <th>Sent</th>
+                      <th>Error</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+                  </thead>
+                  <tbody>
+                    {deliveries.map((d) => (
+                      <tr key={d._id}>
+                        <td>
+                          {d.recipientName}
+                          <div className="text-xs text-ink-faint">{d.recipientPhone || d.recipientEmail}</div>
+                        </td>
+                        <td>
+                          <Badge value={d.status} />
+                        </td>
+                        <td className="font-mono text-xs">{d.providerMessageId || '—'}</td>
+                        <td className="text-xs whitespace-nowrap">{fmt(d.sentAt)}</td>
+                        <td className="text-xs text-red-700">{d.failureReason || '—'}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              <Pagination
+                page={deliveryPage}
+                pages={deliveryPages}
+                total={deliveryTotal}
+                limit={PAGE_SIZE}
+                onPage={(p) => loadDetail(campaignId, p, { syncForm: false })}
+              />
+            </>
+          ) : (
+            <p className="text-sm text-ink-muted">No delivery records yet.</p>
           )}
         </div>
       )}

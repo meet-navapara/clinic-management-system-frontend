@@ -64,8 +64,11 @@ function NumberField({ label, value, onChange, step = 0.1, min = 0, max = 3 }) {
         step={step}
         min={min}
         max={max}
-        value={value ?? ''}
-        onChange={(e) => onChange(Number(e.target.value))}
+        value={Number.isFinite(value) ? value : ''}
+        onChange={(e) => {
+          const n = Number(e.target.value);
+          onChange(Number.isFinite(n) ? n : min);
+        }}
       />
     </div>
   );
@@ -141,17 +144,28 @@ async function uploadPrintFile(kind, file) {
 
 export default function PrintSettingsPage() {
   const [form, setForm] = useState(null);
+  const [loadError, setLoadError] = useState(false);
   const [tab, setTab] = useState('header');
   const [saving, setSaving] = useState(false);
   const [uploadingLogo, setUploadingLogo] = useState(false);
   const [uploadingSig, setUploadingSig] = useState(false);
   const [insertingHeaderImg, setInsertingHeaderImg] = useState(false);
 
-  useEffect(() => {
+  const load = () => {
+    setLoadError(false);
+    setForm(null);
     api
       .get('/ops/print/settings')
       .then((res) => setForm({ ...defaults, ...(res.data.settings || {}) }))
-      .catch(() => setForm({ ...defaults }));
+      .catch((err) => {
+        setLoadError(true);
+        setForm(null);
+        toast.error(err.response?.data?.message || 'Could not load print settings.');
+      });
+  };
+
+  useEffect(() => {
+    load();
   }, []);
 
   const set = (patch) => setForm((prev) => ({ ...prev, ...patch }));
@@ -173,7 +187,11 @@ export default function PrintSettingsPage() {
     setUploadingLogo(true);
     try {
       const data = await uploadPrintFile('logo', file);
-      setForm({ ...defaults, ...(data.settings || {}), logo: data.url });
+      // Keep unsaved edits — only patch the logo URL.
+      setForm((prev) => ({
+        ...(prev || { ...defaults }),
+        logo: data.url || data.settings?.logo || '',
+      }));
       toast.success('Logo uploaded and saved.');
     } catch (err) {
       toast.error(err.response?.data?.message || err.message || 'Logo upload failed.');
@@ -186,7 +204,10 @@ export default function PrintSettingsPage() {
     setInsertingHeaderImg(true);
     try {
       const data = await uploadPrintFile('logo', file);
-      setForm((prev) => ({ ...defaults, ...(prev || {}), ...(data.settings || {}), logo: data.url || prev?.logo }));
+      setForm((prev) => ({
+        ...(prev || { ...defaults }),
+        logo: data.url || prev?.logo || '',
+      }));
       toast.success('Clinic logo updated (shown in letterhead).');
       // Return empty so the editor does not embed a duplicate <img> (logo slot handles it).
       return '';
@@ -205,7 +226,10 @@ export default function PrintSettingsPage() {
     setUploadingSig(true);
     try {
       const data = await uploadPrintFile('signature', file);
-      setForm({ ...defaults, ...(data.settings || {}), signatureImage: data.url });
+      setForm((prev) => ({
+        ...(prev || { ...defaults }),
+        signatureImage: data.url || data.settings?.signatureImage || '',
+      }));
       toast.success('Signature uploaded and saved.');
     } catch (err) {
       toast.error(err.response?.data?.message || err.message || 'Signature upload failed.');
@@ -254,22 +278,40 @@ export default function PrintSettingsPage() {
     }
   };
 
+  if (loadError && !form) {
+    return (
+      <div className="page-container max-w-6xl">
+        <PageHeader title="Print settings" description="Could not load clinic print template." />
+        <button type="button" className="btn-primary" onClick={load}>
+          Retry
+        </button>
+      </div>
+    );
+  }
+
   if (!form) return <SkeletonPage cards={0} rows={8} />;
+
+  const saveActions = (
+    <div className="flex flex-wrap gap-2">
+      <button type="submit" form="print-settings-form" className="btn-primary" disabled={saving}>
+        {saving ? 'Saving…' : 'Save'}
+      </button>
+      <Link to={ROUTES.printPreview} className="btn-secondary" target="_blank" rel="noreferrer">
+        Open print preview
+      </Link>
+    </div>
+  );
 
   return (
     <div className="page-container max-w-6xl relative">
       <LoadingOverlay show={saving} message="Saving…" />
       <PageHeader
         title="Print settings"
-        description="Customize letterhead, logo, margins and signatures for invoices, prescriptions and all clinic prints."
-        actions={
-          <Link to={ROUTES.printPreview} className="btn-secondary" target="_blank" rel="noreferrer">
-            Open print preview
-          </Link>
-        }
+        description="Clinic-wide letterhead for invoices, prescriptions, and slips. Branch address is used when printing from a branch."
+        actions={saveActions}
       />
 
-      <form onSubmit={save} className="space-y-4">
+      <form id="print-settings-form" onSubmit={save} className="space-y-4">
         <section className="card space-y-4">
           <h2 className="text-sm font-semibold text-ink">All pages — layout & fonts</h2>
           <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-3">
@@ -366,6 +408,24 @@ export default function PrintSettingsPage() {
               <label className="label-field">GST / tax number</label>
               <input className="input-field" value={form.gstNumber || ''} onChange={(e) => set({ gstNumber: e.target.value })} />
             </div>
+            <div>
+              <label className="label-field">Tax label</label>
+              <input
+                className="input-field"
+                placeholder="GST"
+                value={form.taxLabel || ''}
+                onChange={(e) => set({ taxLabel: e.target.value })}
+              />
+            </div>
+            <div>
+              <label className="label-field">Currency symbol</label>
+              <input
+                className="input-field"
+                placeholder="₹"
+                value={form.currencySymbol || ''}
+                onChange={(e) => set({ currencySymbol: e.target.value })}
+              />
+            </div>
           </div>
 
           <h2 className="text-sm font-semibold text-ink pt-2">Signatures</h2>
@@ -401,7 +461,7 @@ export default function PrintSettingsPage() {
                 <input
                   type="checkbox"
                   checked={form.showRightSignature !== false}
-                  onChange={(e) => set({ showRightSignature: e.target.checked, showSignature: e.target.checked })}
+                  onChange={(e) => set({ showRightSignature: e.target.checked })}
                 />
                 Show right signature on prints
               </label>
@@ -514,7 +574,10 @@ export default function PrintSettingsPage() {
                   </div>
 
                   <div>
-                    <p className="text-sm font-medium text-ink mb-1.5">Left Content</p>
+                    <p className="text-sm font-medium text-ink mb-1.5">Left content (under letterhead)</p>
+                    <p className="text-xs text-ink-faint mb-1.5">
+                      Prints with the header only — not in the footer block.
+                    </p>
                     <SimpleRichEditor
                       value={form.leftContentHtml || ''}
                       onChange={(leftContentHtml) => set({ leftContentHtml })}
@@ -525,7 +588,7 @@ export default function PrintSettingsPage() {
                   </div>
 
                   <div>
-                    <p className="text-sm font-medium text-ink mb-1.5">Right Content</p>
+                    <p className="text-sm font-medium text-ink mb-1.5">Right content (under letterhead)</p>
                     <SimpleRichEditor
                       value={form.rightContentHtml || ''}
                       onChange={(rightContentHtml) => set({ rightContentHtml })}
@@ -577,28 +640,6 @@ export default function PrintSettingsPage() {
                   </div>
 
                   <div>
-                    <p className="text-sm font-medium text-ink mb-1.5">Left Content</p>
-                    <SimpleRichEditor
-                      value={form.leftContentHtml || ''}
-                      onChange={(leftContentHtml) => set({ leftContentHtml })}
-                      disabled={form.includeFooter === false}
-                      minHeight={100}
-                      placeholder="Left content here…"
-                    />
-                  </div>
-
-                  <div>
-                    <p className="text-sm font-medium text-ink mb-1.5">Right Content</p>
-                    <SimpleRichEditor
-                      value={form.rightContentHtml || ''}
-                      onChange={(rightContentHtml) => set({ rightContentHtml })}
-                      disabled={form.includeFooter === false}
-                      minHeight={100}
-                      placeholder="Right content here…"
-                    />
-                  </div>
-
-                  <div>
                     <label className="label-field">Terms / notes</label>
                     <textarea
                       className="input-field"
@@ -618,7 +659,7 @@ export default function PrintSettingsPage() {
           </div>
         </section>
 
-        <div className="flex flex-wrap gap-2">
+        <div className="flex flex-wrap gap-2 sticky bottom-0 z-10 -mx-1 px-1 py-3 bg-canvas/95 backdrop-blur border-t border-line mt-2">
           <button type="submit" className="btn-primary" disabled={saving}>
             {saving ? 'Saving…' : 'Save'}
           </button>

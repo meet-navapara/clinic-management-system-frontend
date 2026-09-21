@@ -2,8 +2,15 @@ import axios from 'axios';
 import toast from 'react-hot-toast';
 import { ROUTES } from '../constants/routes';
 
-// Full API base URL, e.g. http://localhost:5000/api — empty falls back to same-origin /api
-const apiBaseURL = (import.meta.env.VITE_BACKEND_URL || '/api').replace(/\/$/, '');
+// Full API base URL, e.g. http://localhost:5000/api
+// Accepts either a full .../api URL, or host + VITE_API_BASE_URL=/api
+const rawBackend = String(import.meta.env.VITE_BACKEND_URL || '').replace(/\/$/, '');
+const apiPath = String(import.meta.env.VITE_API_BASE_URL || '/api').replace(/\/$/, '') || '/api';
+const apiBaseURL = rawBackend
+  ? rawBackend.endsWith('/api')
+    ? rawBackend
+    : `${rawBackend}${apiPath.startsWith('/') ? apiPath : `/${apiPath}`}`
+  : apiPath;
 
 const GET_CACHE_TTL_MS = 20_000;
 
@@ -48,6 +55,9 @@ function shouldCacheGet(config) {
   const url = String(config.url || '');
   // Keep auth/session fresh (manual Check status / login flows)
   if (url.includes('/auth/')) return false;
+  // Live boards / badge polls must not serve a 20s-stale snapshot
+  if (url.includes('/queue')) return false;
+  if (url.includes('/notifications/inbox')) return false;
   return true;
 }
 

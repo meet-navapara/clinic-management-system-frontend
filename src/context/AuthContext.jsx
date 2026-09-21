@@ -28,6 +28,9 @@ const usersRoughlyEqual = (a, b) => {
     a.approvalStatus === b.approvalStatus &&
     a.email === b.email &&
     a.name === b.name &&
+    a.phone === b.phone &&
+    a.profilePhoto === b.profilePhoto &&
+    String(a.updatedAt || '') === String(b.updatedAt || '') &&
     Boolean(a.loginEnabled) === Boolean(b.loginEnabled)
   );
 };

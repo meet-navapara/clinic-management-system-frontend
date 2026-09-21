@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { Monitor } from 'lucide-react';
 import api from '../utils/api';
 import toast from 'react-hot-toast';
@@ -16,6 +16,7 @@ import { ROUTES } from '../constants/routes';
 import { useAuth } from '../context/AuthContext';
 import { useBranch } from '../context/BranchContext';
 import { PAGE_SIZE } from '../constants/pagination';
+import { can, P } from '../constants/permissions';
 
 const POLL_MS = 5000;
 const ACTION_BTN =
@@ -50,7 +51,7 @@ function TicketCard({ ticket: t, onStatus }) {
             className={`btn-secondary ${ACTION_BTN}`}
             onClick={() => onStatus(t._id, 'in_consultation')}
           >
-            Start
+            Start visit
           </button>
         )}
         {t.status === 'in_consultation' && (
@@ -59,7 +60,7 @@ function TicketCard({ ticket: t, onStatus }) {
             className={`btn-primary ${ACTION_BTN} border border-[#1c2430]`}
             onClick={() => onStatus(t._id, 'completed')}
           >
-            Complete
+            End token
           </button>
         )}
         {['waiting', 'called'].includes(t.status) && (
@@ -92,6 +93,7 @@ function TicketCard({ ticket: t, onStatus }) {
 
 export default function QueuePage() {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const { branchId, current } = useBranch();
   const [tickets, setTickets] = useState([]);
   const [serving, setServing] = useState(null);
@@ -106,7 +108,9 @@ export default function QueuePage() {
   const [roomLabel, setRoomLabel] = useState('');
   const [doctors, setDoctors] = useState([]);
   const [checkingIn, setCheckingIn] = useState(false);
+  const [consultBusy, setConsultBusy] = useState(false);
   const isDoctor = user?.role === 'doctor';
+  const canConsult = can(user, P.CONSULTATION);
   const needsBranch = isDoctor && !branchId;
   const rooms = Array.isArray(current?.rooms) ? current.rooms.filter(Boolean) : [];
 
@@ -150,6 +154,28 @@ export default function QueuePage() {
         toast.error(msg);
       })
       .finally(() => setLoading(false));
+  };
+
+  const startConsultation = async (ticket) => {
+    if (!ticket || consultBusy) return;
+    setConsultBusy(true);
+    try {
+      let apptId = ticket.appointmentId?._id || ticket.appointmentId;
+      if (!apptId) {
+        const res = await api.post(`/queue/${ticket._id}/ensure-appointment`);
+        apptId = res.data.appointmentId?._id || res.data.appointmentId;
+        if (res.data.ticket) setServing(res.data.ticket);
+      }
+      if (!apptId) {
+        toast.error('Could not open consultation for this token.');
+        return;
+      }
+      navigate(ROUTES.doctorConsult(apptId));
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Could not start consultation.');
+    } finally {
+      setConsultBusy(false);
+    }
   };
 
   useEffect(() => {
@@ -320,13 +346,15 @@ export default function QueuePage() {
                   </p>
                   <p className="text-ink-muted truncate">{serving.patientId?.name}</p>
                 </div>
-                {isDoctor && serving.appointmentId && (
-                  <Link
-                    to={ROUTES.doctorConsult(serving.appointmentId._id || serving.appointmentId)}
+                {canConsult && serving && (
+                  <button
+                    type="button"
                     className="btn-primary w-full sm:w-auto shrink-0 inline-flex border border-[#1c2430]"
+                    disabled={consultBusy}
+                    onClick={() => startConsultation(serving)}
                   >
-                    Start consultation
-                  </Link>
+                    {consultBusy ? 'Opening…' : 'Start consultation'}
+                  </button>
                 )}
               </div>
             </div>

@@ -1,4 +1,5 @@
 import { Navigate, useLocation } from 'react-router-dom';
+import toast from 'react-hot-toast';
 import { useAuth } from '../context/AuthContext';
 import { getDashboardPath, ROUTES } from '../constants/routes';
 import { can, isStaffUser } from '../constants/permissions';
@@ -38,9 +39,11 @@ export default function ProtectedRoute({
   }
 
   if (permission && !can(user, permission)) {
+    toast.error('You do not have access to this page.', { id: 'permission-denied' });
     return <Navigate to={getDashboardPath(user.role, user)} replace />;
   }
   if (anyPermission?.length && !anyPermission.some((p) => can(user, p))) {
+    toast.error('You do not have access to this page.', { id: 'permission-denied' });
     return <Navigate to={getDashboardPath(user.role, user)} replace />;
   }
 

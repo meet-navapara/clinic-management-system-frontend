@@ -19,6 +19,7 @@ const EMPTY_FORM = {
   phone: '',
   email: '',
   address: '',
+  displayTitle: '',
   rooms: ['Room 1'],
   roomLabel: 'Room 1',
   tokenPrefix: '',
@@ -41,6 +42,9 @@ export default function BranchesPage() {
   const [form, setForm] = useState(EMPTY_FORM);
   const [newRoom, setNewRoom] = useState('');
   const [saving, setSaving] = useState(false);
+
+  // API create/update requires clinic doctor — match UI to avoid dead buttons for staff.
+  const canManageBranches = user?.role === 'doctor' && can(user, P.BRANCHES_MANAGE);
 
   const load = (showLoader = false) => {
     if (showLoader) setLoading(true);
@@ -69,6 +73,7 @@ export default function BranchesPage() {
       phone: b.phone || '',
       email: b.email || '',
       address: b.address || '',
+      displayTitle: b.displayTitle || '',
       rooms,
       roomLabel: b.roomLabel || rooms[0] || 'Room 1',
       tokenPrefix: b.tokenPrefix || '',
@@ -117,9 +122,10 @@ export default function BranchesPage() {
         phone: form.phone,
         email: form.email,
         address: form.address,
+        displayTitle: form.displayTitle,
         rooms: form.rooms,
         roomLabel: form.roomLabel || form.rooms[0],
-        tokenPrefix: form.tokenPrefix,
+        tokenPrefix: String(form.tokenPrefix || '').trim().toUpperCase(),
       };
       if (editingId) {
         await api.patch(`/branches/${editingId}`, payload);
@@ -151,14 +157,25 @@ export default function BranchesPage() {
     }
   };
 
+  const setAsDefault = async (b) => {
+    try {
+      await api.patch(`/branches/${b._id}`, { isDefault: true });
+      toast.success(`${b.name} is now the default branch.`);
+      load();
+      reload();
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Could not set default branch.');
+    }
+  };
+
   return (
     <div className="page-container relative">
       <LoadingOverlay show={saving} message="Saving…" />
       <PageHeader
         title="Branches"
-        description="Each branch has its own appointments, billing and stock."
+        description="Each branch has its own appointments, billing, and queue tokens. Rooms here appear on Add Patient and Queue check-in."
         actions={
-          can(user, P.BRANCHES_MANAGE) && (
+          canManageBranches && (
             <button type="button" className="btn-primary" onClick={openCreate}>
               Add branch
             </button>
@@ -176,21 +193,37 @@ export default function BranchesPage() {
             return (
               <div key={b._id} className="card">
                 <div className="flex justify-between gap-2">
-                  <h3 className="font-semibold text-ink">{b.name}</h3>
+                  <div className="min-w-0">
+                    <h3 className="font-semibold text-ink truncate">{b.name}</h3>
+                    {b.isDefault ? (
+                      <p className="text-[11px] font-semibold uppercase tracking-wide text-accent-700 mt-0.5">
+                        Default · All-branches writes land here
+                      </p>
+                    ) : null}
+                  </div>
                   <Badge value={b.isActive ? 'active' : 'inactive'} />
                 </div>
                 <p className="text-sm text-ink-muted mt-1">{b.address || 'No address'}</p>
                 <p className="text-sm text-ink-faint">
                   {b.phone} {b.email}
                 </p>
+                {b.displayTitle ? (
+                  <p className="text-xs text-ink-faint mt-1">TV title: {b.displayTitle}</p>
+                ) : null}
                 <p className="text-xs text-ink-faint mt-2">
-                  Rooms: {rooms.join(', ')} · Default: {b.roomLabel || rooms[0]} · Token: {b.tokenPrefix || '—'}
+                  Rooms: {rooms.join(', ')} · Default: {b.roomLabel || rooms[0]} · Token:{' '}
+                  {b.tokenPrefix || '—'}
                 </p>
-                {can(user, P.BRANCHES_MANAGE) && (
+                {canManageBranches && (
                   <div className="flex flex-wrap gap-2 mt-3">
                     <button type="button" className="btn-secondary btn-sm" onClick={() => openEdit(b)}>
                       Edit
                     </button>
+                    {!b.isDefault && b.isActive && (
+                      <button type="button" className="btn-ghost btn-sm" onClick={() => setAsDefault(b)}>
+                        Set default
+                      </button>
+                    )}
                     <button type="button" className="btn-ghost btn-sm" onClick={() => toggle(b)}>
                       {b.isActive ? 'Deactivate' : 'Activate'}
                     </button>
@@ -214,6 +247,7 @@ export default function BranchesPage() {
         <form onSubmit={save} className="space-y-3">
           {[
             ['name', 'Name', true],
+            ['displayTitle', 'TV display title', false],
             ['phone', 'Phone', false],
             ['email', 'Email', false],
             ['address', 'Address', false],
@@ -227,14 +261,27 @@ export default function BranchesPage() {
                 id={`branch-${f}`}
                 className="input-field"
                 required={required}
-                placeholder={f === 'phone' ? '9876543210' : label}
+                placeholder={
+                  f === 'phone'
+                    ? '9876543210'
+                    : f === 'displayTitle'
+                      ? 'Shown on queue TV board'
+                      : f === 'tokenPrefix'
+                        ? 'e.g. A'
+                        : label
+                }
                 value={form[f]}
                 inputMode={f === 'phone' ? 'numeric' : undefined}
-                maxLength={f === 'phone' ? 10 : undefined}
+                maxLength={f === 'phone' ? 10 : f === 'tokenPrefix' ? 8 : undefined}
                 onChange={(e) =>
                   setForm({
                     ...form,
-                    [f]: f === 'phone' ? formatIndianMobileInput(e.target.value) : e.target.value,
+                    [f]:
+                      f === 'phone'
+                        ? formatIndianMobileInput(e.target.value)
+                        : f === 'tokenPrefix'
+                          ? e.target.value.toUpperCase()
+                          : e.target.value,
                   })
                 }
               />
@@ -246,7 +293,7 @@ export default function BranchesPage() {
               Rooms <RequiredMark />
             </label>
             <p className="text-xs text-ink-faint mb-2">
-              Add every consult room / OPD for this branch. These appear on patient admit &amp; queue.
+              Used on Add Patient and Queue check-in for this branch only.
             </p>
             <div className="flex flex-wrap gap-2 mb-2">
               {form.rooms.map((room) => (

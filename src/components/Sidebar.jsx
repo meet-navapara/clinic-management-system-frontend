@@ -11,8 +11,6 @@ import {
   Inbox,
   X,
   Receipt,
-  Warehouse,
-  Pill,
   GitBranch,
   IdCard,
   ListOrdered,
@@ -21,13 +19,15 @@ import {
   Printer,
   IndianRupee,
   ClipboardList,
+  Search,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
-import { LOGO_URL, APP_NAME } from '../constants/branding';
+import { LOGO_URL, LOGO_MARK_URL, APP_NAME } from '../constants/branding';
 import { ROUTES, getDashboardPath } from '../constants/routes';
 import BranchSwitcher from './BranchSwitcher';
 import api from '../utils/api';
 import { can, P, isStaffUser } from '../constants/permissions';
+import { subscribeInboxUnread } from '../utils/inboxUnread';
 
 function navClass(active, collapsed) {
   return `nav-item ${collapsed ? '!justify-center !px-0 !gap-0' : ''} ${
@@ -43,6 +43,7 @@ function getNavLinks(user) {
     return [
       { to: ROUTES.clinicAdminDashboard, label: 'Dashboard', icon: LayoutDashboard, end: true },
       { to: ROUTES.clinicAdminDoctors, label: 'Doctors', icon: Users, end: true },
+      { to: ROUTES.clinicAdminCampaignTemplates, label: 'WA Templates', icon: Megaphone, end: true },
       { to: ROUTES.profile, label: 'Profile', icon: User, end: true },
     ];
   }
@@ -51,15 +52,14 @@ function getNavLinks(user) {
       { to: ROUTES.doctorDashboard, label: 'Dashboard', icon: LayoutDashboard, end: true },
       { to: ROUTES.doctorCalendar, label: 'Appointments', icon: CalendarDays, end: true },
       { to: ROUTES.doctorPatients, label: 'Patients', icon: Users, match: 'patients' },
+      { to: ROUTES.search, label: 'Search', icon: Search, end: true },
       { to: ROUTES.queue, label: 'Queue', icon: ListOrdered, end: true },
       { to: ROUTES.doctorBook, label: 'Schedule', icon: Calendar, end: true },
-      { to: ROUTES.doctorNotifications, label: 'Follow-ups', icon: Bell, end: true },
+      { to: ROUTES.doctorNotifications, label: 'Reminders', icon: Bell, end: true },
       { to: ROUTES.branches, label: 'Branches', icon: GitBranch, end: true },
       { to: ROUTES.staff, label: 'Staff', icon: IdCard, end: true },
       { to: ROUTES.billing, label: 'Billing', icon: Receipt, end: true },
       { to: ROUTES.revenue, label: 'Revenue', icon: IndianRupee, end: true },
-      { to: ROUTES.medicines, label: 'Medicines', icon: Pill, end: true },
-      { to: ROUTES.inventory, label: 'Inventory', icon: Warehouse, end: true },
       { to: ROUTES.templates, label: 'Templates', icon: ClipboardList, end: true },
       { to: ROUTES.consent, label: 'Consent Forms', icon: FileText, end: true },
       { to: ROUTES.campaigns, label: 'Campaigns', icon: Megaphone, end: true },
@@ -72,12 +72,11 @@ function getNavLinks(user) {
     const links = [{ to: ROUTES.deskDashboard, label: 'Dashboard', icon: LayoutDashboard, end: true }];
     if (can(user, P.APPOINTMENTS_VIEW)) links.push({ to: ROUTES.doctorCalendar, label: 'Appointments', icon: CalendarDays, end: true });
     if (can(user, P.PATIENTS_VIEW)) links.push({ to: ROUTES.doctorPatients, label: 'Patients', icon: Users, match: 'patients' });
+    if (can(user, P.SEARCH)) links.push({ to: ROUTES.search, label: 'Search', icon: Search, end: true });
     if (can(user, P.QUEUE_MANAGE)) links.push({ to: ROUTES.queue, label: 'Queue', icon: ListOrdered, end: true });
     if (can(user, P.APPOINTMENTS_MANAGE)) links.push({ to: ROUTES.doctorBook, label: 'Schedule', icon: Calendar, end: true });
     if (can(user, P.BILLING_VIEW)) links.push({ to: ROUTES.billing, label: 'Billing', icon: Receipt, end: true });
     if (can(user, P.REVENUE_ALL)) links.push({ to: ROUTES.revenue, label: 'Revenue', icon: IndianRupee, end: true });
-    if (can(user, P.MEDICINE_USE) || can(user, P.MEDICINE_MANAGE)) links.push({ to: ROUTES.medicines, label: 'Medicines', icon: Pill, end: true });
-    if (can(user, P.INVENTORY_VIEW) || can(user, P.INVENTORY_MANAGE)) links.push({ to: ROUTES.inventory, label: 'Inventory', icon: Warehouse, end: true });
     if (can(user, P.BRANCHES_VIEW)) links.push({ to: ROUTES.branches, label: 'Branches', icon: GitBranch, end: true });
     // Branch create/disable stays Doctor-only even if BRANCHES_MANAGE was granted historically.
     if (can(user, P.TEMPLATES_OWN) || can(user, P.TEMPLATES_CLINIC)) links.push({ to: ROUTES.templates, label: 'Templates', icon: ClipboardList, end: true });
@@ -168,39 +167,50 @@ export default function Sidebar({ open, onClose, unread = 0, onUnread }) {
     };
     load();
     const id = setInterval(load, 60000);
+    const onVisible = () => {
+      if (document.visibilityState === 'visible') load();
+    };
+    document.addEventListener('visibilitychange', onVisible);
+    window.addEventListener('focus', load);
+    const unsub = subscribeInboxUnread((count) => {
+      if (!cancelled) onUnread?.(count);
+    });
     return () => {
       cancelled = true;
       clearInterval(id);
+      document.removeEventListener('visibilitychange', onVisible);
+      window.removeEventListener('focus', load);
+      unsub();
     };
   }, [user, pathname, onUnread]);
 
   const panel = (collapsed) => (
     <aside className={`flex h-full flex-col bg-white border-r border-line ${collapsed ? 'w-[4.25rem]' : 'w-60'}`}>
       <div
-        className={`relative flex items-center justify-start border-b border-line shrink-0 ${
-          collapsed ? 'h-14 px-1' : 'h-16 px-3'
+        className={`relative flex h-14 items-center border-b border-line shrink-0 ${
+          collapsed ? 'justify-center px-1.5' : 'justify-start px-3'
         }`}
       >
         <Link
           to={brandPath}
-          className="navbar-brand justify-center"
+          className={`navbar-brand min-w-0 ${collapsed ? 'justify-center' : 'justify-start w-full pr-8 lg:pr-0'}`}
           onClick={onClose}
           aria-label={APP_NAME}
         >
           {!logoError ? (
             <img
-              src={LOGO_URL}
+              src={collapsed ? LOGO_MARK_URL : LOGO_URL}
               alt=""
               className={
                 collapsed
-                  ? 'h-10 w-auto max-w-[3rem] object-contain rounded-md'
-                  : 'block h-11 w-auto max-w-[11.5rem] object-contain rounded-md'
+                  ? 'block h-8 w-8 object-contain'
+                  : 'block h-9 w-auto max-w-[10.5rem] object-contain object-left'
               }
               draggable={false}
               onError={() => setLogoError(true)}
             />
           ) : (
-            <Leaf className="w-7 h-7 text-accent-600 shrink-0" />
+            <Leaf className="w-6 h-6 text-accent-600 shrink-0" />
           )}
         </Link>
         {!collapsed && (

@@ -23,6 +23,7 @@ export const ROUTES = {
   clinicAdminDashboard: '/admin/dashboard',
   clinicAdminDoctors: '/admin/doctors',
   clinicAdminDoctorDetail: (id) => `/admin/doctors/${id}`,
+  clinicAdminCampaignTemplates: '/admin/campaign-templates',
   forgotPassword: '/forgot-password',
   resetPassword: '/reset-password',
 
@@ -33,8 +34,6 @@ export const ROUTES = {
   revenue: '/revenue',
   branches: '/branches',
   staff: '/staff',
-  medicines: '/medicines',
-  inventory: '/inventory',
   templates: '/templates',
   consent: '/consent',
   queue: '/queue',
@@ -93,6 +92,9 @@ export function getPageMeta(pathname) {
   if (pathname === ROUTES.clinicAdminDoctors) {
     return { title: 'Doctors', crumb: 'Platform', hideTitle: true };
   }
+  if (pathname === ROUTES.clinicAdminCampaignTemplates) {
+    return { title: 'WA Templates', crumb: 'Platform', hideTitle: true };
+  }
   if (pathname.startsWith('/admin/doctors/')) {
     return { title: 'Doctor', crumb: 'Admin', backTo: ROUTES.clinicAdminDoctors, hideTitle: true };
   }
@@ -106,8 +108,6 @@ export function getPageMeta(pathname) {
   if (pathname === ROUTES.revenue) return { title: 'Revenue', crumb: 'Finance' };
   if (pathname === ROUTES.branches) return { title: 'Branches', crumb: 'Clinic' };
   if (pathname === ROUTES.staff) return { title: 'Staff', crumb: 'Clinic' };
-  if (pathname === ROUTES.medicines) return { title: 'Medicine master', crumb: 'Pharmacy' };
-  if (pathname === ROUTES.inventory) return { title: 'Inventory', crumb: 'Pharmacy' };
   if (pathname === ROUTES.templates) return { title: 'Clinical templates', crumb: 'Clinical' };
   if (pathname === ROUTES.consent) return { title: 'Consent forms', crumb: 'Clinical' };
   if (pathname === ROUTES.queue) return { title: 'Patient queue', crumb: 'Front desk' };
@@ -143,8 +143,6 @@ const SHARED = [
   ROUTES.revenue,
   ROUTES.branches,
   ROUTES.staff,
-  ROUTES.medicines,
-  ROUTES.inventory,
   ROUTES.templates,
   ROUTES.consent,
   ROUTES.queue,
@@ -175,12 +173,10 @@ function permissionForPath(pathname) {
   if (pathname === ROUTES.queue || pathname === ROUTES.queueDisplay) return P.QUEUE_MANAGE;
   if (pathname.startsWith('/billing')) return P.BILLING_VIEW;
   if (pathname === ROUTES.revenue) return P.REVENUE_ALL;
-  if (pathname === ROUTES.medicines) return P.MEDICINE_USE;
-  if (pathname === ROUTES.inventory) return P.INVENTORY_VIEW;
   if (pathname === ROUTES.branches) return P.BRANCHES_VIEW;
   if (pathname === ROUTES.staff) return P.STAFF_MANAGE;
-  if (pathname === ROUTES.templates) return P.TEMPLATES_OWN;
-  if (pathname === ROUTES.consent) return P.CONSENT_CAPTURE;
+  if (pathname === ROUTES.templates) return [P.TEMPLATES_OWN, P.TEMPLATES_CLINIC];
+  if (pathname === ROUTES.consent) return [P.CONSENT_CAPTURE, P.CONSENT_TEMPLATES];
   if (pathname.startsWith('/campaigns')) return P.CAMPAIGNS_MANAGE;
   if (pathname === ROUTES.printSettings) return P.PRINT_SETTINGS;
   if (pathname === ROUTES.search) return P.SEARCH;
@@ -212,6 +208,7 @@ export function isPathAllowedForRole(pathname, role, user) {
     return (
       pathname === ROUTES.clinicAdminDashboard ||
       pathname === ROUTES.clinicAdminDoctors ||
+      pathname === ROUTES.clinicAdminCampaignTemplates ||
       pathname.startsWith('/admin/doctors/') ||
       pathname === ROUTES.profile
     );
@@ -221,7 +218,9 @@ export function isPathAllowedForRole(pathname, role, user) {
     const needed = permissionForPath(pathname);
     if (needed === false) return false;
     if (needed === null) return true;
-    return can(user || { role, permissions: user?.permissions }, needed);
+    const authUser = user || { role, permissions: user?.permissions };
+    if (Array.isArray(needed)) return needed.some((perm) => can(authUser, perm));
+    return can(authUser, needed);
   }
 
   return false;

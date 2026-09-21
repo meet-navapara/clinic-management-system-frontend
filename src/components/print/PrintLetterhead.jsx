@@ -129,6 +129,9 @@ export default function PrintLetterhead({
               <ContactLine icon={Mail}>
                 {branding.email || (showPlaceholders ? 'Email' : '')}
               </ContactLine>
+              {branding.website ? (
+                <p className="text-[10px] text-[#888] break-all">{branding.website}</p>
+              ) : null}
               {(branding.registrationNumber || branding.gstNumber) && (
                 <p className="text-[10px] text-[#888] pt-0.5">
                   {branding.registrationNumber ? `Reg. ${branding.registrationNumber} ` : ''}
@@ -169,27 +172,7 @@ export default function PrintLetterhead({
       )}
 
       {mode === 'settings-footer' && (
-        <>
-          <p className="text-center text-[#9aa3ad] tracking-[0.35em] text-lg py-10">...</p>
-          {(leftHtml || rightHtml || showPlaceholders) && (
-            <div className="flex justify-between gap-6 mb-4 text-[12px] text-[#555]">
-              <div className="flex-1 min-w-0">
-                {leftHtml ? (
-                  <div dangerouslySetInnerHTML={{ __html: leftHtml }} />
-                ) : (
-                  <p className="text-[#9aa3ad]">Left Content Here.</p>
-                )}
-              </div>
-              <div className="flex-1 min-w-0 text-right">
-                {rightHtml ? (
-                  <div dangerouslySetInnerHTML={{ __html: rightHtml }} />
-                ) : (
-                  <p className="text-[#9aa3ad]">Right Content Here.</p>
-                )}
-              </div>
-            </div>
-          )}
-        </>
+        <p className="text-center text-[#9aa3ad] tracking-[0.35em] text-lg py-10">...</p>
       )}
 
       {includeFooter && showFooterBlock && (mode === 'document' || mode === 'settings-footer') && (

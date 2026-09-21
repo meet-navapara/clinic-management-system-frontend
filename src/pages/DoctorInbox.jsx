@@ -1,5 +1,5 @@
-import { useEffect, useState, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useEffect, useState, useCallback, useRef } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
 import { format, isValid } from 'date-fns';
 import api from '../utils/api';
 import toast from 'react-hot-toast';
@@ -7,8 +7,19 @@ import { Inbox, CheckCheck } from 'lucide-react';
 import EmptyState from '../components/ui/EmptyState';
 import { SkeletonRows } from '../components/ui/Skeleton';
 import Pagination from '../components/ui/Pagination';
+import PageHeader from '../components/ui/PageHeader';
+import Dropdown from '../components/ui/Dropdown';
 import { PAGE_SIZE } from '../constants/pagination';
+import { ROUTES } from '../constants/routes';
+import { publishInboxUnread } from '../utils/inboxUnread';
 
+const FILTER_OPTIONS = [
+  { value: 'all', label: 'All' },
+  { value: 'unread', label: 'Unread' },
+  { value: 'appointment', label: 'Appointments' },
+  { value: 'patient', label: 'Patients' },
+  { value: 'reminder', label: 'Reminders' },
+];
 
 export default function DoctorInbox() {
   const navigate = useNavigate();
@@ -19,36 +30,62 @@ export default function DoctorInbox() {
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
+  const [filter, setFilter] = useState('all');
+  const markingRef = useRef(new Set());
 
-  const load = useCallback(async (p = 1) => {
-    setLoading(true);
-    try {
-      const res = await api.get('/notifications/inbox', { params: { page: p, limit: PAGE_SIZE } });
-      setItems(res.data.notifications || []);
-      setUnreadCount(res.data.unreadCount ?? 0);
-      setPage(res.data.page || p);
-      setPages(res.data.pages || 1);
-      setTotal(res.data.total || 0);
-    } catch {
-      toast.error('Could not load inbox.');
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+  const syncUnread = (count) => {
+    setUnreadCount(count);
+    publishInboxUnread(count);
+  };
+
+  const load = useCallback(
+    async (p = 1) => {
+      setLoading(true);
+      try {
+        const params = { page: p, limit: PAGE_SIZE };
+        if (filter !== 'all') params.filter = filter;
+        const res = await api.get('/notifications/inbox', { params });
+        setItems(res.data.notifications || []);
+        syncUnread(res.data.unreadCount ?? 0);
+        setPage(res.data.page || p);
+        setPages(res.data.pages || 1);
+        setTotal(res.data.total || 0);
+      } catch {
+        toast.error('Could not load inbox.');
+      } finally {
+        setLoading(false);
+      }
+    },
+    [filter]
+  );
 
   useEffect(() => {
     load(1);
   }, [load]);
 
   const markRead = async (id) => {
+    if (markingRef.current.has(id)) return;
+    markingRef.current.add(id);
     try {
-      await api.patch(`/notifications/inbox/${id}/read`);
+      const res = await api.patch(`/notifications/inbox/${id}/read`);
       setItems((prev) =>
-        prev.map((n) => (n._id === id ? { ...n, readAt: n.readAt || new Date().toISOString() } : n))
+        prev.map((n) =>
+          n._id === id ? { ...n, readAt: n.readAt || res.data.notification?.readAt || new Date().toISOString() } : n
+        )
       );
-      setUnreadCount((c) => Math.max(0, c - 1));
+      if (typeof res.data.unreadCount === 'number') {
+        syncUnread(res.data.unreadCount);
+      } else {
+        setUnreadCount((c) => {
+          const next = Math.max(0, c - 1);
+          publishInboxUnread(next);
+          return next;
+        });
+      }
     } catch {
       toast.error('Could not mark as read.');
+    } finally {
+      markingRef.current.delete(id);
     }
   };
 
@@ -59,7 +96,7 @@ export default function DoctorInbox() {
       setItems((prev) =>
         prev.map((n) => ({ ...n, readAt: n.readAt || new Date().toISOString() }))
       );
-      setUnreadCount(0);
+      syncUnread(0);
       toast.success('All marked as read.');
     } catch {
       toast.error('Could not update inbox.');
@@ -75,22 +112,39 @@ export default function DoctorInbox() {
     }
   };
 
+  const visible = items;
+
   return (
     <div className="page-container">
-      <div className="mb-5 flex flex-col sm:flex-row sm:items-end sm:justify-between gap-3">
-        <p className="page-subtitle !mt-0">
+      <PageHeader
+        title="Inbox"
+        description="Your practice activity across all branches. Patient WhatsApp delivery logs are under Reminders."
+        actions={
+          <div className="flex flex-wrap gap-2">
+            {unreadCount > 0 && (
+              <button type="button" className="btn-secondary" disabled={busy} onClick={markAll}>
+                <CheckCheck className="w-4 h-4" /> Mark all read
+              </button>
+            )}
+            <Link to={ROUTES.doctorNotifications} className="btn-secondary">
+              Reminders
+            </Link>
+          </div>
+        }
+      />
+
+      <div className="mb-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+        <p className="text-sm text-ink-muted">
           {unreadCount ? `${unreadCount} unread` : "You're caught up"}
+          {total ? ` · ${total} total` : ''}
         </p>
-        {unreadCount > 0 && (
-          <button
-            type="button"
-            className="btn-secondary"
-            disabled={busy}
-            onClick={markAll}
-          >
-            <CheckCheck className="w-4 h-4" /> Mark all read
-          </button>
-        )}
+        <Dropdown
+          value={filter}
+          onChange={setFilter}
+          ariaLabel="Filter inbox"
+          options={FILTER_OPTIONS}
+          className="sm:w-44"
+        />
       </div>
 
       {loading ? (
@@ -99,11 +153,17 @@ export default function DoctorInbox() {
         <EmptyState
           icon={Inbox}
           title="No notifications yet"
-          description="Activity from appointments and patients will appear here."
+          description="Appointments, patients, and reminder outcomes will appear here."
+        />
+      ) : visible.length === 0 ? (
+        <EmptyState
+          icon={Inbox}
+          title="No matches"
+          description="Try another filter, or mark items as unread by waiting for new activity."
         />
       ) : (
         <div className="card !p-0 overflow-hidden divide-y divide-line">
-          {items.map((n) => {
+          {visible.map((n) => {
             const unread = !n.readAt;
             const when = n.createdAt ? new Date(n.createdAt) : null;
             return (
@@ -127,10 +187,14 @@ export default function DoctorInbox() {
                     </p>
                     {n.body ? <p className="text-sm text-ink-muted mt-0.5 line-clamp-2">{n.body}</p> : null}
                     <p className="text-xs text-ink-faint mt-1.5">
+                      {n.type ? String(n.type).replace(/_/g, ' ') : 'activity'}
+                      {' · '}
                       {when && isValid(when) ? format(when, 'PPp') : '—'}
                     </p>
                   </div>
-                  {unread && <span className="mt-1.5 w-2 h-2 rounded-full bg-accent-500 shrink-0" aria-label="Unread" />}
+                  {unread && (
+                    <span className="mt-1.5 w-2 h-2 rounded-full bg-accent-500 shrink-0" aria-label="Unread" />
+                  )}
                 </div>
               </article>
             );

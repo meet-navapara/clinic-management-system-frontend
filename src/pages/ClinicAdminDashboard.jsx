@@ -64,15 +64,23 @@ export default function ClinicAdminDashboard() {
           <p className="section-label mb-0.5 sm:mb-1">Platform</p>
           <h2 className="page-title">Super Admin</h2>
           <p className="page-subtitle">
-            Overview of doctor registrations. Manage approvals on the Doctors tab.
+            Doctor approvals and clinic WhatsApp campaign templates (MSG91).
           </p>
         </div>
-        <Link
-          to={ROUTES.clinicAdminDoctors}
-          className="btn-primary w-full sm:w-auto justify-center shrink-0"
-        >
-          Manage doctors
-        </Link>
+        <div className="flex flex-wrap gap-2 w-full sm:w-auto">
+          <Link
+            to={ROUTES.clinicAdminCampaignTemplates}
+            className="btn-secondary w-full sm:w-auto justify-center shrink-0"
+          >
+            WA Templates
+          </Link>
+          <Link
+            to={ROUTES.clinicAdminDoctors}
+            className="btn-primary w-full sm:w-auto justify-center shrink-0"
+          >
+            Manage doctors
+          </Link>
+        </div>
       </div>
 
       {statsLoading ? (

@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { format, isValid } from 'date-fns';
+import { Download } from 'lucide-react';
 import api from '../utils/api';
 import Money from '../components/ui/Money';
 import BackButton from '../components/ui/BackButton';
@@ -66,11 +67,23 @@ export default function PrintDocument() {
   const type = typeParam || 'preview';
   const navigate = useNavigate();
   const { user } = useAuth();
+  const [searchParams] = useSearchParams();
+  const autoDownload = searchParams.get('download') === '1' || searchParams.get('autoprint') === '1';
   const [data, setData] = useState(null);
 
   useEffect(() => {
     const url = type === 'preview' ? '/ops/print/preview' : `/ops/print/${type}/${id}`;
-    api.get(url).then((res) => setData(res.data)).catch(() => setData({ error: true }));
+    api.get(url).then((res) => setData(res.data)).catch((err) => {
+      const status = err.response?.status;
+      const message =
+        err.response?.data?.message ||
+        (status === 403
+          ? 'You do not have permission to print this document.'
+          : status === 404
+            ? 'Document not found.'
+            : 'Could not load this document.');
+      setData({ error: true, errorMessage: message, errorStatus: status });
+    });
   }, [type, id]);
 
   const sheetStyle = useMemo(() => {
@@ -90,14 +103,27 @@ export default function PrintDocument() {
   useEffect(() => {
     if (!data?.branding) return undefined;
     const b = data.branding;
-    const size = b.paperSize === 'A5' ? 'A5' : b.paperSize === 'Letter' ? 'letter' : 'A4';
     const orient = b.pageOrientation === 'landscape' ? 'landscape' : 'portrait';
+    let sizeRule = 'A4';
+    if (b.paperSize === 'A5') sizeRule = 'A5';
+    else if (b.paperSize === 'Letter') sizeRule = 'letter';
+    else if (b.paperSize === 'receipt') sizeRule = '80mm auto';
+    const sizeCss =
+      b.paperSize === 'receipt' ? `size: ${sizeRule};` : `size: ${sizeRule} ${orient};`;
     const style = document.createElement('style');
     style.setAttribute('data-print-page', '1');
-    style.textContent = `@page { size: ${size} ${orient}; margin: 0; }`;
+    style.textContent = `@page { ${sizeCss} margin: 0; }`;
     document.head.appendChild(style);
     return () => style.remove();
   }, [data?.branding]);
+
+  useEffect(() => {
+    if (!autoDownload || !data || data.error) return undefined;
+    const t = window.setTimeout(() => {
+      window.print();
+    }, 450);
+    return () => window.clearTimeout(t);
+  }, [autoDownload, data]);
 
   const leavePrint = () => {
     if (window.opener && !window.opener.closed) {
@@ -113,7 +139,19 @@ export default function PrintDocument() {
   };
 
   if (!data) return <SkeletonPage cards={0} rows={8} />;
-  if (data.error) return <div className="p-8">Document not found.</div>;
+  if (data.error) {
+    return (
+      <div className="p-8 max-w-lg">
+        <p className="font-semibold text-ink">{data.errorMessage || 'Document not found.'}</p>
+        {data.errorStatus === 403 ? (
+          <p className="text-sm text-ink-muted mt-1">Ask a doctor to grant print or billing access.</p>
+        ) : null}
+        <button type="button" className="btn-secondary mt-4" onClick={leavePrint}>
+          Go back
+        </button>
+      </div>
+    );
+  }
 
   const { branding } = data;
   const paper =
@@ -131,12 +169,18 @@ export default function PrintDocument() {
     >
       <div className="print-toolbar no-print sticky top-0 z-10 bg-canvas border-b border-line px-4 py-2 flex items-center gap-2">
         <BackButton />
-        <button type="button" className="btn-primary" onClick={() => window.print()}>
+        <button type="button" className="btn-primary inline-flex items-center gap-2" onClick={() => window.print()}>
+          <Download className="w-4 h-4" />
           Print / Save PDF
         </button>
         <button type="button" className="btn-secondary" onClick={leavePrint}>
           Close
         </button>
+        {autoDownload ? (
+          <p className="text-xs text-ink-muted ml-2 hidden sm:block">
+            Choose “Save as PDF” in the print dialog to download.
+          </p>
+        ) : null}
       </div>
       <article className="print-sheet mx-auto max-w-[210mm]" style={sheetStyle}>
         <PrintLetterhead
@@ -212,7 +256,7 @@ export default function PrintDocument() {
                 <Money value={data.invoice.discount} symbol={branding.currencySymbol} />
               </div>
               <div className="flex justify-between">
-                <span>Tax</span>
+                <span>{branding.taxLabel || 'Tax'}</span>
                 <Money value={data.invoice.tax} symbol={branding.currencySymbol} />
               </div>
               <div className="flex justify-between font-semibold">
@@ -367,7 +411,7 @@ export default function PrintDocument() {
                   </div>
                 </div>
               )}
-            {['chiefComplaint', 'symptoms', 'observation', 'diagnosis', 'treatment', 'advice', 'followUp'].map(
+            {['chiefComplaint', 'symptoms', 'observation', 'diagnosis', 'treatment', 'advice', 'followUp', 'instructions'].map(
               (k) =>
                 data.consultation[k] ? (
                   <p key={k} className="mb-2">
