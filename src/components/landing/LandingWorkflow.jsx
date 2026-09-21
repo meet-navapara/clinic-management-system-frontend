@@ -1,59 +1,92 @@
 import Reveal from '../Reveal';
 
-const FLOW = [
+const STEPS = [
   {
-    step: '01',
+    n: '01',
     title: 'Register',
-    text: 'Add or find the patient with history, contacts, and prior visits.',
+    text: 'Find or add the patient with contacts and history.',
+    ui: (
+      <div className="lp-mini">
+        <p>New patient</p>
+        <div><span>Name</span><b>Meera Kulkarni</b></div>
+        <div><span>Phone</span><b>+91 ······ 2140</b></div>
+        <div><span>History</span><b>Returning</b></div>
+      </div>
+    ),
   },
   {
-    step: '02',
+    n: '02',
     title: 'Schedule',
-    text: 'Book on the day calendar or check the patient into the live queue.',
+    text: 'Book a slot, or check them into the live queue.',
+    ui: (
+      <div className="lp-mini">
+        <p>Day calendar</p>
+        <div><span>10:00</span><b>Meera · New</b></div>
+        <div><span>10:30</span><b>Rahul · Review</b></div>
+        <div><span>Queue</span><b>Token A-08</b></div>
+      </div>
+    ),
   },
   {
-    step: '03',
+    n: '03',
     title: 'Consult',
-    text: 'Clinical notes, consent, prescription, and templates in one visit.',
+    text: 'Notes, consent, and prescription on that visit.',
+    ui: (
+      <div className="lp-mini">
+        <p>Consultation</p>
+        <div><span>Notes</span><b>Follow-up plan</b></div>
+        <div><span>Consent</span><b>Captured</b></div>
+        <div><span>Rx</span><b>Ready to print</b></div>
+      </div>
+    ),
   },
   {
-    step: '04',
+    n: '04',
     title: 'Collect',
-    text: 'Raise invoices and record payments against the clinic day.',
+    text: 'Invoice and payment against the clinic day.',
+    ui: (
+      <div className="lp-mini">
+        <p>Invoice</p>
+        <div><span>Visit</span><b>Consultation</b></div>
+        <div><span>Status</span><b>Paid</b></div>
+        <div><span>Branch</span><b>Main</b></div>
+      </div>
+    ),
   },
   {
-    step: '05',
+    n: '05',
     title: 'Follow up',
-    text: 'Reminders plus WhatsApp and email campaigns from the same system.',
+    text: 'Reminders, or a WhatsApp and email campaign.',
+    ui: (
+      <div className="lp-mini">
+        <p>Campaign</p>
+        <div><span>Channel</span><b>WhatsApp</b></div>
+        <div><span>Template</span><b>Clinic approved</b></div>
+        <div><span>Also</span><b>Email</b></div>
+      </div>
+    ),
   },
 ];
 
 export default function LandingWorkflow() {
   return (
-    <section id="how-it-works" className="py-14 sm:py-20 md:py-24 bg-[#FFFEFE] scroll-mt-16">
+    <section id="how-it-works" className="lp-flow">
       <div className="site-container">
-        <Reveal>
-          <p className="section-label mb-2">How it works</p>
-          <h2 className="landing-section-title mb-2">From registration to follow-up</h2>
-          <p className="text-ink-muted mb-9 sm:mb-12 max-w-2xl text-sm sm:text-base leading-relaxed">
-            Front desk, doctor, and accounts stay on one path for every visit — not scattered across tools.
-          </p>
+        <Reveal className="lp-section-head">
+          <p className="lp-kicker">How a visit moves</p>
+          <h2>Five steps. One record.</h2>
+          <p>Front desk, doctor, and accounts stay on the same path — not five separate tools.</p>
         </Reveal>
-
-        <ol className="grid grid-cols-1 xs:grid-cols-2 lg:grid-cols-5 gap-0 list-none p-0 m-0 border-t border-line">
-          {FLOW.map((item, i) => (
-            <Reveal
-              as="li"
-              key={item.step}
-              delay={i * 70}
-              className="border-b lg:border-b-0 lg:border-r border-line last:border-r-0 py-6 lg:pr-5 lg:pl-5 first:lg:pl-0 min-w-0"
-            >
-              <p className="text-[11px] font-semibold tracking-wider text-accent-700">{item.step}</p>
-              <h3 className="mt-2 text-base sm:text-lg font-semibold text-ink">{item.title}</h3>
-              <p className="mt-2 text-xs sm:text-sm text-ink-muted leading-relaxed">{item.text}</p>
+        <div className="lp-flow-track">
+          {STEPS.map((step, i) => (
+            <Reveal key={step.n} delay={i * 60} className="lp-flow-step">
+              <span>{step.n}</span>
+              <h3>{step.title}</h3>
+              <p>{step.text}</p>
+              {step.ui}
             </Reveal>
           ))}
-        </ol>
+        </div>
       </div>
     </section>
   );

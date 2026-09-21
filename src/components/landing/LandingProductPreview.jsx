@@ -1,88 +1,77 @@
 /**
- * Static product UI preview based on the real clinic workspace
- * (sidebar modules, calendar day, queue tokens). Decorative only.
+ * Static recreation of the real doctor dashboard (today stats, schedule, queue token).
+ * Decorative marketing preview — not live data.
  */
-export default function LandingProductPreview({ className = '' }) {
+export default function LandingProductPreview({ compact = false }) {
   return (
-    <div
-      className={`landing-product-preview ${className}`.trim()}
-      role="img"
-      aria-label="Z Health clinic workspace showing appointments, queue, and patient visit flow"
-    >
-      <div className="landing-product-chrome">
-        <span className="landing-product-dot" />
-        <span className="landing-product-dot" />
-        <span className="landing-product-dot" />
-        <span className="landing-product-url">app.zhealth · clinic workspace</span>
+    <div className={`lp-frame ${compact ? 'lp-frame--compact' : ''}`} role="img" aria-label="Z Health doctor dashboard with today’s appointments and live queue">
+      <div className="lp-chrome">
+        <span /><span /><span />
+        <p>zhealth · doctor workspace</p>
       </div>
-
-      <div className="landing-product-body">
-        <aside className="landing-product-side" aria-hidden>
-          <p className="landing-product-side-brand">Z Health</p>
-          <nav className="landing-product-nav">
-            {[
-              ['Dashboard', true],
-              ['Appointments', false],
-              ['Patients', false],
-              ['Queue', false],
-              ['Billing', false],
-              ['Campaigns', false],
-            ].map(([label, active]) => (
-              <span key={label} className={active ? 'is-active' : undefined}>
-                {label}
-              </span>
-            ))}
-          </nav>
+      <div className="lp-app">
+        <aside className="lp-side">
+          <strong>Z Health</strong>
+          {['Dashboard', 'Appointments', 'Patients', 'Queue', 'Billing', 'Campaigns'].map((item, i) => (
+            <span key={item} className={i === 0 ? 'on' : ''}>{item}</span>
+          ))}
         </aside>
-
-        <div className="landing-product-main" aria-hidden>
-          <header className="landing-product-top">
+        <div className="lp-main">
+          <header className="lp-head">
             <div>
-              <p className="landing-product-kicker">Today</p>
-              <p className="landing-product-heading">Clinic day</p>
+              <p className="k">Monday clinic day</p>
+              <h3>Good morning, Dr. Sharma</h3>
             </div>
-            <div className="landing-product-pills">
-              <span>Main branch</span>
-              <span className="is-accent">12 waiting</span>
+            <div className="lp-actions">
+              <span className="ghost">Add patient</span>
+              <span className="solid">Schedule</span>
             </div>
           </header>
-
-          <div className="landing-product-grid">
-            <div className="landing-product-panel">
-              <p className="landing-product-panel-title">Appointments</p>
-              <ul>
-                {[
-                  ['09:00', 'Ananya R.', 'Follow-up', 'Arrived'],
-                  ['09:30', 'Vikram S.', 'Consult', 'Waiting'],
-                  ['10:00', 'Meera K.', 'New patient', 'Booked'],
-                  ['10:30', 'Rahul D.', 'Review', 'Booked'],
-                ].map(([time, name, type, status]) => (
-                  <li key={time}>
-                    <span className="t">{time}</span>
-                    <span className="n">{name}</span>
-                    <span className="y">{type}</span>
-                    <span className={`s ${status === 'Arrived' ? 'ok' : ''}`}>{status}</span>
-                  </li>
-                ))}
-              </ul>
-            </div>
-
-            <div className="landing-product-panel landing-product-queue">
-              <p className="landing-product-panel-title">Live queue</p>
-              <div className="landing-product-tokens">
-                {[
-                  ['A-04', 'In consult'],
-                  ['A-05', 'Next'],
-                  ['A-06', 'Waiting'],
-                  ['A-07', 'Waiting'],
-                ].map(([token, state]) => (
-                  <div key={token} className={state === 'In consult' ? 'is-current' : undefined}>
-                    <strong>{token}</strong>
-                    <span>{state}</span>
-                  </div>
-                ))}
+          <p className="lp-label">Today</p>
+          <div className="lp-stats">
+            {[
+              ['Appointments', '18'],
+              ['Pending today', '7'],
+              ['Completed', '9'],
+              ['Patients', '240'],
+            ].map(([label, value]) => (
+              <div key={label}>
+                <span>{label}</span>
+                <strong>{value}</strong>
               </div>
-              <p className="landing-product-note">Waiting-room display stays in sync with check-in.</p>
+            ))}
+          </div>
+          <div className="lp-split">
+            <div className="lp-card">
+              <div className="lp-card-h">
+                <span>Today’s schedule</span>
+                <em>Open calendar</em>
+              </div>
+              {[
+                ['09:00', 'Ananya Rao', 'Follow-up', 'Arrived', true],
+                ['09:30', 'Vikram Shah', 'Consult', 'Waiting', false],
+                ['10:00', 'Meera Kulkarni', 'New patient', 'Booked', false],
+                ['10:30', 'Rahul Desai', 'Review', 'Booked', false],
+              ].map(([time, name, type, status, ok]) => (
+                <div className="lp-row" key={time}>
+                  <b>{time}</b>
+                  <div>
+                    <p>{name}</p>
+                    <small>{type}</small>
+                  </div>
+                  <em className={ok ? 'ok' : ''}>{status}</em>
+                </div>
+              ))}
+            </div>
+            <div className="lp-card lp-queue-card">
+              <div className="lp-card-h">
+                <span>Queue · 4 active</span>
+                <em>Open queue</em>
+              </div>
+              <p className="token">TOKEN #A-04</p>
+              <p className="who">Ananya Rao · in consult</p>
+              <p className="next">Next: #A-05, #A-06, #A-07</p>
+              <span className="solid sm">Start consultation</span>
             </div>
           </div>
         </div>

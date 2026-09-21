@@ -1,99 +1,69 @@
-import { useState } from 'react';
-import { Link, NavLink, useLocation } from 'react-router-dom';
+import { useEffect, useState } from 'react';
+import { Link, useLocation } from 'react-router-dom';
 import { Menu, X, Leaf } from 'lucide-react';
 import { LOGO_URL, APP_NAME } from '../constants/branding';
 import { ROUTES } from '../constants/routes';
 
-const linkClass = ({ isActive }) =>
-  `px-2.5 sm:px-3 py-1.5 sm:py-2 rounded-lg text-xs sm:text-sm font-medium min-h-9 sm:min-h-10 inline-flex items-center ${
-    isActive ? 'bg-[#f3efe8] text-ink' : 'text-ink-muted hover:text-ink hover:bg-[#faf8f3]'
-  }`;
-
-const anchorClass =
-  'px-2.5 sm:px-3 py-1.5 sm:py-2 rounded-lg text-xs sm:text-sm font-medium min-h-9 sm:min-h-10 inline-flex items-center text-ink-muted hover:text-ink hover:bg-[#faf8f3]';
+const LINKS = [
+  { href: '#product', label: 'Product' },
+  { href: '#how-it-works', label: 'How it works' },
+  { href: '#features', label: 'Features' },
+  { href: '#roles', label: 'For clinics' },
+];
 
 export default function Navbar() {
   const [menuOpen, setMenuOpen] = useState(false);
   const [logoError, setLogoError] = useState(false);
+  const [scrolled, setScrolled] = useState(false);
   const { pathname } = useLocation();
   const onLanding = pathname === ROUTES.home;
   const closeMenu = () => setMenuOpen(false);
 
+  useEffect(() => {
+    if (!onLanding) return undefined;
+    const onScroll = () => setScrolled(window.scrollY > 8);
+    onScroll();
+    window.addEventListener('scroll', onScroll, { passive: true });
+    return () => window.removeEventListener('scroll', onScroll);
+  }, [onLanding]);
+
   return (
-    <nav className="bg-white/95 backdrop-blur-sm border-b border-line sticky top-0 z-50 w-full">
-      <div className="site-container">
-        <div className="flex items-center justify-between gap-2 h-14 min-w-0">
-          <Link to="/" className="navbar-brand min-w-0" onClick={closeMenu} aria-label={APP_NAME}>
-            {!logoError ? (
-              <img
-                src={LOGO_URL}
-                alt=""
-                className="navbar-brand-emblem-img"
-                draggable={false}
-                onError={() => setLogoError(true)}
-              />
-            ) : (
-              <Leaf className="w-5 h-5 text-accent-600 shrink-0" />
-            )}
-          </Link>
+    <nav className={`lp-nav ${scrolled || !onLanding ? 'is-solid' : ''}`}>
+      <div className="site-container lp-nav-inner">
+        <Link to="/" className="navbar-brand min-w-0" onClick={closeMenu} aria-label={APP_NAME}>
+          {!logoError ? (
+            <img src={LOGO_URL} alt="" className="navbar-brand-emblem-img" draggable={false} onError={() => setLogoError(true)} />
+          ) : (
+            <Leaf className="w-5 h-5 text-accent-600 shrink-0" />
+          )}
+        </Link>
 
-          <div className="hidden md:flex items-center gap-1">
-            {onLanding && (
-              <>
-                <a href="#features" className={anchorClass}>
-                  Features
-                </a>
-                <a href="#how-it-works" className={anchorClass}>
-                  How it works
-                </a>
-              </>
-            )}
-            <NavLink to={ROUTES.login} className={linkClass}>
-              Login
-            </NavLink>
-            <Link to={ROUTES.doctorSignup} className="btn-primary ml-1">
-              Sign up
-            </Link>
-          </div>
-
-          <button
-            type="button"
-            onClick={() => setMenuOpen(!menuOpen)}
-            className="md:hidden min-h-10 min-w-10 inline-flex items-center justify-center rounded-lg text-ink-muted"
-            aria-label={menuOpen ? 'Close menu' : 'Open menu'}
-            aria-expanded={menuOpen}
-          >
-            {menuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
-          </button>
+        <div className="lp-nav-desk">
+          {onLanding && LINKS.map((link) => (
+            <a key={link.href} href={link.href}>{link.label}</a>
+          ))}
+          <Link to={ROUTES.login}>Login</Link>
+          <Link to={ROUTES.doctorSignup} className="btn-primary">Get started</Link>
         </div>
+
+        <button
+          type="button"
+          className="lp-nav-toggle"
+          onClick={() => setMenuOpen((v) => !v)}
+          aria-label={menuOpen ? 'Close menu' : 'Open menu'}
+          aria-expanded={menuOpen}
+        >
+          {menuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
+        </button>
       </div>
 
       {menuOpen && (
-        <div className="md:hidden border-t border-line px-4 py-3 space-y-1 bg-white">
-          {onLanding && (
-            <>
-              <a
-                href="#features"
-                onClick={closeMenu}
-                className="block text-center px-4 py-3 text-sm font-medium text-ink-muted hover:text-ink"
-              >
-                Features
-              </a>
-              <a
-                href="#how-it-works"
-                onClick={closeMenu}
-                className="block text-center px-4 py-3 text-sm font-medium text-ink-muted hover:text-ink"
-              >
-                How it works
-              </a>
-            </>
-          )}
-          <Link to={ROUTES.login} onClick={closeMenu} className="block text-center px-4 py-3 text-sm font-medium">
-            Login
-          </Link>
-          <Link to={ROUTES.doctorSignup} onClick={closeMenu} className="btn-primary block text-center w-full">
-            Sign up
-          </Link>
+        <div className="lp-nav-mobile">
+          {onLanding && LINKS.map((link) => (
+            <a key={link.href} href={link.href} onClick={closeMenu}>{link.label}</a>
+          ))}
+          <Link to={ROUTES.login} onClick={closeMenu}>Login</Link>
+          <Link to={ROUTES.doctorSignup} onClick={closeMenu} className="btn-primary w-full">Get started</Link>
         </div>
       )}
     </nav>

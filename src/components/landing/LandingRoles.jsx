@@ -6,43 +6,46 @@ import { LANDING_IMAGES } from '../../constants/landingImages';
 const ROLES = [
   {
     title: 'Doctors',
-    text: 'Own the clinic workspace: patients, calendar, consultation, billing, branches, staff, and campaigns. New doctor accounts go through approval before full access.',
+    text: 'The practice owner. Patients, calendar, queue, consultation, billing, branches, staff, and campaigns. New accounts wait for approval before full access.',
     cta: { to: ROUTES.doctorSignup, label: 'Create doctor account' },
     image: LANDING_IMAGES.doctor,
-    alt: 'Doctor in a professional clinic setting',
+    alt: 'Doctor in a clinic',
+    chips: ['Dashboard', 'Consult', 'Billing'],
   },
   {
     title: 'Staff',
-    text: 'Front desk and operations roles with permissions you assign — appointments, queue, patients, billing, and more — without sharing the doctor login.',
+    text: 'Front desk and operations. Appointments, queue, patients, and billing only where a doctor grants permission — a separate login, not a shared password.',
     cta: { to: ROUTES.login, label: 'Staff login' },
-    image: LANDING_IMAGES.staff,
-    alt: 'Clinic staff members working together',
+    image: LANDING_IMAGES.frontDesk,
+    alt: 'Clinic front desk staff managing appointments',
+    chips: ['Front desk', 'Queue', 'Check-in'],
   },
 ];
 
 export default function LandingRoles() {
   return (
-    <section className="py-14 sm:py-20 md:py-24 bg-[#FFFEFE]">
+    <section id="roles" className="lp-roles">
       <div className="site-container">
-        <Reveal>
-          <p className="section-label mb-2">Built for the clinic team</p>
-          <h2 className="landing-section-title mb-2">Doctors and staff, clear roles</h2>
-          <p className="text-ink-muted mb-9 sm:mb-12 max-w-2xl text-sm sm:text-base leading-relaxed">
-            Z Health is designed around how clinics actually work — not a single shared inbox for everyone.
-          </p>
+        <Reveal className="lp-section-head">
+          <p className="lp-kicker">Who it is for</p>
+          <h2>Two ways into the same clinic.</h2>
         </Reveal>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-5 sm:gap-6">
-          {ROLES.map(({ title, text, cta, image, alt }, i) => (
-            <Reveal key={title} delay={i * 80} className="landing-role-card min-w-0 flex flex-col border border-line bg-[#FFFEFE] overflow-hidden">
-              <div className="landing-role-photo">
-                <img src={image} alt={alt} width={1200} height={800} loading="lazy" decoding="async" />
+        <div className="lp-roles-grid lp-roles-grid--two">
+          {ROLES.map((role, i) => (
+            <Reveal key={role.title} delay={i * 70} className="lp-role">
+              <div className="lp-role-photo">
+                <img src={role.image} alt={role.alt} loading="lazy" decoding="async" />
               </div>
-              <div className="p-6 sm:p-8 flex flex-col flex-1">
-                <h3 className="text-lg font-semibold text-ink">{title}</h3>
-                <p className="mt-2 text-sm text-ink-muted leading-relaxed flex-1">{text}</p>
-                <Link to={cta.to} className="btn-secondary mt-6 self-start">
-                  {cta.label}
+              <div className="lp-role-body">
+                <div className="lp-chips">
+                  {role.chips.map((c) => (
+                    <span key={c}>{c}</span>
+                  ))}
+                </div>
+                <h3>{role.title}</h3>
+                <p>{role.text}</p>
+                <Link to={role.cta.to} className="btn-secondary">
+                  {role.cta.label}
                 </Link>
               </div>
             </Reveal>

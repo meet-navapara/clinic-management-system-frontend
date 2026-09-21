@@ -1,33 +1,36 @@
 import { Link } from 'react-router-dom';
-import { BRAND_NAME, BRAND_TAGLINE } from '../../constants/branding';
+import { LOGO_URL, BRAND_NAME, BRAND_TAGLINE } from '../../constants/branding';
 import { ROUTES } from '../../constants/routes';
 
 export default function LandingFooter() {
   return (
-    <footer className="border-t border-line bg-white py-8 sm:py-10">
-      <div className="site-container flex flex-col sm:flex-row sm:items-start sm:justify-between gap-6">
-        <div className="min-w-0">
-          <p className="font-serif text-lg font-bold text-ink">{BRAND_NAME}</p>
-          <p className="mt-1 text-xs sm:text-sm text-ink-muted">{BRAND_TAGLINE}</p>
-          <p className="mt-4 text-xs text-ink-faint">
-            © {new Date().getFullYear()} {BRAND_NAME}. All rights reserved.
-          </p>
+    <footer className="lp-footer">
+      <div className="site-container">
+        <div className="lp-footer-top">
+          <div className="lp-footer-brand-block">
+            <Link to={ROUTES.home} className="lp-footer-logo" aria-label={BRAND_NAME}>
+              <img src={LOGO_URL} alt={BRAND_NAME} width={160} height={40} decoding="async" />
+            </Link>
+            <p className="lp-footer-tagline">{BRAND_TAGLINE}</p>
+            <p className="lp-footer-note">Clinic software for the visit — patients through follow-up.</p>
+          </div>
+          <div>
+            <p>Product</p>
+            <a href="#product">Overview</a>
+            <a href="#how-it-works">How it works</a>
+            <a href="#features">Queue & consult</a>
+            <a href="#roles">Roles</a>
+          </div>
+          <div>
+            <p>Access</p>
+            <Link to={ROUTES.doctorSignup}>Create doctor account</Link>
+            <Link to={ROUTES.login}>Login</Link>
+            <Link to={ROUTES.forgotPassword}>Forgot password</Link>
+          </div>
         </div>
-
-        <nav className="flex flex-wrap gap-x-6 gap-y-2 text-xs sm:text-sm text-ink-muted" aria-label="Footer">
-          <a href="#features" className="hover:text-ink transition-colors">
-            Features
-          </a>
-          <a href="#how-it-works" className="hover:text-ink transition-colors">
-            How it works
-          </a>
-          <Link to={ROUTES.login} className="hover:text-ink transition-colors">
-            Login
-          </Link>
-          <Link to={ROUTES.doctorSignup} className="hover:text-ink transition-colors">
-            Sign up
-          </Link>
-        </nav>
+        <p className="lp-footer-copy">
+          © {new Date().getFullYear()} {BRAND_NAME}
+        </p>
       </div>
     </footer>
   );
