@@ -12,6 +12,7 @@ import Dropdown from '../components/ui/Dropdown';
 import { PAGE_SIZE } from '../constants/pagination';
 import { ROUTES } from '../constants/routes';
 import { publishInboxUnread } from '../utils/inboxUnread';
+import { formatInboxItem } from '../utils/inboxDisplay';
 
 const FILTER_OPTIONS = [
   { value: 'all', label: 'All' },
@@ -118,7 +119,7 @@ export default function DoctorInbox() {
     <div className="page-container">
       <PageHeader
         title="Inbox"
-        description="Your practice activity across all branches. Patient WhatsApp delivery logs are under Reminders."
+        description="Practice alerts only. Open an item for the visit. WhatsApp delivery logs are under Reminders."
         actions={
           <div className="flex flex-wrap gap-2">
             {unreadCount > 0 && (
@@ -166,10 +167,17 @@ export default function DoctorInbox() {
           {visible.map((n) => {
             const unread = !n.readAt;
             const when = n.createdAt ? new Date(n.createdAt) : null;
+            const view = formatInboxItem(n);
+            const tone = {
+              ok: 'bg-[#eef6f1] text-[#2d5a40] ring-[#c5ddd0]/80',
+              bad: 'bg-[#f8eeee] text-[#8a3a32] ring-[#e4c9c6]/80',
+              warn: 'bg-[#f8f1de] text-[#7a5d16] ring-[#d4af37]/30',
+              neutral: 'bg-[#f3efe8] text-ink-muted ring-line',
+            }[view.badgeTone] || 'bg-[#f3efe8] text-ink-muted ring-line';
             return (
               <article
                 key={n._id}
-                className={`px-4 py-3 cursor-pointer hover:bg-[#faf8f5] ${unread ? 'bg-[#fbf9f4]' : ''}`}
+                className={`px-4 py-3.5 cursor-pointer hover:bg-[#faf8f5] ${unread ? 'bg-[#fbf9f4]' : ''}`}
                 onClick={() => openItem(n)}
                 onKeyDown={(e) => {
                   if (e.key === 'Enter' || e.key === ' ') {
@@ -180,21 +188,28 @@ export default function DoctorInbox() {
                 role="button"
                 tabIndex={0}
               >
-                <div className="flex items-start justify-between gap-3">
-                  <div className="min-w-0">
-                    <p className={`text-sm ${unread ? 'font-semibold text-ink' : 'font-medium text-ink'}`}>
-                      {n.title || 'Notification'}
-                    </p>
-                    {n.body ? <p className="text-sm text-ink-muted mt-0.5 line-clamp-2">{n.body}</p> : null}
+                <div className="flex items-start gap-3">
+                  {unread && (
+                    <span className="mt-2 w-2 h-2 rounded-full bg-accent-500 shrink-0" aria-label="Unread" />
+                  )}
+                  {!unread && <span className="mt-2 w-2 h-2 shrink-0" aria-hidden />}
+                  <div className="min-w-0 flex-1">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className={`status-badge ${tone}`}>{view.badge}</span>
+                      <p className={`text-sm truncate ${unread ? 'font-semibold text-ink' : 'font-medium text-ink'}`}>
+                        {view.title}
+                      </p>
+                    </div>
+                    {view.subtitle ? (
+                      <p className="text-sm text-ink mt-1 truncate">{view.subtitle}</p>
+                    ) : null}
+                    {view.extra ? (
+                      <p className="text-xs text-ink-muted mt-0.5 line-clamp-1">{view.extra}</p>
+                    ) : null}
                     <p className="text-xs text-ink-faint mt-1.5">
-                      {n.type ? String(n.type).replace(/_/g, ' ') : 'activity'}
-                      {' · '}
                       {when && isValid(when) ? format(when, 'PPp') : '—'}
                     </p>
                   </div>
-                  {unread && (
-                    <span className="mt-1.5 w-2 h-2 rounded-full bg-accent-500 shrink-0" aria-label="Unread" />
-                  )}
                 </div>
               </article>
             );

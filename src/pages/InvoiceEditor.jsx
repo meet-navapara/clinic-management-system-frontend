@@ -9,6 +9,8 @@ import { ROUTES } from '../constants/routes';
 import { useBranch } from '../context/BranchContext';
 import RequiredMark from '../components/ui/RequiredMark';
 import LoadingOverlay from '../components/ui/LoadingOverlay';
+import ComingSoonPage from '../components/ui/ComingSoonPage';
+import { BILLING_COMING_SOON } from '../constants/featureFlags';
 
 const TYPES = [
   { value: 'consultation', label: 'Consultation' },
@@ -91,6 +93,15 @@ export default function InvoiceEditor() {
       setSaving(false);
     }
   };
+
+  if (BILLING_COMING_SOON) {
+    return (
+      <ComingSoonPage
+        title="Billing"
+        description="Invoices and payments will open here soon. Your existing billing setup stays in place."
+      />
+    );
+  }
 
   return (
     <div className="page-container relative">

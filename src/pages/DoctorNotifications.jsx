@@ -174,7 +174,17 @@ export default function DoctorNotifications() {
                       {n.channel ? ` · ${n.channel}` : ''}
                       {n.provider && n.provider !== 'internal' ? ` · ${n.provider}` : ''}
                     </p>
-                    <p className="text-sm text-ink-muted mt-0.5">{n.message}</p>
+                    {n.appointmentId?.appointmentDate ? (
+                      <p className="text-sm text-ink-muted mt-0.5">
+                        Visit{' '}
+                        {isValid(new Date(n.appointmentId.appointmentDate))
+                          ? format(new Date(n.appointmentId.appointmentDate), 'PP')
+                          : '—'}
+                        {n.appointmentId.timeSlot ? ` · ${n.appointmentId.timeSlot}` : ''}
+                      </p>
+                    ) : n.message && !/^hello\s/i.test(n.message) ? (
+                      <p className="text-sm text-ink-muted mt-0.5">{n.message}</p>
+                    ) : null}
                     {n.status === 'failed' && n.error ? (
                       <p className="text-xs text-red-600 mt-1">{n.error}</p>
                     ) : null}

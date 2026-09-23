@@ -16,6 +16,8 @@ import { useBranch } from '../context/BranchContext';
 import { PAGE_SIZE } from '../constants/pagination';
 import { fillMethodBreakdown } from '../constants/payments';
 import { downloadInvoicePdf } from '../utils/downloadInvoice';
+import ComingSoonPage from '../components/ui/ComingSoonPage';
+import { BILLING_COMING_SOON } from '../constants/featureFlags';
 
 const FILTERS = [
   { id: 'all', label: 'All' },
@@ -83,6 +85,10 @@ export default function BillingList() {
   };
 
   useEffect(() => {
+    if (BILLING_COMING_SOON) {
+      setLoading(false);
+      return;
+    }
     load(1);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [status, branchId]);
@@ -92,6 +98,15 @@ export default function BillingList() {
     [collections]
   );
   const highlight = methods.filter((m) => ['cash', 'upi', 'card'].includes(m.id));
+
+  if (BILLING_COMING_SOON) {
+    return (
+      <ComingSoonPage
+        title="Billing"
+        description="Invoices and payments will open here soon. Your existing billing setup stays in place."
+      />
+    );
+  }
 
   return (
     <div className="page-container">

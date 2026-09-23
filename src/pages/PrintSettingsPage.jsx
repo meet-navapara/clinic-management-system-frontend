@@ -280,7 +280,7 @@ export default function PrintSettingsPage() {
 
   if (loadError && !form) {
     return (
-      <div className="page-container max-w-6xl">
+      <div className="page-container">
         <PageHeader title="Print settings" description="Could not load clinic print template." />
         <button type="button" className="btn-primary" onClick={load}>
           Retry
@@ -296,14 +296,14 @@ export default function PrintSettingsPage() {
       <button type="submit" form="print-settings-form" className="btn-primary" disabled={saving}>
         {saving ? 'Saving…' : 'Save'}
       </button>
-      <Link to={ROUTES.printPreview} className="btn-secondary" target="_blank" rel="noreferrer">
+      <Link to={ROUTES.printPreview} className="btn-secondary">
         Open print preview
       </Link>
     </div>
   );
 
   return (
-    <div className="page-container max-w-6xl relative">
+    <div className="page-container relative">
       <LoadingOverlay show={saving} message="Saving…" />
       <PageHeader
         title="Print settings"
@@ -663,7 +663,7 @@ export default function PrintSettingsPage() {
           <button type="submit" className="btn-primary" disabled={saving}>
             {saving ? 'Saving…' : 'Save'}
           </button>
-          <Link to={ROUTES.printPreview} className="btn-secondary" target="_blank" rel="noreferrer">
+          <Link to={ROUTES.printPreview} className="btn-secondary">
             Open print preview
           </Link>
         </div>

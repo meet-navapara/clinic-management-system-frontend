@@ -791,6 +791,60 @@
   filter: grayscale(1);
 }
 
+.print-root {
+  display: flex;
+  flex-direction: column;
+  min-height: 100dvh;
+  width: 100%;
+  max-width: 100vw;
+  background: #f6f4f0;
+}
+
+.print-toolbar {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  width: 100%;
+  padding: 0.5rem 1rem;
+  background: #f6f4f0;
+  border-bottom: 1px solid #e6e1d8;
+}
+
+.print-stage {
+  flex: 1 1 auto;
+  width: 100%;
+  min-height: 0;
+  display: flex;
+  justify-content: stretch;
+  overflow: auto;
+  padding: 0.75rem 0.75rem 1.5rem;
+}
+
+@media (min-width: 640px) {
+  .print-stage {
+    padding: 1rem 1.25rem 2rem;
+  }
+}
+
+@media (min-width: 1024px) {
+  .print-stage {
+    padding: 1.25rem 1.5rem 2rem;
+  }
+}
+
+.print-sheet {
+  width: 100%;
+  max-width: none;
+  min-height: 100%;
+  flex: 1 1 auto;
+  background: #fff;
+  box-shadow: 0 1px 2px rgba(28, 36, 48, 0.04), 0 16px 40px rgba(28, 36, 48, 0.07);
+}
+
 @media print {
   .no-print,
   aside,
@@ -806,10 +860,19 @@
   }
 
   .print-root,
+  .print-stage,
   .print-sheet {
     max-width: none !important;
     margin: 0 !important;
     box-shadow: none !important;
+    min-height: auto !important;
+    background: #fff !important;
+    padding: 0 !important;
+  }
+
+  .print-stage {
+    display: block !important;
+    overflow: visible !important;
   }
 
   .print-a4 .print-sheet {

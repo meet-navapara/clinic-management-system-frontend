@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Plus, RotateCcw, Search } from 'lucide-react';
+import { Plus, Search } from 'lucide-react';
 import api from '../utils/api';
 import toast from 'react-hot-toast';
 import PageHeader from '../components/ui/PageHeader';
@@ -53,6 +53,18 @@ const typeLabel = (type) => {
   return TYPES.find((t) => t.id === id)?.label || id.replace(/_/g, ' ');
 };
 
+const previewText = (t) => {
+  const fields = t?.fields && typeof t.fields === 'object' ? t.fields : {};
+  return (
+    fields.chiefComplaint ||
+    fields.diagnosis ||
+    fields.advice ||
+    fields.treatment ||
+    fields.instructions ||
+    ''
+  );
+};
+
 export default function TemplatesPage() {
   const { user } = useAuth();
   const [rows, setRows] = useState([]);
@@ -64,7 +76,7 @@ export default function TemplatesPage() {
   const [form, setForm] = useState(() => emptyForm());
   const [q, setQ] = useState('');
   const [typeFilter, setTypeFilter] = useState('all');
-  const [showInactive, setShowInactive] = useState(false);
+  const [statusFilter, setStatusFilter] = useState('active');
   const canClinic = can(user, P.TEMPLATES_CLINIC);
   const canCreate = canClinic || can(user, P.TEMPLATES_OWN);
 
@@ -72,13 +84,15 @@ export default function TemplatesPage() {
     setLoading(true);
     setError('');
     const params = {};
-    if (showInactive) params.active = 'all';
+    if (statusFilter === 'all' || statusFilter === 'inactive') params.active = 'all';
     if (typeFilter !== 'all') params.type = typeFilter;
     if (q.trim()) params.q = q.trim();
     api
       .get('/templates', { params })
       .then((res) => {
-        const list = Array.isArray(res.data?.templates) ? res.data.templates : [];
+        let list = Array.isArray(res.data?.templates) ? res.data.templates : [];
+        if (statusFilter === 'active') list = list.filter((t) => t?.isActive !== false);
+        if (statusFilter === 'inactive') list = list.filter((t) => t?.isActive === false);
         setRows(list);
       })
       .catch((err) => {
@@ -91,7 +105,7 @@ export default function TemplatesPage() {
   useEffect(() => {
     load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [typeFilter, showInactive]);
+  }, [typeFilter, statusFilter]);
 
   const filtered = useMemo(() => {
     if (!q.trim()) return rows;
@@ -177,6 +191,12 @@ export default function TemplatesPage() {
     }
   };
 
+  const canEditRow = (t) =>
+    canClinic || (t?.ownerType === 'doctor' && String(t?.doctorId) === String(user?._id));
+
+  const editingRow = editingId ? rows.find((r) => String(r._id) === String(editingId)) : null;
+  const formEditable = !editingId || (editingRow ? canEditRow(editingRow) : canCreate);
+
   return (
     <div className="page-container">
       <PageHeader
@@ -207,25 +227,28 @@ export default function TemplatesPage() {
             onChange={(e) => setQ(e.target.value)}
           />
         </form>
-        <div className="sm:w-56">
-          <Dropdown
-            value={typeFilter}
-            onChange={setTypeFilter}
-            ariaLabel="Filter by type"
-            options={TYPES.map((t) => ({ value: t.id, label: t.label }))}
-          />
-        </div>
-        {canCreate && (
-          <label className="inline-flex items-center gap-2 text-sm text-ink-muted whitespace-nowrap">
-            <input
-              type="checkbox"
-              className="rounded border-line"
-              checked={showInactive}
-              onChange={(e) => setShowInactive(e.target.checked)}
-            />
-            Show inactive
-          </label>
-        )}
+        <select
+          className="input-field sm:w-44"
+          value={statusFilter}
+          onChange={(e) => setStatusFilter(e.target.value)}
+          aria-label="Status filter"
+        >
+          <option value="active">Active</option>
+          <option value="inactive">Inactive</option>
+          <option value="all">All statuses</option>
+        </select>
+        <select
+          className="input-field sm:w-52"
+          value={typeFilter}
+          onChange={(e) => setTypeFilter(e.target.value)}
+          aria-label="Type filter"
+        >
+          {TYPES.map((t) => (
+            <option key={t.id} value={t.id}>
+              {t.label}
+            </option>
+          ))}
+        </select>
       </div>
 
       {loading ? (
@@ -242,14 +265,14 @@ export default function TemplatesPage() {
         />
       ) : !filtered.length ? (
         <EmptyState
-          title={q.trim() || typeFilter !== 'all' ? 'No matches' : 'No templates yet'}
+          title={q.trim() || typeFilter !== 'all' || statusFilter !== 'active' ? 'No matches' : 'No templates yet'}
           description={
-            q.trim() || typeFilter !== 'all'
-              ? 'Try another name or type filter.'
+            q.trim() || typeFilter !== 'all' || statusFilter !== 'active'
+              ? 'Try another search or filter.'
               : 'Save a consultation template so you can load it during a visit.'
           }
           action={
-            canCreate && !q.trim() && typeFilter === 'all' ? (
+            canCreate && !q.trim() && typeFilter === 'all' && statusFilter === 'active' ? (
               <button type="button" className="btn-primary" onClick={openCreate}>
                 Create template
               </button>
@@ -261,45 +284,110 @@ export default function TemplatesPage() {
           <p className="text-xs text-ink-faint mb-2">
             {filtered.length} template{filtered.length === 1 ? '' : 's'}
           </p>
-          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3">
+
+          <div className="hidden md:block card !p-0 overflow-hidden">
+            <div className="data-table-wrap">
+              <table className="data-table">
+                <thead>
+                  <tr>
+                    <th>Template</th>
+                    <th>Type</th>
+                    <th>Visibility</th>
+                    <th>Status</th>
+                    <th>Preview</th>
+                    <th />
+                  </tr>
+                </thead>
+                <tbody>
+                  {filtered.map((t) => {
+                    const id = t?._id || t?.name;
+                    const inactive = t?.isActive === false;
+                    const editable = canEditRow(t);
+                    return (
+                      <tr key={id} className={inactive ? 'opacity-60' : undefined}>
+                        <td className="font-medium">{t?.name || 'Untitled template'}</td>
+                        <td className="text-ink-muted">{typeLabel(t?.type)}</td>
+                        <td>
+                          <Badge value={t?.ownerType === 'clinic' ? 'clinic' : 'mine'} />
+                        </td>
+                        <td>
+                          <Badge value={inactive ? 'inactive' : 'active'} />
+                        </td>
+                        <td className="text-ink-muted max-w-[16rem]">
+                          <span className="line-clamp-2 text-sm">{previewText(t) || '—'}</span>
+                        </td>
+                        <td className="text-right whitespace-nowrap">
+                          {editable ? (
+                            inactive ? (
+                              <button
+                                type="button"
+                                className="text-sm font-semibold text-accent-700"
+                                onClick={() => restore(t)}
+                              >
+                                Restore
+                              </button>
+                            ) : (
+                              <div className="inline-flex items-center gap-3 justify-end">
+                                <button
+                                  type="button"
+                                  className="text-sm font-semibold text-accent-700"
+                                  onClick={() => openEdit(t)}
+                                >
+                                  View
+                                </button>
+                                <button
+                                  type="button"
+                                  className="text-sm font-medium text-ink-muted hover:text-ink"
+                                  onClick={() => deactivate(t)}
+                                >
+                                  Deactivate
+                                </button>
+                              </div>
+                            )
+                          ) : (
+                            <button
+                              type="button"
+                              className="text-sm font-semibold text-accent-700"
+                              onClick={() => openEdit(t)}
+                            >
+                              View
+                            </button>
+                          )}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <div className="md:hidden space-y-2">
             {filtered.map((t) => {
               const id = t?._id || t?.name;
-              const fields = t?.fields && typeof t.fields === 'object' ? t.fields : {};
-              const preview =
-                fields.chiefComplaint || fields.diagnosis || fields.advice || fields.treatment || '';
               const inactive = t?.isActive === false;
-              const canEdit =
-                canClinic || (t?.ownerType === 'doctor' && String(t?.doctorId) === String(user?._id));
+              const editable = canEditRow(t);
               return (
-                <div key={id} className={`card ${inactive ? 'opacity-60' : ''}`}>
+                <button
+                  key={id}
+                  type="button"
+                  className={`card !p-4 block w-full text-left ${inactive ? 'opacity-60' : ''}`}
+                  onClick={() => openEdit(t)}
+                >
                   <div className="flex items-start justify-between gap-2">
-                    <h3 className="font-semibold text-ink">{t?.name || 'Untitled template'}</h3>
-                    <div className="flex flex-wrap gap-1 justify-end">
-                      <Badge value={t?.ownerType === 'clinic' ? 'clinic' : 'mine'} />
-                      {inactive ? <Badge value="inactive" /> : null}
+                    <div className="min-w-0">
+                      <p className="font-semibold text-ink">{t?.name || 'Untitled template'}</p>
+                      <p className="text-sm text-ink-muted mt-0.5 capitalize">{typeLabel(t?.type)}</p>
                     </div>
+                    <Badge value={inactive ? 'inactive' : 'active'} />
                   </div>
-                  <p className="text-sm text-ink-muted mt-1">{typeLabel(t?.type)}</p>
-                  {preview ? <p className="text-xs text-ink-faint mt-2 line-clamp-3">{preview}</p> : null}
-                  {canEdit && (
-                    <div className="flex flex-wrap gap-2 mt-3">
-                      {inactive ? (
-                        <button type="button" className="btn-secondary btn-sm" onClick={() => restore(t)}>
-                          <RotateCcw className="w-3.5 h-3.5" /> Restore
-                        </button>
-                      ) : (
-                        <>
-                          <button type="button" className="btn-secondary btn-sm" onClick={() => openEdit(t)}>
-                            Edit
-                          </button>
-                          <button type="button" className="btn-ghost btn-sm" onClick={() => deactivate(t)}>
-                            Deactivate
-                          </button>
-                        </>
-                      )}
-                    </div>
-                  )}
-                </div>
+                  {previewText(t) ? (
+                    <p className="text-xs text-ink-faint mt-2 line-clamp-2">{previewText(t)}</p>
+                  ) : null}
+                  {editable && !inactive ? (
+                    <p className="text-xs text-ink-faint mt-2">Tap to edit · Deactivate from desktop</p>
+                  ) : null}
+                </button>
               );
             })}
           </div>
@@ -308,7 +396,7 @@ export default function TemplatesPage() {
 
       <Modal
         open={open}
-        title={editingId ? 'Edit template' : 'New template'}
+        title={editingId ? 'Edit template' : 'Add New Template'}
         onClose={() => {
           setOpen(false);
           setEditingId(null);
@@ -317,26 +405,15 @@ export default function TemplatesPage() {
         wide
       >
         <form onSubmit={save} className="space-y-3">
-          <div>
-            <label className="label-field">
-              Name <RequiredMark />
-            </label>
-            <input
-              className="input-field"
-              required
-              placeholder="e.g. General consultation"
-              value={form.name}
-              onChange={(e) => setForm({ ...form, name: e.target.value })}
-            />
-          </div>
-          <div className="grid sm:grid-cols-2 gap-2">
+          <div className="grid sm:grid-cols-2 gap-3">
             <div>
               <label className="label-field">
-                Type <RequiredMark />
+                Template Type <RequiredMark />
               </label>
               <Dropdown
                 value={form.type}
                 onChange={(type) => setForm({ ...form, type })}
+                disabled={!formEditable}
                 ariaLabel="Template type"
                 options={TYPES.filter((t) => t.id !== 'all').map((t) => ({ value: t.id, label: t.label }))}
               />
@@ -348,7 +425,7 @@ export default function TemplatesPage() {
               <Dropdown
                 value={canClinic ? form.ownerType : 'doctor'}
                 onChange={(ownerType) => setForm({ ...form, ownerType })}
-                disabled={!canClinic}
+                disabled={!canClinic || !formEditable}
                 ariaLabel="Visibility"
                 options={[
                   { value: 'doctor', label: 'Only me' },
@@ -357,21 +434,53 @@ export default function TemplatesPage() {
               />
             </div>
           </div>
-          {FIELD_KEYS.map(([k, label]) => (
-            <div key={k}>
-              <label className="label-field">{label}</label>
-              <textarea
-                className="input-field"
-                rows={2}
-                placeholder={label}
-                value={form.fields?.[k] || ''}
-                onChange={(e) => setForm({ ...form, fields: { ...form.fields, [k]: e.target.value } })}
-              />
-            </div>
-          ))}
-          <button type="submit" className="btn-primary w-full" disabled={saving}>
-            {saving ? 'Saving…' : editingId ? 'Update template' : 'Save template'}
-          </button>
+          <div>
+            <label className="label-field">
+              Template <RequiredMark />
+            </label>
+            <input
+              className="input-field"
+              required
+              disabled={!formEditable}
+              placeholder="e.g. General consultation"
+              value={form.name}
+              onChange={(e) => setForm({ ...form, name: e.target.value })}
+            />
+          </div>
+          <div className="border-t border-line pt-3 space-y-3">
+            <p className="text-xs font-semibold uppercase tracking-[0.12em] text-ink-faint">Fields</p>
+            {FIELD_KEYS.map(([k, label]) => (
+              <div key={k}>
+                <label className="label-field">{label}</label>
+                <textarea
+                  className="input-field"
+                  rows={2}
+                  disabled={!formEditable}
+                  placeholder={label}
+                  value={form.fields?.[k] || ''}
+                  onChange={(e) => setForm({ ...form, fields: { ...form.fields, [k]: e.target.value } })}
+                />
+              </div>
+            ))}
+          </div>
+          <div className="flex flex-wrap justify-end gap-2 pt-2 border-t border-line">
+            <button
+              type="button"
+              className="btn-secondary"
+              onClick={() => {
+                setOpen(false);
+                setEditingId(null);
+                setForm(emptyForm());
+              }}
+            >
+              Close
+            </button>
+            {formEditable && (
+              <button type="submit" className="btn-primary" disabled={saving}>
+                {saving ? 'Saving…' : editingId ? 'Update' : 'Save'}
+              </button>
+            )}
+          </div>
         </form>
       </Modal>
     </div>

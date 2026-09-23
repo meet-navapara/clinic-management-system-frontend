@@ -165,9 +165,9 @@ export default function PrintDocument() {
 
   return (
     <div
-      className={`print-root ${paper} bg-white min-h-dvh text-ink ${branding.coloredPrint === false ? 'print-grayscale' : ''}`}
+      className={`print-root ${paper} text-ink ${branding.coloredPrint === false ? 'print-grayscale' : ''}`}
     >
-      <div className="print-toolbar no-print sticky top-0 z-10 bg-canvas border-b border-line px-4 py-2 flex items-center gap-2">
+      <div className="print-toolbar no-print">
         <BackButton />
         <button type="button" className="btn-primary inline-flex items-center gap-2" onClick={() => window.print()}>
           <Download className="w-4 h-4" />
@@ -182,7 +182,8 @@ export default function PrintDocument() {
           </p>
         ) : null}
       </div>
-      <article className="print-sheet mx-auto max-w-[210mm]" style={sheetStyle}>
+      <div className="print-stage">
+        <article className="print-sheet" style={sheetStyle}>
         <PrintLetterhead
           branding={branding}
           branch={data.invoice?.branchId || data.appointment?.branchId || data.ticket?.branchId}
@@ -494,6 +495,7 @@ export default function PrintDocument() {
 
         <DocumentFooter branding={branding} />
       </article>
+      </div>
     </div>
   );
 }

@@ -42,6 +42,38 @@ function textToList(value) {
     .filter(Boolean);
 }
 
+/** Parse "24, 2, 3d" → hours [24, 2, 72]. Supports Nd / Nday / Ndays. */
+function parseReminderHoursInput(value) {
+  return String(value || '')
+    .split(',')
+    .map((part) => part.trim())
+    .filter(Boolean)
+    .map((part) => {
+      const dayMatch = part.match(/^(\d+(?:\.\d+)?)\s*d(?:ays?)?$/i);
+      if (dayMatch) {
+        const days = Number(dayMatch[1]);
+        return Number.isFinite(days) && days > 0 ? days * 24 : NaN;
+      }
+      const hours = Number(part);
+      return Number.isFinite(hours) && hours > 0 ? hours : NaN;
+    })
+    .filter((n) => !Number.isNaN(n) && n > 0);
+}
+
+/** Format stored hours for the input: 72 → "3d", 24 → "24", 2 → "2". */
+function formatReminderHoursInput(list) {
+  if (!Array.isArray(list) || !list.length) return '24, 2';
+  return list
+    .map((n) => {
+      const hours = Number(n);
+      if (!Number.isFinite(hours) || hours <= 0) return null;
+      if (hours >= 48 && hours % 24 === 0) return `${hours / 24}d`;
+      return String(hours);
+    })
+    .filter(Boolean)
+    .join(', ');
+}
+
 function Field({ id, label, required, children, className = '', hint }) {
   return (
     <div className={className}>
@@ -80,7 +112,7 @@ function buildFormFromUser(user) {
     bio: user?.bio || '',
     availableDays: user?.availableDays?.length ? user.availableDays : DAYS.slice(0, 5),
     defaultDurationMinutes: settings.defaultDurationMinutes || 30,
-    reminderHours: (settings.reminderHoursBefore || [24, 2]).join(', '),
+    reminderHours: formatReminderHoursInput(settings.reminderHoursBefore || [24, 2]),
     appointmentTypes: listToText(settings.appointmentTypes || ['Consultation', 'Follow-up', 'Procedure']),
     sendConfirmationReminder: settings.sendConfirmationReminder !== false,
     dayStart: settings.dayStart || '09:00',
@@ -195,10 +227,7 @@ export default function Profile() {
           'practiceSettings',
           JSON.stringify({
             defaultDurationMinutes: Number(form.defaultDurationMinutes) || 30,
-            reminderHoursBefore: String(form.reminderHours)
-              .split(',')
-              .map((n) => Number(n.trim()))
-              .filter((n) => !Number.isNaN(n) && n > 0),
+            reminderHoursBefore: parseReminderHoursInput(form.reminderHours),
             sendConfirmationReminder: form.sendConfirmationReminder,
             appointmentTypes: textToList(form.appointmentTypes),
             dayStart: form.dayStart || '09:00',
@@ -277,7 +306,7 @@ export default function Profile() {
   const showProfileSave = tab !== 'password';
 
   return (
-    <div className="page-container max-w-4xl relative">
+    <div className="page-container relative">
       <LoadingOverlay show={loading || pwdLoading} message={pwdLoading ? 'Updating password…' : 'Saving…'} />
       <PageHeader
         title="Profile"
@@ -694,15 +723,15 @@ export default function Profile() {
                       </Field>
                       <Field
                         id="profile-reminders"
-                        label="Reminder hours before (comma-separated)"
+                        label="Reminders before visit (hours or days)"
                         className="sm:col-span-2"
-                        hint="Example: 24, 2"
+                        hint="Use hours (24, 2) or days with d (3d = 3 days). Example: 24, 2, 3d"
                       >
                         <input
                           id="profile-reminders"
                           name="reminderHours"
                           className="input-field"
-                          placeholder="24, 2"
+                          placeholder="24, 2, 3d"
                           value={form.reminderHours}
                           onChange={handleChange}
                         />
@@ -716,13 +745,6 @@ export default function Profile() {
                     </Checkbox>
                   </div>
                 )}
-
-                <div className="flex flex-wrap gap-2 pt-2 border-t border-line">
-                  <button type="submit" className="btn-primary inline-flex justify-center">
-                    <Save className="w-4 h-4" />
-                    {loading ? 'Saving…' : 'Save'}
-                  </button>
-                </div>
               </fieldset>
             </form>
           ) : (

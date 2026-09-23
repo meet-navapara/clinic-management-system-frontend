@@ -6,6 +6,8 @@ import Money from '../components/ui/Money';
 import { useBranch } from '../context/BranchContext';
 import SkeletonPage from '../components/ui/Skeleton';
 import { fillMethodBreakdown, paymentMethodLabel } from '../constants/payments';
+import ComingSoonPage from '../components/ui/ComingSoonPage';
+import { REVENUE_COMING_SOON } from '../constants/featureFlags';
 
 const METHOD_ICON = {
   cash: Banknote,
@@ -22,6 +24,10 @@ export default function RevenuePage() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    if (REVENUE_COMING_SOON) {
+      setLoading(false);
+      return undefined;
+    }
     setSummary(null);
     setLoading(true);
     api
@@ -37,6 +43,15 @@ export default function RevenuePage() {
     () => Math.max(1, ...methods.map((m) => m.amount)),
     [methods]
   );
+
+  if (REVENUE_COMING_SOON) {
+    return (
+      <ComingSoonPage
+        title="Revenue"
+        description="Collections and payment breakdowns will open here soon. Reporting code stays ready."
+      />
+    );
+  }
 
   if (loading) return <SkeletonPage cards={4} rows={6} />;
   if (!summary) {

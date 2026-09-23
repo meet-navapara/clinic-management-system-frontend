@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { format, isValid } from 'date-fns';
 import { Search } from 'lucide-react';
@@ -10,6 +10,7 @@ import Badge from '../components/ui/Badge';
 import Pagination from '../components/ui/Pagination';
 import { SkeletonRows } from '../components/ui/Skeleton';
 import RequiredMark from '../components/ui/RequiredMark';
+import Dropdown from '../components/ui/Dropdown';
 import { ROUTES } from '../constants/routes';
 import { useBranch } from '../context/BranchContext';
 import { useAuth } from '../context/AuthContext';
@@ -43,6 +44,24 @@ const TYPES = [
   { value: 'missed_appointment', label: 'Missed appointment' },
   { value: 'health_camp', label: 'Health camp' },
 ];
+
+/** Insertable template variables — filled per recipient at send time */
+const MESSAGE_VARS = [
+  { value: 'patientName', label: 'Patient Name', token: '{{patientName}}' },
+  { value: 'doctorName', label: 'Doctor Name', token: '{{doctorName}}' },
+  { value: 'clinicName', label: 'Clinic Name', token: '{{clinicName}}' },
+  { value: 'branchName', label: 'Branch Name', token: '{{branchName}}' },
+  { value: 'appointmentDate', label: 'Appointment Date', token: '{{appointmentDate}}' },
+  { value: 'appointmentTime', label: 'Appointment Time', token: '{{appointmentTime}}' },
+  { value: 'followUpDate', label: 'Follow-up Date', token: '{{followUpDate}}' },
+  { value: 'campaignName', label: 'Campaign Name', token: '{{campaignName}}' },
+];
+
+const MESSAGE_VAR_OPTIONS = MESSAGE_VARS.map((v) => ({
+  value: v.value,
+  label: v.label,
+  description: v.token,
+}));
 
 const EMPTY = {
   name: '',
@@ -421,10 +440,32 @@ export function CampaignEditor() {
   const [saving, setSaving] = useState(false);
   const [testTo, setTestTo] = useState('');
   const [mode, setMode] = useState('now');
+  const messageRef = useRef(null);
 
   const setField = (k, v) => {
     setForm((p) => ({ ...p, [k]: v }));
     setPreviewStale(true);
+  };
+
+  const insertMessageVariable = (key) => {
+    const item = MESSAGE_VARS.find((v) => v.value === key);
+    if (!item || !editable) return;
+    const el = messageRef.current;
+    const token = item.token;
+    const current = form.message || '';
+    if (el && typeof el.selectionStart === 'number') {
+      const start = el.selectionStart;
+      const end = el.selectionEnd ?? start;
+      const next = `${current.slice(0, start)}${token}${current.slice(end)}`;
+      setField('message', next);
+      requestAnimationFrame(() => {
+        el.focus();
+        const pos = start + token.length;
+        el.setSelectionRange(pos, pos);
+      });
+      return;
+    }
+    setField('message', `${current}${current && !/\s$/.test(current) ? ' ' : ''}${token}`);
   };
 
   const applyDetail = (res, { syncForm = true } = {}) => {
@@ -671,7 +712,7 @@ export function CampaignEditor() {
   const editable = !campaign || ['draft', 'scheduled'].includes(campaign.status);
 
   return (
-    <div className="page-container max-w-5xl">
+    <div className="page-container">
       <PageHeader
         title={isNew ? 'New campaign' : campaign?.name || 'Campaign'}
         description={
@@ -828,23 +869,54 @@ export function CampaignEditor() {
                 />
               </div>
             )}
-            <div className="sm:col-span-2">
-              <label className="label-field">
-                Message <RequiredMark />
-              </label>
-              <textarea
-                className="input-field"
-                rows={6}
-                required
-                value={form.message}
-                onChange={(e) => setField('message', e.target.value)}
-              />
-              <p className="text-xs text-ink-faint mt-1">
-                Variables: {'{{patientName}}'}, {'{{doctorName}}'}, {'{{clinicName}}'}, {'{{branchName}}'},{' '}
-                {'{{appointmentDate}}'}, {'{{appointmentTime}}'}, {'{{followUpDate}}'}, {'{{campaignName}}'}
-              </p>
+
+            <div className="sm:col-span-2 rounded-xl border border-line bg-[#faf8f3]/80 p-3 sm:p-4 space-y-3">
+              <div className="grid sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="label-field" htmlFor="campaign-insert-variable">
+                    Insert Variable
+                  </label>
+                  <Dropdown
+                    id="campaign-insert-variable"
+                    ariaLabel="Select variable to insert into message"
+                    value=""
+                    onChange={insertMessageVariable}
+                    options={MESSAGE_VAR_OPTIONS}
+                    placeholder="Select variable..."
+                    disabled={!editable}
+                    searchable
+                    searchPlaceholder="Search variables"
+                  />
+                  <p className="text-[11px] text-ink-faint mt-1.5">
+                    Choose a field — it is added into the message at the cursor.
+                  </p>
+                </div>
+                <div className="hidden sm:flex sm:flex-col sm:justify-end pb-1">
+                  <p className="text-xs text-ink-muted leading-relaxed">
+                    Patient name, clinic, doctor, and visit details fill automatically when the campaign sends. You do not type real names here.
+                  </p>
+                </div>
+              </div>
+
+              <div>
+                <label className="label-field" htmlFor="campaign-message">
+                  Message <RequiredMark />
+                </label>
+                <textarea
+                  id="campaign-message"
+                  ref={messageRef}
+                  className="input-field bg-white"
+                  rows={7}
+                  required
+                  disabled={!editable}
+                  value={form.message}
+                  onChange={(e) => setField('message', e.target.value)}
+                  placeholder={`Hello {{patientName}},\n\nThis is a message from {{clinicName}}.`}
+                />
+              </div>
+
               {form.channel === 'whatsapp' && (
-                <p className="text-xs text-amber-900 mt-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2">
+                <p className="text-xs text-amber-900 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2">
                   WhatsApp campaigns only send after Super Admin approves <strong>your clinic’s</strong>{' '}
                   MSG91 template. The message box fills <code className="font-mono">_message</code> when
                   that variable is mapped — it never uses the appointment confirmation template.

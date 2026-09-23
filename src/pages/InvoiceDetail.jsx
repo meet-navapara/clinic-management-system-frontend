@@ -15,6 +15,8 @@ import { useAuth } from '../context/AuthContext';
 import RequiredMark from '../components/ui/RequiredMark';
 import { PAYMENT_METHODS, paymentMethodLabel } from '../constants/payments';
 import { downloadInvoicePdf } from '../utils/downloadInvoice';
+import ComingSoonPage from '../components/ui/ComingSoonPage';
+import { BILLING_COMING_SOON } from '../constants/featureFlags';
 
 const METHOD_ICON = {
   cash: Banknote,
@@ -63,6 +65,10 @@ export default function InvoiceDetail() {
   }, [id]);
 
   useEffect(() => {
+    if (BILLING_COMING_SOON) {
+      setLoading(false);
+      return;
+    }
     load();
   }, [load]);
 
@@ -139,6 +145,15 @@ export default function InvoiceDetail() {
       setDownloading(false);
     }
   };
+
+  if (BILLING_COMING_SOON) {
+    return (
+      <ComingSoonPage
+        title="Billing"
+        description="Invoices and payments will open here soon. Your existing billing setup stays in place."
+      />
+    );
+  }
 
   if (loading) {
     return <SkeletonDetail />;
