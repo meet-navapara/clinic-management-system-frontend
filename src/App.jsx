@@ -20,7 +20,6 @@ import DoctorInbox from './pages/DoctorInbox';
 import DoctorNotifications from './pages/DoctorNotifications';
 import Profile from './pages/Profile';
 import ClinicAdminRegister from './pages/ClinicAdminRegister';
-import AdminLogin from './pages/AdminLogin';
 import ClinicAdminDashboard from './pages/ClinicAdminDashboard';
 import AdminDoctorsPage from './pages/AdminDoctorsPage';
 import AdminDoctorDetail from './pages/AdminDoctorDetail';
@@ -105,6 +104,7 @@ export default function App() {
           }
         />
         <Route path={ROUTES.doctorLogin} element={<Navigate to={ROUTES.login} replace />} />
+        <Route path={ROUTES.clinicAdminLogin} element={<Navigate to={ROUTES.login} replace />} />
         <Route
           path={ROUTES.doctorSignup}
           element={
@@ -126,14 +126,6 @@ export default function App() {
           element={
             <GuestRoute>
               <ClinicAdminRegister />
-            </GuestRoute>
-          }
-        />
-        <Route
-          path={ROUTES.clinicAdminLogin}
-          element={
-            <GuestRoute>
-              <AdminLogin />
             </GuestRoute>
           }
         />

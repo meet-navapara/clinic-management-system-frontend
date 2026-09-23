@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Menu, X, Leaf } from 'lucide-react';
+import { Menu, X } from 'lucide-react';
 import { LOGO_URL, APP_NAME } from '../constants/branding';
 import { ROUTES } from '../constants/routes';
 
@@ -11,61 +11,94 @@ const LINKS = [
   { href: '#roles', label: 'For clinics' },
 ];
 
+const PUBLIC_LOGO = '/brand/Z-Health-logo-clear.png';
+
 export default function Navbar() {
   const [menuOpen, setMenuOpen] = useState(false);
-  const [logoError, setLogoError] = useState(false);
+  const [logoSrc, setLogoSrc] = useState(LOGO_URL || PUBLIC_LOGO);
   const [scrolled, setScrolled] = useState(false);
   const { pathname } = useLocation();
   const onLanding = pathname === ROUTES.home;
   const closeMenu = () => setMenuOpen(false);
 
   useEffect(() => {
-    if (!onLanding) return undefined;
     const onScroll = () => setScrolled(window.scrollY > 8);
     onScroll();
     window.addEventListener('scroll', onScroll, { passive: true });
     return () => window.removeEventListener('scroll', onScroll);
-  }, [onLanding]);
+  }, []);
+
+  useEffect(() => {
+    closeMenu();
+  }, [pathname]);
 
   return (
-    <nav className={`lp-nav ${scrolled || !onLanding ? 'is-solid' : ''}`}>
-      <div className="site-container lp-nav-inner">
-        <Link to="/" className="navbar-brand min-w-0" onClick={closeMenu} aria-label={APP_NAME}>
-          {!logoError ? (
-            <img src={LOGO_URL} alt="" className="navbar-brand-emblem-img" draggable={false} onError={() => setLogoError(true)} />
-          ) : (
-            <Leaf className="w-5 h-5 text-accent-600 shrink-0" />
-          )}
-        </Link>
+    <>
+      <header className={`lp-nav-shell ${scrolled ? 'is-scrolled' : ''} ${menuOpen ? 'is-open' : ''}`}>
+        <nav className="lp-nav-pill" aria-label="Primary">
+          <Link to="/" className="lp-nav-brand" onClick={closeMenu} aria-label={APP_NAME}>
+            {logoSrc ? (
+              <img
+                src={logoSrc}
+                alt=""
+                className="lp-nav-logo"
+                draggable={false}
+                onError={() => {
+                  if (logoSrc !== PUBLIC_LOGO) setLogoSrc(PUBLIC_LOGO);
+                  else setLogoSrc('');
+                }}
+              />
+            ) : (
+              <span className="lp-nav-brand-name">{APP_NAME}</span>
+            )}
+          </Link>
 
-        <div className="lp-nav-desk">
-          {onLanding && LINKS.map((link) => (
-            <a key={link.href} href={link.href}>{link.label}</a>
-          ))}
-          <Link to={ROUTES.login}>Login</Link>
-          <Link to={ROUTES.doctorSignup} className="btn-primary">Get started</Link>
-        </div>
+          <div className="lp-nav-desk">
+            {onLanding &&
+              LINKS.map((link) => (
+                <a key={link.href} href={link.href} className="lp-nav-link">
+                  {link.label}
+                </a>
+              ))}
+          </div>
 
-        <button
-          type="button"
-          className="lp-nav-toggle"
-          onClick={() => setMenuOpen((v) => !v)}
-          aria-label={menuOpen ? 'Close menu' : 'Open menu'}
-          aria-expanded={menuOpen}
-        >
-          {menuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
-        </button>
-      </div>
+          <div className="lp-nav-actions">
+            <Link to={ROUTES.login} className="lp-nav-link lp-nav-login">
+              Log in
+            </Link>
+            <Link to={ROUTES.doctorSignup} className="lp-nav-cta">
+              Sign up
+            </Link>
+            <button
+              type="button"
+              className="lp-nav-toggle"
+              onClick={() => setMenuOpen((v) => !v)}
+              aria-label={menuOpen ? 'Close menu' : 'Open menu'}
+              aria-expanded={menuOpen}
+            >
+              {menuOpen ? <X className="w-5 h-5" strokeWidth={1.75} /> : <Menu className="w-5 h-5" strokeWidth={1.75} />}
+            </button>
+          </div>
+        </nav>
 
-      {menuOpen && (
-        <div className="lp-nav-mobile">
-          {onLanding && LINKS.map((link) => (
-            <a key={link.href} href={link.href} onClick={closeMenu}>{link.label}</a>
-          ))}
-          <Link to={ROUTES.login} onClick={closeMenu}>Login</Link>
-          <Link to={ROUTES.doctorSignup} onClick={closeMenu} className="btn-primary w-full">Get started</Link>
-        </div>
-      )}
-    </nav>
+        {menuOpen && (
+          <div className="lp-nav-mobile">
+            {onLanding &&
+              LINKS.map((link) => (
+                <a key={link.href} href={link.href} onClick={closeMenu}>
+                  {link.label}
+                </a>
+              ))}
+            <Link to={ROUTES.login} onClick={closeMenu}>
+              Log in
+            </Link>
+            <Link to={ROUTES.doctorSignup} onClick={closeMenu} className="lp-nav-cta lp-nav-cta--block">
+              Sign up
+            </Link>
+          </div>
+        )}
+      </header>
+      <div className="lp-nav-spacer" aria-hidden="true" />
+    </>
   );
 }

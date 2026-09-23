@@ -1,6 +1,14 @@
-export default function StatCard({ label, value, icon: Icon, hint }) {
+import { Link } from 'react-router-dom';
+
+export default function StatCard({ label, value, icon: Icon, hint, to }) {
   const isLong =
     typeof value === 'string' && value.length > 12 && !/^\d+(\.\d+)?$/.test(value.trim());
+
+  const iconBox = Icon ? (
+    <div className="flex h-8 w-8 sm:h-9 sm:w-9 items-center justify-center rounded-lg bg-[#f3efe8] text-accent-700 shrink-0 transition-colors hover:bg-[#ebe4d8] hover:text-accent-800">
+      <Icon className="w-4 h-4" />
+    </div>
+  ) : null;
 
   return (
     <div className="card !p-3 sm:!p-4 min-w-0 h-full">
@@ -18,10 +26,12 @@ export default function StatCard({ label, value, icon: Icon, hint }) {
           </p>
           {hint && <p className="text-xs text-ink-faint mt-1 break-words">{hint}</p>}
         </div>
-        {Icon && (
-          <div className="flex h-8 w-8 sm:h-9 sm:w-9 items-center justify-center rounded-lg bg-[#f3efe8] text-accent-700 shrink-0">
-            <Icon className="w-4 h-4" />
-          </div>
+        {to && iconBox ? (
+          <Link to={to} aria-label={`Open ${label}`} className="shrink-0">
+            {iconBox}
+          </Link>
+        ) : (
+          iconBox
         )}
       </div>
     </div>

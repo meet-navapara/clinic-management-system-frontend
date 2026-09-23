@@ -13,6 +13,7 @@ import LoadingOverlay from '../components/ui/LoadingOverlay';
 import { useAuth } from '../context/AuthContext';
 import { ROUTES } from '../constants/routes';
 import RequiredMark from '../components/ui/RequiredMark';
+import { filterFutureSlots } from '../utils/timeSlots';
 
 export default function DoctorBookAppointment() {
   const { user } = useAuth();
@@ -111,7 +112,7 @@ export default function DoctorBookAppointment() {
         params: { date: selectedDate, durationMinutes: duration },
       })
       .then((res) => {
-        setAvailableSlots(res.data.availableSlots || []);
+        setAvailableSlots(filterFutureSlots(res.data.availableSlots || [], selectedDate));
         setAvailableDays(res.data.availableDays || availableDays);
         setSelectedSlot('');
       })

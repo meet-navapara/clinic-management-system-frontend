@@ -82,8 +82,8 @@ export default function ClinicAdminRegister() {
           <p className="text-gray-500 text-sm mb-6">
             The Super Admin account already exists. Sign in to approve doctors.
           </p>
-          <Link to={ROUTES.clinicAdminLogin} className="btn-primary inline-block text-sm">
-            Super Admin Login
+          <Link to={ROUTES.login} className="btn-primary inline-block text-sm">
+            Sign in
           </Link>
         </div>
       </AuthPageLayout>
@@ -188,7 +188,7 @@ export default function ClinicAdminRegister() {
 
         <p className="text-center text-sm text-gray-500 mt-6">
           Already set up?{' '}
-          <Link to={ROUTES.clinicAdminLogin} className="text-primary-600 font-medium hover:underline">
+          <Link to={ROUTES.login} className="text-primary-600 font-medium hover:underline">
             Sign in
           </Link>
         </p>

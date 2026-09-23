@@ -1,27 +1,32 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Leaf } from 'lucide-react';
 import { LOGO_URL, APP_NAME } from '../constants/branding';
 
+/** Public copies — reliable if the Vite-bundled asset 404s after deploy. */
+const PUBLIC_LOGO = '/brand/Z-Health-logo-clear.png';
+
 export default function AuthPageLogo({ className = '' }) {
-  const [logoError, setLogoError] = useState(false);
+  const [src, setSrc] = useState(LOGO_URL || PUBLIC_LOGO);
 
   return (
     <Link
       to="/"
-      className={`inline-flex justify-center transition-opacity hover:opacity-90 ${className}`}
+      className={`inline-flex justify-center items-center transition-opacity hover:opacity-90 ${className}`}
       aria-label={`Go to ${APP_NAME} home`}
     >
-      {!logoError ? (
+      {src ? (
         <img
-          src={LOGO_URL}
-          alt=""
+          src={src}
+          alt={APP_NAME}
           className="h-auto w-auto max-h-16 xs:max-h-20 sm:max-h-24 max-w-[min(100%,12rem)] sm:max-w-[min(100%,14rem)] object-contain"
           draggable={false}
-          onError={() => setLogoError(true)}
+          onError={() => {
+            if (src !== PUBLIC_LOGO) setSrc(PUBLIC_LOGO);
+            else setSrc('');
+          }}
         />
       ) : (
-        <Leaf className="w-7 h-7 sm:w-8 sm:h-8 text-[#a8841f]" />
+        <span className="text-xl sm:text-2xl font-semibold tracking-tight text-ink">{APP_NAME}</span>
       )}
     </Link>
   );

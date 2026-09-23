@@ -28,6 +28,7 @@ import { SkeletonDetail } from '../components/ui/Skeleton';
 import LoadingOverlay from '../components/ui/LoadingOverlay';
 import { normalizeAppointmentStatus } from '../constants/appointmentStatus';
 import { can, P } from '../constants/permissions';
+import { filterFutureSlots } from '../utils/timeSlots';
 
 function Field({ label, children }) {
   return (
@@ -96,7 +97,7 @@ export default function DoctorAppointmentDetail() {
         params: { date: rescheduleDate, durationMinutes: duration },
       })
       .then((res) => {
-        setSlots(res.data.availableSlots || []);
+        setSlots(filterFutureSlots(res.data.availableSlots || [], rescheduleDate));
         setRescheduleSlot('');
       })
       .catch(() => setSlots([]));
@@ -398,7 +399,12 @@ export default function DoctorAppointmentDetail() {
             <form onSubmit={handleReschedule} className="mt-4 pt-4 border-t border-line space-y-3">
               <div>
                 <label className="label-field">New date <RequiredMark /></label>
-                <Datepicker value={rescheduleDate} onChange={setRescheduleDate} required />
+                <Datepicker
+                  value={rescheduleDate}
+                  onChange={setRescheduleDate}
+                  min={format(new Date(), 'yyyy-MM-dd')}
+                  required
+                />
               </div>
               {rescheduleDate && (
                 <div className="flex flex-wrap gap-2">

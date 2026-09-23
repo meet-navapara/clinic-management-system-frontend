@@ -39,3 +39,30 @@ export function generateTimeSlots({
   }
   return slots;
 }
+
+function parseLocalDateKey(dateStr) {
+  const m = String(dateStr || '').trim().match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (!m) return null;
+  const y = Number(m[1]);
+  const mo = Number(m[2]);
+  const d = Number(m[3]);
+  const dt = new Date(y, mo - 1, d);
+  if (dt.getFullYear() !== y || dt.getMonth() !== mo - 1 || dt.getDate() !== d) return null;
+  return dt;
+}
+
+/** True when the slot start is at or before now. */
+export function isSlotInPast(dateStr, timeSlot, now = new Date()) {
+  const day = parseLocalDateKey(dateStr);
+  const mins = timeToMinutes(timeSlot);
+  if (!day || mins == null) return true;
+  const slotAt = new Date(day);
+  slotAt.setHours(Math.floor(mins / 60), mins % 60, 0, 0);
+  return slotAt.getTime() <= now.getTime();
+}
+
+/** Hide times that have already passed (today or earlier days). */
+export function filterFutureSlots(slots, dateStr, now = new Date()) {
+  if (!dateStr) return slots || [];
+  return (slots || []).filter((slot) => !isSlotInPast(dateStr, slot, now));
+}

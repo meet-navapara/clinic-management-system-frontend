@@ -1,9 +1,11 @@
+import { useEffect, useRef, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { Bell, Inbox, LogOut } from 'lucide-react';
+import { Bell, Inbox, LogOut, User } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { ROUTES, getPageMeta } from '../../constants/routes';
 import BranchSwitcher from '../BranchSwitcher';
 import BackButton from '../ui/BackButton';
+import UserAvatar, { getInitials } from '../UserAvatar';
 
 export default function AppHeader({ unread = 0, onMenu }) {
   const { user, logout } = useAuth();
@@ -11,11 +13,41 @@ export default function AppHeader({ unread = 0, onMenu }) {
   const navigate = useNavigate();
   const meta = getPageMeta(pathname);
   const isDoctor = user?.role === 'doctor';
+  const [profileOpen, setProfileOpen] = useState(false);
+  const profileRef = useRef(null);
+
+  useEffect(() => {
+    setProfileOpen(false);
+  }, [pathname]);
+
+  useEffect(() => {
+    if (!profileOpen) return undefined;
+    const onPointerDown = (e) => {
+      if (profileRef.current && !profileRef.current.contains(e.target)) {
+        setProfileOpen(false);
+      }
+    };
+    const onKey = (e) => {
+      if (e.key === 'Escape') setProfileOpen(false);
+    };
+    document.addEventListener('mousedown', onPointerDown);
+    document.addEventListener('keydown', onKey);
+    return () => {
+      document.removeEventListener('mousedown', onPointerDown);
+      document.removeEventListener('keydown', onKey);
+    };
+  }, [profileOpen]);
 
   const handleLogout = async () => {
+    setProfileOpen(false);
     await logout();
-    navigate(user?.role === 'super_admin' ? ROUTES.clinicAdminLogin : ROUTES.login);
+    navigate(ROUTES.login);
   };
+
+  const displayName = String(user?.name || 'Account')
+    .replace(/^Dr\.?\s*/i, '')
+    .trim();
+  const initial = getInitials(displayName).slice(0, 1) || 'U';
 
   return (
     <header className="sticky top-0 z-20 h-14 shrink-0 bg-[#f6f4f0]/90 backdrop-blur-md border-b border-line relative">
@@ -76,17 +108,59 @@ export default function AppHeader({ unread = 0, onMenu }) {
           </>
         )}
 
-        <div className="flex items-center gap-0.5 sm:gap-1 pl-0.5 sm:pl-1 border-l border-line/80 ml-0.5">
+        <div className="relative pl-0.5 sm:pl-1 border-l border-line/80 ml-0.5" ref={profileRef}>
           <button
             type="button"
-            onClick={handleLogout}
-            className="min-h-10 min-w-10 sm:min-w-0 sm:px-2.5 inline-flex items-center justify-center gap-1.5 rounded-lg text-ink-muted hover:text-[#9b2c2c] hover:bg-[#fef2f2] transition-colors"
-            aria-label="Logout"
-            title="Logout"
+            onClick={() => setProfileOpen((v) => !v)}
+            className="inline-flex items-center justify-center rounded-full hover:opacity-90 transition-opacity focus-visible:outline-none"
+            aria-label="Profile menu"
+            aria-expanded={profileOpen}
+            aria-haspopup="menu"
           >
-            <LogOut className="w-4 h-4 shrink-0" />
-            <span className="hidden lg:inline text-xs sm:text-sm font-medium">Logout</span>
+            {user?.profilePhoto ? (
+              <UserAvatar
+                name={displayName}
+                profilePhoto={user.profilePhoto}
+                role={user.role}
+                size="sm"
+                className="!h-9 !w-9 !ring-0"
+              />
+            ) : (
+              <span className="flex h-9 w-9 items-center justify-center rounded-full bg-[#c0267a] text-white text-sm font-bold select-none">
+                {initial}
+              </span>
+            )}
           </button>
+
+          {profileOpen && (
+            <div
+              role="menu"
+              className="absolute right-0 top-[calc(100%+0.4rem)] z-40 w-52 rounded-xl border border-line bg-white py-1 shadow-panel"
+            >
+              <div className="px-3 py-2 border-b border-line">
+                <p className="text-sm font-semibold text-ink truncate">{displayName || 'Account'}</p>
+                <p className="text-xs text-ink-faint truncate">{user?.email || ''}</p>
+              </div>
+              <Link
+                role="menuitem"
+                to={ROUTES.profile}
+                onClick={() => setProfileOpen(false)}
+                className="flex items-center gap-2 px-3 py-2.5 text-sm font-medium text-ink hover:bg-[#faf8f3]"
+              >
+                <User className="w-4 h-4 text-ink-muted" />
+                Profile
+              </Link>
+              <button
+                type="button"
+                role="menuitem"
+                onClick={handleLogout}
+                className="w-full flex items-center gap-2 px-3 py-2.5 text-sm font-medium text-[#9b2c2c] hover:bg-[#fef2f2]"
+              >
+                <LogOut className="w-4 h-4" />
+                Logout
+              </button>
+            </div>
+          )}
         </div>
       </div>
     </header>

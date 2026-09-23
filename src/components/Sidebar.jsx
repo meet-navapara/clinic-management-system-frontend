@@ -188,12 +188,12 @@ export default function Sidebar({ open, onClose, unread = 0, onUnread }) {
     <aside className={`flex h-full flex-col bg-white border-r border-line ${collapsed ? 'w-[4.25rem]' : 'w-60'}`}>
       <div
         className={`relative flex h-14 items-center border-b border-line shrink-0 ${
-          collapsed ? 'justify-center px-1.5' : 'justify-start px-3'
+          collapsed ? 'justify-center px-1.5' : 'justify-center px-3'
         }`}
       >
         <Link
           to={brandPath}
-          className={`navbar-brand min-w-0 ${collapsed ? 'justify-center' : 'justify-start w-full pr-8 lg:pr-0'}`}
+          className="navbar-brand min-w-0 justify-center"
           onClick={onClose}
           aria-label={APP_NAME}
         >
@@ -204,7 +204,7 @@ export default function Sidebar({ open, onClose, unread = 0, onUnread }) {
               className={
                 collapsed
                   ? 'block h-8 w-8 object-contain'
-                  : 'block h-9 w-auto max-w-[10.5rem] object-contain object-left'
+                  : 'block h-9 w-auto max-w-[10.5rem] object-contain mx-auto'
               }
               draggable={false}
               onError={() => setLogoError(true)}
