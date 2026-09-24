@@ -1,5 +1,5 @@
-import { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { useCallback, useEffect, useState } from 'react';
+import { Link, useLocation } from 'react-router-dom';
 import { format, isValid } from 'date-fns';
 import api from '../utils/api';
 import toast from 'react-hot-toast';
@@ -16,7 +16,6 @@ import { can, P } from '../constants/permissions';
 import useDebouncedValue from '../hooks/useDebouncedValue';
 import { PAGE_SIZE } from '../constants/pagination';
 
-
 function visitLabel(visit) {
   if (!visit?.date) return '—';
   const d = new Date(visit.date);
@@ -27,6 +26,7 @@ function visitLabel(visit) {
 export default function DoctorPatients() {
   const { user } = useAuth();
   const { branchId } = useBranch();
+  const { pathname } = useLocation();
   const canManage = can(user, P.PATIENTS_MANAGE);
   const [patients, setPatients] = useState([]);
   const [search, setSearch] = useState('');
@@ -36,15 +36,17 @@ export default function DoctorPatients() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
 
-  const load = async (q = debouncedSearch, pageNum = page) => {
+  const load = useCallback(async (q, pageNum) => {
+    setLoading(true);
     setError(false);
     try {
       const res = await api.get('/patients', {
         params: {
           page: pageNum,
           limit: PAGE_SIZE,
-          ...(q.trim() ? { search: q.trim() } : {}),
+          ...(String(q || '').trim() ? { search: String(q).trim() } : {}),
         },
+        skipCache: true,
         skipErrorToast: true,
       });
       setPatients(res.data.patients || []);
@@ -53,22 +55,24 @@ export default function DoctorPatients() {
         pages: res.data.pages || 1,
       });
     } catch (err) {
+      setPatients([]);
+      setMeta({ total: 0, pages: 1 });
       setError(true);
       toast.error(err.response?.data?.message || 'Could not load patients.');
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
+  // Reset to page 1 when search or branch changes
   useEffect(() => {
     setPage(1);
   }, [debouncedSearch, branchId]);
 
+  // Always load the full list when opening this tab — no need to click search
   useEffect(() => {
-    setLoading(true);
     load(debouncedSearch, page);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [page, branchId, debouncedSearch]);
+  }, [load, page, branchId, debouncedSearch, pathname]);
 
   const addPatientLink = canManage ? (
     <Link to={ROUTES.doctorPatientNew} className="btn-primary">
@@ -105,10 +109,7 @@ export default function DoctorPatients() {
             <button
               type="button"
               className="btn-secondary"
-              onClick={() => {
-                setLoading(true);
-                load();
-              }}
+              onClick={() => load(debouncedSearch, page)}
             >
               Try again
             </button>

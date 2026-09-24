@@ -37,7 +37,10 @@ export default function ResetPassword() {
     setLoading(true);
     try {
       const res = await api.post('/auth/reset-password', { token, password });
-      if (res.data?.token) sessionStorage.setItem('token', res.data.token);
+      if (res.data?.token) {
+        localStorage.setItem('token', res.data.token);
+        sessionStorage.removeItem('token');
+      }
       if (res.data?.user) {
         localStorage.setItem('user', JSON.stringify(res.data.user));
         await refreshUser().catch(() => {});

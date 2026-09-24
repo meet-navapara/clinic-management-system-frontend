@@ -9,7 +9,6 @@ import { SkeletonRows } from '../components/ui/Skeleton';
 import { ROUTES } from '../constants/routes';
 import { useBranch } from '../context/BranchContext';
 
-const EXAMPLES = ['Aarav', 'INV-', 'Anita', '98765', 'PAT-'];
 const SECTIONS = [
   { key: 'patients', label: 'Patients' },
   { key: 'appointments', label: 'Appointments' },
@@ -51,10 +50,13 @@ export default function SearchPage() {
   const [params, setParams] = useSearchParams();
   const [q, setQ] = useState(params.get('q') || '');
   const [results, setResults] = useState({});
+  const [recentPatients, setRecentPatients] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [recentLoading, setRecentLoading] = useState(true);
   const [error, setError] = useState('');
   const inputRef = useRef(null);
   const trimmed = q.trim();
+  const idle = trimmed.length < 2;
 
   const run = (query) => {
     const value = String(query || '').trim();
@@ -80,6 +82,31 @@ export default function SearchPage() {
     inputRef.current?.focus();
   }, []);
 
+  // Recent patients when landing on Search (no query yet)
+  useEffect(() => {
+    if (!idle) return undefined;
+    let cancelled = false;
+    setRecentLoading(true);
+    api
+      .get('/patients', {
+        params: { page: 1, limit: 5 },
+        skipCache: true,
+        skipErrorToast: true,
+      })
+      .then((res) => {
+        if (!cancelled) setRecentPatients(res.data.patients || []);
+      })
+      .catch(() => {
+        if (!cancelled) setRecentPatients([]);
+      })
+      .finally(() => {
+        if (!cancelled) setRecentLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [idle, branchId]);
+
   useEffect(() => {
     const handle = setTimeout(() => {
       const next = q.trim();
@@ -94,7 +121,6 @@ export default function SearchPage() {
     () => SECTIONS.reduce((sum, s) => sum + (results[s.key]?.length || 0), 0),
     [results]
   );
-  const idle = trimmed.length < 2;
   const empty = !idle && !loading && !error && total === 0;
 
   return (
@@ -122,27 +148,31 @@ export default function SearchPage() {
         />
       </form>
 
-      {idle && (
-        <div className="flex flex-wrap gap-2 mb-6">
-          {EXAMPLES.map((example) => (
-            <button
-              key={example}
-              type="button"
-              className="tab-chip bg-white text-ink-muted ring-1 ring-line"
-              onClick={() => setQ(example)}
-            >
-              {example}
-            </button>
-          ))}
-        </div>
-      )}
-
       {idle ? (
-        <EmptyState
-          icon={Search}
-          title="Search the clinic"
-          description="Type at least 2 characters. Try a patient name, invoice number, or staff member from the chips above."
-        />
+        recentLoading ? (
+          <SkeletonRows count={5} />
+        ) : recentPatients.length === 0 ? (
+          <EmptyState
+            icon={Search}
+            title="Search the clinic"
+            description="Type at least 2 characters to find patients, visits, invoices, or staff."
+          />
+        ) : (
+          <section>
+            <h3 className="text-sm font-semibold text-ink mb-2">Recent patients</h3>
+            <div className="space-y-1">
+              {recentPatients.map((row) => (
+                <Link
+                  key={row._id}
+                  to={ROUTES.doctorPatientDetail(row._id)}
+                  className="card !p-3 block text-sm hover:border-accent-400"
+                >
+                  {rowLabel('patients', row)}
+                </Link>
+              ))}
+            </div>
+          </section>
+        )
       ) : loading ? (
         <SkeletonRows count={8} />
       ) : error ? (

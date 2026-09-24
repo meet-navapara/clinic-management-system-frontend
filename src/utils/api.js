@@ -102,8 +102,8 @@ api.defaults.adapter = async (config) => {
 };
 
 api.interceptors.request.use((config) => {
-  // Prefer httpOnly cookie; Bearer is a fallback for cross-origin / API clients.
-  const token = sessionStorage.getItem('token') || localStorage.getItem('token');
+  // Prefer httpOnly cookie; Bearer from localStorage is the cross-tab / cross-origin fallback.
+  const token = localStorage.getItem('token') || sessionStorage.getItem('token');
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
   }

@@ -3,22 +3,30 @@ import api from '../utils/api';
 
 const AuthContext = createContext(null);
 
+const AUTH_TOKEN_KEY = 'token';
+const AUTH_USER_KEY = 'user';
+
 const clearStoredAuth = () => {
-  sessionStorage.removeItem('token');
-  localStorage.removeItem('token');
-  localStorage.removeItem('user');
+  sessionStorage.removeItem(AUTH_TOKEN_KEY);
+  localStorage.removeItem(AUTH_TOKEN_KEY);
+  localStorage.removeItem(AUTH_USER_KEY);
 };
 
 const storeSession = (data) => {
-  // Prefer httpOnly cookie; keep Bearer token only in sessionStorage as cross-origin fallback.
+  // localStorage (not sessionStorage) so every browser tab shares the same session.
+  // sessionStorage is tab-scoped — that caused "logged in here, logged out in other tab"
+  // on live when the httpOnly cookie is not sent cross-origin.
   if (data?.token) {
-    sessionStorage.setItem('token', data.token);
-    localStorage.removeItem('token');
+    localStorage.setItem(AUTH_TOKEN_KEY, data.token);
+    sessionStorage.removeItem(AUTH_TOKEN_KEY);
   }
   if (data?.user) {
-    localStorage.setItem('user', JSON.stringify(data.user));
+    localStorage.setItem(AUTH_USER_KEY, JSON.stringify(data.user));
   }
 };
+
+const readStoredToken = () =>
+  localStorage.getItem(AUTH_TOKEN_KEY) || sessionStorage.getItem(AUTH_TOKEN_KEY) || '';
 
 const usersRoughlyEqual = (a, b) => {
   if (!a || !b) return a === b;
@@ -42,13 +50,19 @@ export const AuthProvider = ({ children }) => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const savedUser = localStorage.getItem('user');
-    const hasTokenHint =
-      Boolean(sessionStorage.getItem('token') || localStorage.getItem('token')) || Boolean(savedUser);
+    const savedUser = localStorage.getItem(AUTH_USER_KEY);
+    const hasTokenHint = Boolean(readStoredToken() || savedUser);
 
     if (!hasTokenHint) {
       setLoading(false);
       return;
+    }
+
+    // Migrate any leftover sessionStorage token into localStorage (older builds).
+    const sessionToken = sessionStorage.getItem(AUTH_TOKEN_KEY);
+    if (sessionToken && !localStorage.getItem(AUTH_TOKEN_KEY)) {
+      localStorage.setItem(AUTH_TOKEN_KEY, sessionToken);
+      sessionStorage.removeItem(AUTH_TOKEN_KEY);
     }
 
     let hasCachedUser = false;
@@ -56,7 +70,6 @@ export const AuthProvider = ({ children }) => {
       try {
         setUser(JSON.parse(savedUser));
         hasCachedUser = true;
-        // Paint the app immediately; refresh session in the background.
         setLoading(false);
       } catch {
         clearStoredAuth();
@@ -65,7 +78,6 @@ export const AuthProvider = ({ children }) => {
       }
     }
 
-    // Single session check on app load (deduped if Strict Mode double-invokes)
     const run = () => {
       if (!refreshInFlight) {
         refreshInFlight = api
@@ -73,7 +85,7 @@ export const AuthProvider = ({ children }) => {
           .then((res) => {
             const next = res.data.user;
             setUser((prev) => (usersRoughlyEqual(prev, next) ? prev : next));
-            if (next) localStorage.setItem('user', JSON.stringify(next));
+            if (next) localStorage.setItem(AUTH_USER_KEY, JSON.stringify(next));
             return next;
           })
           .catch(() => {
@@ -89,6 +101,33 @@ export const AuthProvider = ({ children }) => {
       return refreshInFlight;
     };
     run();
+  }, []);
+
+  // Keep tabs in sync when login/logout happens in another tab.
+  useEffect(() => {
+    const onStorage = (e) => {
+      if (e.storageArea !== localStorage) return;
+      if (e.key !== AUTH_TOKEN_KEY && e.key !== AUTH_USER_KEY) return;
+
+      if (!localStorage.getItem(AUTH_TOKEN_KEY) && !localStorage.getItem(AUTH_USER_KEY)) {
+        setUser(null);
+        return;
+      }
+
+      const raw = localStorage.getItem(AUTH_USER_KEY);
+      if (!raw) {
+        setUser(null);
+        return;
+      }
+      try {
+        const next = JSON.parse(raw);
+        setUser((prev) => (usersRoughlyEqual(prev, next) ? prev : next));
+      } catch {
+        setUser(null);
+      }
+    };
+    window.addEventListener('storage', onStorage);
+    return () => window.removeEventListener('storage', onStorage);
   }, []);
 
   const persistSession = useCallback((data) => {
@@ -135,7 +174,7 @@ export const AuthProvider = ({ children }) => {
 
   const updateUser = useCallback((updatedUser) => {
     setUser(updatedUser);
-    localStorage.setItem('user', JSON.stringify(updatedUser));
+    localStorage.setItem(AUTH_USER_KEY, JSON.stringify(updatedUser));
   }, []);
 
   const refreshUser = useCallback(async () => {
@@ -147,7 +186,7 @@ export const AuthProvider = ({ children }) => {
         if (next) {
           setUser((prev) => {
             if (usersRoughlyEqual(prev, next)) return prev;
-            localStorage.setItem('user', JSON.stringify(next));
+            localStorage.setItem(AUTH_USER_KEY, JSON.stringify(next));
             return next;
           });
         }

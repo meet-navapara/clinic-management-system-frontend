@@ -2,19 +2,18 @@ import { useEffect, useRef, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { Bell, Inbox, LogOut, User } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
-import { ROUTES, getPageMeta } from '../../constants/routes';
+import { ROUTES } from '../../constants/routes';
 import BranchSwitcher from '../BranchSwitcher';
-import BackButton from '../ui/BackButton';
 import UserAvatar, { getInitials } from '../UserAvatar';
 
 export default function AppHeader({ unread = 0, onMenu }) {
   const { user, logout } = useAuth();
   const { pathname } = useLocation();
   const navigate = useNavigate();
-  const meta = getPageMeta(pathname);
   const isDoctor = user?.role === 'doctor';
   const [profileOpen, setProfileOpen] = useState(false);
   const profileRef = useRef(null);
+  const hoverCloseTimer = useRef(null);
 
   useEffect(() => {
     setProfileOpen(false);
@@ -37,6 +36,23 @@ export default function AppHeader({ unread = 0, onMenu }) {
       document.removeEventListener('keydown', onKey);
     };
   }, [profileOpen]);
+
+  useEffect(
+    () => () => {
+      if (hoverCloseTimer.current) clearTimeout(hoverCloseTimer.current);
+    },
+    []
+  );
+
+  const openProfileMenu = () => {
+    if (hoverCloseTimer.current) clearTimeout(hoverCloseTimer.current);
+    setProfileOpen(true);
+  };
+
+  const scheduleCloseProfileMenu = () => {
+    if (hoverCloseTimer.current) clearTimeout(hoverCloseTimer.current);
+    hoverCloseTimer.current = setTimeout(() => setProfileOpen(false), 140);
+  };
 
   const handleLogout = async () => {
     setProfileOpen(false);
@@ -63,20 +79,7 @@ export default function AppHeader({ unread = 0, onMenu }) {
           </svg>
         </button>
 
-        {meta.backTo != null && <BackButton to={meta.backTo} />}
-
-        <div className="min-w-0 flex-1">
-          {!meta.hideTitle && (
-            <>
-              {meta.crumb && (
-                <p className="hidden xs:block text-[10px] sm:text-[11px] font-medium uppercase tracking-wider text-ink-faint leading-none mb-0.5">
-                  {meta.crumb}
-                </p>
-              )}
-              <h1 className="text-sm sm:text-base font-semibold text-ink truncate">{meta.title}</h1>
-            </>
-          )}
-        </div>
+        <div className="min-w-0 flex-1" />
 
         {user?.role !== 'super_admin' && (
           <div className="hidden md:block">
@@ -108,10 +111,16 @@ export default function AppHeader({ unread = 0, onMenu }) {
           </>
         )}
 
-        <div className="relative pl-0.5 sm:pl-1 border-l border-line/80 ml-0.5" ref={profileRef}>
+        <div
+          className="relative pl-0.5 sm:pl-1 border-l border-line/80 ml-0.5"
+          ref={profileRef}
+          onMouseEnter={openProfileMenu}
+          onMouseLeave={scheduleCloseProfileMenu}
+        >
           <button
             type="button"
             onClick={() => setProfileOpen((v) => !v)}
+            onFocus={openProfileMenu}
             className="inline-flex items-center justify-center rounded-full hover:opacity-90 transition-opacity focus-visible:outline-none"
             aria-label="Profile menu"
             aria-expanded={profileOpen}
