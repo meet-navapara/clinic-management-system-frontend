@@ -1,21 +1,24 @@
 import Reveal from '../Reveal';
 import { LANDING_IMAGES } from '../../constants/landingImages';
 
-function QueueBoard() {
+function DayBoard() {
   return (
     <div className="lp-board" aria-hidden>
       <header>
-        <span>Live queue</span>
+        <span>Today’s calendar</span>
         <em>Main branch</em>
       </header>
       <div className="lp-board-now">
-        <small>Now</small>
-        <strong>A-04</strong>
-        <span>In consult</span>
+        <small>Next</small>
+        <strong>09:30</strong>
+        <span>In progress</span>
       </div>
       <ul>
-        {[['A-05', 'Next'], ['A-06', 'Waiting'], ['A-07', 'Waiting'], ['A-08', 'Checked in']].map(([t, s]) => (
-          <li key={t}><b>{t}</b><span>{s}</span></li>
+        {[['10:00', 'Booked'], ['10:30', 'Booked'], ['11:00', 'Confirmed'], ['11:30', 'Open']].map(([t, s]) => (
+          <li key={t}>
+            <b>{t}</b>
+            <span>{s}</span>
+          </li>
         ))}
       </ul>
     </div>
@@ -30,10 +33,22 @@ function ConsultPane() {
         <em>Ananya Rao</em>
       </header>
       <ul className="lp-consult-list">
-        <li><b>Clinical notes</b><span>Visit plan saved on this appointment</span></li>
-        <li><b>Consent</b><span>Form captured before the consult</span></li>
-        <li><b>Prescription</b><span>Print from clinic print settings</span></li>
-        <li><b>Invoice</b><span>Optional, tied to the same visit</span></li>
+        <li>
+          <b>Clinical notes</b>
+          <span>Visit plan saved on this appointment</span>
+        </li>
+        <li>
+          <b>Prescription</b>
+          <span>Print from clinic print settings</span>
+        </li>
+        <li>
+          <b>Invoice</b>
+          <span>Optional, tied to the same visit</span>
+        </li>
+        <li>
+          <b>Follow-up</b>
+          <span>Reminders and campaigns when needed</span>
+        </li>
       </ul>
     </div>
   );
@@ -45,20 +60,20 @@ export default function LandingShowcases() {
       <section className="lp-showcase">
         <div className="site-container lp-showcase-grid">
           <Reveal>
-            <p className="lp-kicker">Queue</p>
-            <h2>The waiting room stays honest.</h2>
+            <p className="lp-kicker">Appointments</p>
+            <h2>The day calendar stays clear.</h2>
             <p className="lp-copy">
-              Check-in creates a token. The doctor sees who is next. A waiting-room display can show the same queue — so the floor and the screen do not disagree.
+              Book visits, move them when plans change, and see who is next — one schedule for the whole clinic day.
             </p>
             <ul className="lp-checks">
-              <li>Walk-in check-in and scheduled arrivals</li>
-              <li>Token status from waiting to in consult</li>
-              <li>Display route for the waiting area</li>
+              <li>Day, week, and month views</li>
+              <li>Drag to reschedule with available times</li>
+              <li>Status from scheduled to completed</li>
             </ul>
           </Reveal>
           <Reveal className="lp-showcase-visual">
             <img src={LANDING_IMAGES.waiting} alt="Clinic waiting area" />
-            <QueueBoard />
+            <DayBoard />
           </Reveal>
         </div>
       </section>
@@ -73,12 +88,12 @@ export default function LandingShowcases() {
             <p className="lp-kicker">Consultation</p>
             <h2>The visit is the workspace.</h2>
             <p className="lp-copy">
-              Open an appointment and the clinical work is already there: notes, consent, prescription, and a printable — without jumping to another system mid-consult.
+              Open an appointment and the clinical work is already there: notes, prescription, and a printable — without jumping to another system mid-consult.
             </p>
             <ul className="lp-checks">
               <li>Notes and follow-up on the appointment</li>
-              <li>Consent forms captured in clinic</li>
               <li>Templates and print settings you already use</li>
+              <li>Invoice when the visit needs billing</li>
             </ul>
           </Reveal>
         </div>

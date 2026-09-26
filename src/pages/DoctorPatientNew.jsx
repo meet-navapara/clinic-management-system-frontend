@@ -1,6 +1,6 @@
 import { useMemo, useRef, useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Camera } from 'lucide-react';
+import { Camera, Trash2 } from 'lucide-react';
 import { format } from 'date-fns';
 import api from '../utils/api';
 import toast from 'react-hot-toast';
@@ -390,8 +390,6 @@ export default function DoctorPatientNew() {
         navigate(ROUTES.doctorPatients);
       } else if (after === 'book') {
         navigate(`${ROUTES.doctorBook}?patientId=${patient._id}`);
-      } else if (after === 'consent') {
-        navigate(`${ROUTES.consent}?patientId=${patient._id}`);
       } else {
         navigate(ROUTES.doctorPatientDetail(patient._id));
       }
@@ -449,16 +447,6 @@ export default function DoctorPatientNew() {
                 onClick={() => savePatient('book')}
               >
                 Add Patient & Book Appointment
-              </button>
-            )}
-            {can(user, P.CONSENT_CAPTURE) && (
-              <button
-                type="button"
-                className="inline-flex items-center justify-center min-h-10 px-3 rounded-md text-sm font-semibold text-white bg-orange-500 hover:bg-orange-600 disabled:opacity-50"
-                disabled={loading}
-                onClick={() => savePatient('consent')}
-              >
-                Add Patient & Consent
               </button>
             )}
             <Link to={ROUTES.doctorPatients} className="btn-secondary">
@@ -557,8 +545,14 @@ export default function DoctorPatientNew() {
                     Upload
                   </button>
                   {form.profilePhoto ? (
-                    <button type="button" className="btn-ghost btn-sm" onClick={() => setField('profilePhoto', '')}>
-                      Remove
+                    <button
+                      type="button"
+                      className="inline-flex items-center justify-center h-10 w-10 rounded-lg text-ink-muted hover:text-[#9b2c2c] hover:bg-[#fef2f2] transition-colors shrink-0"
+                      aria-label="Delete photo"
+                      title="Delete photo"
+                      onClick={() => setField('profilePhoto', '')}
+                    >
+                      <Trash2 className="w-4 h-4" />
                     </button>
                   ) : null}
                 </div>

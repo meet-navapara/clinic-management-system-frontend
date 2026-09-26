@@ -2,7 +2,7 @@ import Reveal from '../Reveal';
 
 const POINTS = [
   { title: 'One visit record', text: 'Registration, history, appointment, notes, and invoice stay on the same patient.' },
-  { title: 'Floor and desk together', text: 'Calendar bookings and walk-in queue tokens update the same clinic day.' },
+  { title: 'Floor and desk together', text: 'Calendar bookings and front-desk scheduling stay on the same clinic day.' },
   { title: 'Roles that match the clinic', text: 'Doctors own the practice. Staff see only the permissions you grant.' },
   { title: 'Follow-up inside the system', text: 'Reminders, plus WhatsApp and email campaigns on an approved clinic template.' },
 ];

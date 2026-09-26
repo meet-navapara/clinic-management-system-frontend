@@ -454,31 +454,6 @@ export default function PrintDocument() {
           </>
         )}
 
-        {type === 'consent' && data.record && (
-          <>
-            <h2 className="print-heading font-semibold mb-2">{data.record.titleSnapshot}</h2>
-            <p className="print-sub text-ink-faint mb-3">
-              Version {data.record.version} · {data.record.status}
-            </p>
-            <div className="whitespace-pre-wrap mb-4">{data.record.bodySnapshot}</div>
-            <p>Patient: {data.record.patientId?.name}</p>
-            {data.record.signedAt && (
-              <p>Signed: {format(new Date(data.record.signedAt), 'dd MMM yyyy p')}</p>
-            )}
-            {data.record.signatureDataUrl && (
-              <img src={data.record.signatureDataUrl} alt="Signature" className="h-16 mt-3" />
-            )}
-          </>
-        )}
-
-        {type === 'queue_token' && data.ticket && (
-          <div className="text-center py-8">
-            <p className="uppercase tracking-widest print-sub">Token</p>
-            <p className="text-5xl font-semibold my-4">#{data.ticket.tokenLabel}</p>
-            <p className="print-sub">{data.ticket.roomLabel}</p>
-          </div>
-        )}
-
         {type === 'appointment_slip' && data.appointment && (
           <>
             <h2 className="print-heading font-semibold mb-2">Appointment slip</h2>

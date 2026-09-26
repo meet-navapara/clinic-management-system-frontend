@@ -1,10 +1,9 @@
-import { useEffect, useState } from 'react';
-import { Plus, X } from 'lucide-react';
+import { useEffect, useRef, useState } from 'react';
+import { Plus, Trash2 } from 'lucide-react';
 import api from '../utils/api';
 import toast from 'react-hot-toast';
 import PageHeader from '../components/ui/PageHeader';
 import EmptyState from '../components/ui/EmptyState';
-import Badge from '../components/ui/Badge';
 import Modal from '../components/ui/Modal';
 import { can, P } from '../constants/permissions';
 import { useAuth } from '../context/AuthContext';
@@ -22,7 +21,6 @@ const EMPTY_FORM = {
   displayTitle: '',
   rooms: ['Room 1'],
   roomLabel: 'Room 1',
-  tokenPrefix: '',
 };
 
 function roomsFromBranch(b) {
@@ -42,9 +40,13 @@ export default function BranchesPage() {
   const [form, setForm] = useState(EMPTY_FORM);
   const [newRoom, setNewRoom] = useState('');
   const [saving, setSaving] = useState(false);
+  const [justSelectedId, setJustSelectedId] = useState(null);
+  const highlightTimer = useRef(null);
 
   // API create/update requires clinic doctor — match UI to avoid dead buttons for staff.
   const canManageBranches = user?.role === 'doctor' && can(user, P.BRANCHES_MANAGE);
+
+  useEffect(() => () => clearTimeout(highlightTimer.current), []);
 
   const load = (showLoader = false) => {
     if (showLoader) setLoading(true);
@@ -76,7 +78,6 @@ export default function BranchesPage() {
       displayTitle: b.displayTitle || '',
       rooms,
       roomLabel: b.roomLabel || rooms[0] || 'Room 1',
-      tokenPrefix: b.tokenPrefix || '',
     });
     setNewRoom('');
     setOpen(true);
@@ -125,7 +126,6 @@ export default function BranchesPage() {
         displayTitle: form.displayTitle,
         rooms: form.rooms,
         roomLabel: form.roomLabel || form.rooms[0],
-        tokenPrefix: String(form.tokenPrefix || '').trim().toUpperCase(),
       };
       if (editingId) {
         await api.patch(`/branches/${editingId}`, payload);
@@ -158,6 +158,15 @@ export default function BranchesPage() {
   };
 
   const setAsDefault = async (b) => {
+    setRows((prev) =>
+      prev.map((row) => ({
+        ...row,
+        isDefault: String(row._id) === String(b._id),
+      }))
+    );
+    clearTimeout(highlightTimer.current);
+    setJustSelectedId(b._id);
+    highlightTimer.current = setTimeout(() => setJustSelectedId(null), 700);
     try {
       await api.patch(`/branches/${b._id}`, { isDefault: true });
       toast.success(`${b.name} is now the default branch.`);
@@ -165,6 +174,7 @@ export default function BranchesPage() {
       reload();
     } catch (err) {
       toast.error(err.response?.data?.message || 'Could not set default branch.');
+      load();
     }
   };
 
@@ -173,7 +183,7 @@ export default function BranchesPage() {
       <LoadingOverlay show={saving} message="Saving…" />
       <PageHeader
         title="Branches"
-        description="Each branch has its own appointments, billing, and queue tokens. Rooms here appear on Add Patient and Queue check-in."
+        description="Each branch has its own appointments and billing. Rooms here appear when registering patients."
         actions={
           canManageBranches && (
             <button type="button" className="btn-primary" onClick={openCreate}>
@@ -190,42 +200,64 @@ export default function BranchesPage() {
         <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3">
           {rows.map((b) => {
             const rooms = roomsFromBranch(b);
+            const isDefault = Boolean(b.isDefault);
+            const isActive = Boolean(b.isActive);
+            const justSelected = String(justSelectedId) === String(b._id);
             return (
-              <div key={b._id} className="card">
+              <div
+                key={b._id}
+                className={`card relative ${
+                  isDefault ? 'border-[#e2d4a8] bg-[#fbfaf6] ring-1 ring-[#c9a227]/40' : ''
+                } ${justSelected ? 'branch-card--just-selected' : ''} ${!isActive ? 'opacity-60' : ''}`}
+              >
                 <div className="flex justify-between gap-2">
                   <div className="min-w-0">
                     <h3 className="font-semibold text-ink truncate">{b.name}</h3>
-                    {b.isDefault ? (
-                      <p className="text-[11px] font-semibold uppercase tracking-wide text-accent-700 mt-0.5">
+                    {isDefault ? (
+                      <p className="text-[11px] font-semibold uppercase tracking-wide text-[#8a6a1f] mt-0.5">
                         Default · All-branches writes land here
                       </p>
                     ) : null}
                   </div>
-                  <Badge value={b.isActive ? 'active' : 'inactive'} />
+                  <div className="flex flex-col items-end gap-1 shrink-0">
+                    <span
+                      className={`inline-flex items-center justify-center h-6 min-w-[4.25rem] px-2 rounded-md text-[10px] font-bold uppercase tracking-[0.08em] ring-1 ${
+                        isActive
+                          ? 'bg-[#eef6f1] text-[#2d5a40] ring-[#c5ddd0]/80'
+                          : 'bg-[#f3f3f4] text-[#52525b] ring-[#d4d4d8]/80'
+                      }`}
+                    >
+                      {isActive ? 'Active' : 'Inactive'}
+                    </span>
+                    {isDefault ? (
+                      <span className="inline-flex items-center justify-center h-5 px-1.5 rounded text-[9px] font-bold uppercase tracking-wide bg-[#f8f1de] text-[#8a6a1f] ring-1 ring-[#e2d4a8]">
+                        Default
+                      </span>
+                    ) : null}
+                  </div>
                 </div>
                 <p className="text-sm text-ink-muted mt-1">{b.address || 'No address'}</p>
                 <p className="text-sm text-ink-faint">
-                  {b.phone} {b.email}
+                  {[b.phone, b.email].filter(Boolean).join(' · ') || '—'}
                 </p>
                 {b.displayTitle ? (
                   <p className="text-xs text-ink-faint mt-1">TV title: {b.displayTitle}</p>
                 ) : null}
                 <p className="text-xs text-ink-faint mt-2">
-                  Rooms: {rooms.join(', ')} · Default: {b.roomLabel || rooms[0]} · Token:{' '}
-                  {b.tokenPrefix || '—'}
+                  Rooms: {rooms.join(', ')} · Default: {b.roomLabel || rooms[0]}
                 </p>
                 {canManageBranches && (
                   <div className="flex flex-wrap gap-2 mt-3">
                     <button type="button" className="btn-secondary btn-sm" onClick={() => openEdit(b)}>
                       Edit
                     </button>
-                    {!b.isDefault && b.isActive && (
+                    {!isDefault && isActive ? (
                       <button type="button" className="btn-ghost btn-sm" onClick={() => setAsDefault(b)}>
                         Set default
                       </button>
-                    )}
+                    ) : null}
                     <button type="button" className="btn-ghost btn-sm" onClick={() => toggle(b)}>
-                      {b.isActive ? 'Deactivate' : 'Activate'}
+                      {isActive ? 'Deactivate' : 'Activate'}
                     </button>
                   </div>
                 )}
@@ -247,11 +279,10 @@ export default function BranchesPage() {
         <form onSubmit={save} className="space-y-3">
           {[
             ['name', 'Name', true],
-            ['displayTitle', 'TV display title', false],
+            ['displayTitle', 'Display title', false],
             ['phone', 'Phone', false],
             ['email', 'Email', false],
             ['address', 'Address', false],
-            ['tokenPrefix', 'Token prefix', false],
           ].map(([f, label, required]) => (
             <div key={f}>
               <label className="label-field" htmlFor={`branch-${f}`}>
@@ -265,23 +296,16 @@ export default function BranchesPage() {
                   f === 'phone'
                     ? '9876543210'
                     : f === 'displayTitle'
-                      ? 'Shown on queue TV board'
-                      : f === 'tokenPrefix'
-                        ? 'e.g. A'
-                        : label
+                      ? 'Optional branch display name'
+                      : label
                 }
                 value={form[f]}
                 inputMode={f === 'phone' ? 'numeric' : undefined}
-                maxLength={f === 'phone' ? 10 : f === 'tokenPrefix' ? 8 : undefined}
+                maxLength={f === 'phone' ? 10 : undefined}
                 onChange={(e) =>
                   setForm({
                     ...form,
-                    [f]:
-                      f === 'phone'
-                        ? formatIndianMobileInput(e.target.value)
-                        : f === 'tokenPrefix'
-                          ? e.target.value.toUpperCase()
-                          : e.target.value,
+                    [f]: f === 'phone' ? formatIndianMobileInput(e.target.value) : e.target.value,
                   })
                 }
               />
@@ -293,7 +317,7 @@ export default function BranchesPage() {
               Rooms <RequiredMark />
             </label>
             <p className="text-xs text-ink-faint mb-2">
-              Used on Add Patient and Queue check-in for this branch only.
+              Used on Add Patient for this branch only.
             </p>
             <div className="flex flex-wrap gap-2 mb-2">
               {form.rooms.map((room) => (
@@ -317,10 +341,11 @@ export default function BranchesPage() {
                   <button
                     type="button"
                     className="p-0.5 rounded hover:bg-red-50 text-ink-faint hover:text-red-600"
-                    aria-label={`Remove ${room}`}
+                    aria-label={`Delete ${room}`}
+                    title="Delete"
                     onClick={() => removeRoom(room)}
                   >
-                    <X className="w-3.5 h-3.5" />
+                    <Trash2 className="w-3.5 h-3.5" />
                   </button>
                 </span>
               ))}

@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
+import { Trash2 } from 'lucide-react';
 import api from '../utils/api';
 import toast from 'react-hot-toast';
 import PageHeader from '../components/ui/PageHeader';
@@ -169,11 +170,11 @@ export default function ConsultationPage() {
         <PageHeader title="Consultation" />
         <EmptyState
           title="Appointment not found"
-          description="This visit link is invalid or the appointment was removed. Open the appointment or queue token again."
+          description="This visit link is invalid or the appointment was removed. Open the appointment from the calendar again."
         />
         <div className="mt-4">
-          <button type="button" className="btn-secondary" onClick={() => navigate(ROUTES.queue)}>
-            Back to queue
+          <button type="button" className="btn-secondary" onClick={() => navigate(ROUTES.doctorCalendar)}>
+            Back to calendar
           </button>
         </div>
       </div>
@@ -258,10 +259,12 @@ export default function ConsultationPage() {
             {meds.length > 1 && (
               <button
                 type="button"
-                className="btn-ghost btn-sm text-red-600 sm:col-span-2 justify-self-start"
+                className="inline-flex items-center justify-center h-9 w-9 rounded-lg text-ink-muted hover:text-[#9b2c2c] hover:bg-[#fef2f2] transition-colors sm:col-span-2 justify-self-start"
+                aria-label="Delete medicine line"
+                title="Delete"
                 onClick={() => setMeds((prev) => prev.filter((_, idx) => idx !== i))}
               >
-                Remove line
+                <Trash2 className="w-4 h-4" />
               </button>
             )}
           </div>

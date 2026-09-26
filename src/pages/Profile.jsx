@@ -4,12 +4,13 @@ import { format, isValid } from 'date-fns';
 import { useAuth } from '../context/AuthContext';
 import api from '../utils/api';
 import toast from 'react-hot-toast';
-import { User, Mail, Phone, Save, Camera, KeyRound } from 'lucide-react';
+import { User, Mail, Phone, Save, Camera, KeyRound, Trash2 } from 'lucide-react';
 import UserAvatar from '../components/UserAvatar';
 import Checkbox from '../components/ui/Checkbox';
 import RequiredMark from '../components/ui/RequiredMark';
 import PageHeader from '../components/ui/PageHeader';
 import LoadingOverlay from '../components/ui/LoadingOverlay';
+import TimeSelect, { nextTimeSlot, prevTimeSlot } from '../components/ui/TimeSelect';
 import { compressImageFile } from '../utils/image';
 import {
   formatIndianMobileInput,
@@ -163,10 +164,28 @@ export default function Profile() {
 
   const handleChange = (e) => {
     const { name, value } = e.target;
-    setForm((prev) => ({
-      ...prev,
-      [name]: name === 'phone' ? formatIndianMobileInput(value) : value,
-    }));
+    setForm((prev) => {
+      const next = {
+        ...prev,
+        [name]: name === 'phone' ? formatIndianMobileInput(value) : value,
+      };
+
+      // End times cannot be earlier than their start; bump end when start moves past it.
+      if (name === 'dayStart' && next.dayEnd && value && value >= next.dayEnd) {
+        next.dayEnd = nextTimeSlot(value, 15);
+      }
+      if (name === 'dayEnd' && next.dayStart && value && value <= next.dayStart) {
+        next.dayEnd = nextTimeSlot(next.dayStart, 15);
+      }
+      if (name === 'breakStart' && next.breakEnd && value && value >= next.breakEnd) {
+        next.breakEnd = nextTimeSlot(value, 15);
+      }
+      if (name === 'breakEnd' && next.breakStart && value && value <= next.breakStart) {
+        next.breakEnd = nextTimeSlot(next.breakStart, 15);
+      }
+
+      return next;
+    });
   };
 
   const toggleDay = (day) => {
@@ -192,6 +211,18 @@ export default function Profile() {
       toast.error('Select at least one available day.');
       setTab('schedule');
       return;
+    }
+    if (isDoctor) {
+      if (form.dayStart && form.dayEnd && form.dayEnd <= form.dayStart) {
+        toast.error('Day end must be after day start.');
+        setTab('schedule');
+        return;
+      }
+      if (form.breakStart && form.breakEnd && form.breakEnd <= form.breakStart) {
+        toast.error('Break end must be after break start.');
+        setTab('schedule');
+        return;
+      }
     }
     setLoading(true);
     try {
@@ -392,13 +423,15 @@ export default function Profile() {
                         {(photoSrc || user?.profilePhoto) && (
                           <button
                             type="button"
-                            className="btn-ghost btn-sm"
+                            className="inline-flex items-center justify-center h-9 w-9 rounded-lg text-ink-muted hover:text-[#9b2c2c] hover:bg-[#fef2f2] transition-colors"
+                            aria-label="Delete photo"
+                            title="Delete photo"
                             onClick={() => {
                               onPhotoSelected(null);
                               setClearPhoto(true);
                             }}
                           >
-                            Remove
+                            <Trash2 className="w-4 h-4" />
                           </button>
                         )}
                       </div>
@@ -657,44 +690,44 @@ export default function Profile() {
                     </div>
                     <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
                       <Field id="profile-dayStart" label="Day start" required>
-                        <input
+                        <TimeSelect
                           id="profile-dayStart"
                           name="dayStart"
-                          type="time"
-                          className="input-field"
                           value={form.dayStart}
+                          min="00:00"
+                          max={prevTimeSlot(form.dayEnd || '23:45', 15)}
                           onChange={handleChange}
                           required
                         />
                       </Field>
                       <Field id="profile-dayEnd" label="Day end" required>
-                        <input
+                        <TimeSelect
                           id="profile-dayEnd"
                           name="dayEnd"
-                          type="time"
-                          className="input-field"
                           value={form.dayEnd}
+                          min={nextTimeSlot(form.dayStart || '00:00', 15)}
+                          max="23:45"
                           onChange={handleChange}
                           required
                         />
                       </Field>
                       <Field id="profile-breakStart" label="Break start">
-                        <input
+                        <TimeSelect
                           id="profile-breakStart"
                           name="breakStart"
-                          type="time"
-                          className="input-field"
                           value={form.breakStart}
+                          min={form.dayStart || '00:00'}
+                          max={prevTimeSlot(form.breakEnd || form.dayEnd || '23:45', 15)}
                           onChange={handleChange}
                         />
                       </Field>
                       <Field id="profile-breakEnd" label="Break end">
-                        <input
+                        <TimeSelect
                           id="profile-breakEnd"
                           name="breakEnd"
-                          type="time"
-                          className="input-field"
                           value={form.breakEnd}
+                          min={nextTimeSlot(form.breakStart || form.dayStart || '00:00', 15)}
+                          max={form.dayEnd || '23:45'}
                           onChange={handleChange}
                         />
                       </Field>

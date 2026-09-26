@@ -1,19 +1,27 @@
 /**
- * Static recreation of the real doctor dashboard (today stats, schedule, queue token).
+ * Static recreation of the doctor dashboard (today stats + schedule).
  * Decorative marketing preview — not live data.
  */
 export default function LandingProductPreview({ compact = false }) {
   return (
-    <div className={`lp-frame ${compact ? 'lp-frame--compact' : ''}`} role="img" aria-label="Z Health doctor dashboard with today’s appointments and live queue">
+    <div
+      className={`lp-frame ${compact ? 'lp-frame--compact' : ''}`}
+      role="img"
+      aria-label="Z Health doctor dashboard with today’s appointments"
+    >
       <div className="lp-chrome">
-        <span /><span /><span />
+        <span />
+        <span />
+        <span />
         <p>zhealth · doctor workspace</p>
       </div>
       <div className="lp-app">
         <aside className="lp-side">
           <strong>Z Health</strong>
-          {['Dashboard', 'Appointments', 'Patients', 'Queue', 'Billing', 'Campaigns'].map((item, i) => (
-            <span key={item} className={i === 0 ? 'on' : ''}>{item}</span>
+          {['Dashboard', 'Appointments', 'Patients', 'Schedule', 'Billing', 'Campaigns'].map((item, i) => (
+            <span key={item} className={i === 0 ? 'on' : ''}>
+              {item}
+            </span>
           ))}
         </aside>
         <div className="lp-main">
@@ -48,8 +56,8 @@ export default function LandingProductPreview({ compact = false }) {
                 <em>Open calendar</em>
               </div>
               {[
-                ['09:00', 'Ananya Rao', 'Follow-up', 'Arrived', true],
-                ['09:30', 'Vikram Shah', 'Consult', 'Waiting', false],
+                ['09:00', 'Ananya Rao', 'Follow-up', 'Completed', true],
+                ['09:30', 'Vikram Shah', 'Consult', 'Confirmed', false],
                 ['10:00', 'Meera Kulkarni', 'New patient', 'Booked', false],
                 ['10:30', 'Rahul Desai', 'Review', 'Booked', false],
               ].map(([time, name, type, status, ok]) => (
@@ -63,15 +71,24 @@ export default function LandingProductPreview({ compact = false }) {
                 </div>
               ))}
             </div>
-            <div className="lp-card lp-queue-card">
+            <div className="lp-card">
               <div className="lp-card-h">
-                <span>Queue · 4 active</span>
-                <em>Open queue</em>
+                <span>Upcoming</span>
+                <em>From tomorrow</em>
               </div>
-              <p className="token">TOKEN #A-04</p>
-              <p className="who">Ananya Rao · in consult</p>
-              <p className="next">Next: #A-05, #A-06, #A-07</p>
-              <span className="solid sm">Start consultation</span>
+              {[
+                ['Tue · 09:00', 'Ananya Rao'],
+                ['Tue · 11:30', 'Vikram Shah'],
+                ['Wed · 10:00', 'Meera Kulkarni'],
+              ].map(([when, who]) => (
+                <div className="lp-row" key={when}>
+                  <b>{when}</b>
+                  <div>
+                    <p>{who}</p>
+                    <small>Consultation</small>
+                  </div>
+                </div>
+              ))}
             </div>
           </div>
         </div>

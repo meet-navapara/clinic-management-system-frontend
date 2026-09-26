@@ -30,9 +30,6 @@ import InvoiceDetail from './pages/InvoiceDetail';
 import BranchesPage from './pages/BranchesPage';
 import StaffPage from './pages/StaffPage';
 import TemplatesPage from './pages/TemplatesPage';
-import ConsentPage from './pages/ConsentPage';
-import QueuePage from './pages/QueuePage';
-import QueueDisplay from './pages/QueueDisplay';
 import { CampaignsPage, CampaignEditor } from './pages/CampaignsPage';
 import PrintSettingsPage from './pages/PrintSettingsPage';
 import PrintDocument from './pages/PrintDocument';
@@ -148,17 +145,9 @@ export default function App() {
       </Route>
 
       <Route
-        path={ROUTES.queueDisplay}
-        element={
-          <Staff permission={P.QUEUE_MANAGE}>
-            <QueueDisplay />
-          </Staff>
-        }
-      />
-      <Route
         path={ROUTES.printPreview}
         element={
-          <Staff anyPermission={[P.PRINT_SETTINGS, P.BILLING_VIEW, P.CONSULTATION, P.QUEUE_MANAGE, P.CONSENT_CAPTURE, P.CONSENT_TEMPLATES, P.APPOINTMENTS_VIEW]}>
+          <Staff anyPermission={[P.PRINT_SETTINGS, P.BILLING_VIEW, P.CONSULTATION, P.APPOINTMENTS_VIEW]}>
             <PrintDocument />
           </Staff>
         }
@@ -166,7 +155,7 @@ export default function App() {
       <Route
         path="/print/:type/:id"
         element={
-          <Staff anyPermission={[P.BILLING_VIEW, P.CONSULTATION, P.QUEUE_MANAGE, P.CONSENT_CAPTURE, P.CONSENT_TEMPLATES, P.APPOINTMENTS_VIEW]}>
+          <Staff anyPermission={[P.BILLING_VIEW, P.CONSULTATION, P.APPOINTMENTS_VIEW]}>
             <PrintDocument />
           </Staff>
         }
@@ -300,8 +289,6 @@ export default function App() {
         <Route path={ROUTES.branches} element={<Staff anyPermission={[P.BRANCHES_VIEW, P.BRANCHES_MANAGE]}><BranchesPage /></Staff>} />
         <Route path={ROUTES.staff} element={<Staff roles={['doctor']}><StaffPage /></Staff>} />
         <Route path={ROUTES.templates} element={<Staff anyPermission={[P.TEMPLATES_OWN, P.TEMPLATES_CLINIC]}><TemplatesPage /></Staff>} />
-        <Route path={ROUTES.consent} element={<Staff anyPermission={[P.CONSENT_CAPTURE, P.CONSENT_TEMPLATES]}><ConsentPage /></Staff>} />
-        <Route path={ROUTES.queue} element={<Staff permission={P.QUEUE_MANAGE}><QueuePage /></Staff>} />
         <Route path={ROUTES.campaigns} element={<Staff permission={P.CAMPAIGNS_MANAGE}><CampaignsPage /></Staff>} />
         <Route path={ROUTES.campaignNew} element={<Staff permission={P.CAMPAIGNS_MANAGE}><CampaignEditor /></Staff>} />
         <Route path="/campaigns/:id" element={<Staff permission={P.CAMPAIGNS_MANAGE}><CampaignEditor /></Staff>} />

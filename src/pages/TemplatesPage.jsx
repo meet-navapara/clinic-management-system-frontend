@@ -5,9 +5,8 @@ import toast from 'react-hot-toast';
 import PageHeader from '../components/ui/PageHeader';
 import EmptyState from '../components/ui/EmptyState';
 import Modal from '../components/ui/Modal';
-import Badge from '../components/ui/Badge';
 import Dropdown from '../components/ui/Dropdown';
-import { SkeletonRows } from '../components/ui/Skeleton';
+import { SkeletonCards } from '../components/ui/Skeleton';
 import { can, P } from '../constants/permissions';
 import { useAuth } from '../context/AuthContext';
 import RequiredMark from '../components/ui/RequiredMark';
@@ -51,18 +50,6 @@ const emptyForm = () => ({
 const typeLabel = (type) => {
   const id = String(type || 'consultation');
   return TYPES.find((t) => t.id === id)?.label || id.replace(/_/g, ' ');
-};
-
-const previewText = (t) => {
-  const fields = t?.fields && typeof t.fields === 'object' ? t.fields : {};
-  return (
-    fields.chiefComplaint ||
-    fields.diagnosis ||
-    fields.advice ||
-    fields.treatment ||
-    fields.instructions ||
-    ''
-  );
 };
 
 export default function TemplatesPage() {
@@ -252,7 +239,7 @@ export default function TemplatesPage() {
       </div>
 
       {loading ? (
-        <SkeletonRows count={8} />
+        <SkeletonCards count={6} className="!grid-cols-1 sm:!grid-cols-2 xl:!grid-cols-3" />
       ) : error ? (
         <EmptyState
           title="Templates unavailable"
@@ -280,123 +267,64 @@ export default function TemplatesPage() {
           }
         />
       ) : (
-        <>
-          <p className="text-xs text-ink-faint mb-2">
-            {filtered.length} template{filtered.length === 1 ? '' : 's'}
-          </p>
-
-          <div className="hidden md:block card !p-0 overflow-hidden">
-            <div className="data-table-wrap">
-              <table className="data-table">
-                <thead>
-                  <tr>
-                    <th>Template</th>
-                    <th>Type</th>
-                    <th>Visibility</th>
-                    <th>Status</th>
-                    <th>Preview</th>
-                    <th />
-                  </tr>
-                </thead>
-                <tbody>
-                  {filtered.map((t) => {
-                    const id = t?._id || t?.name;
-                    const inactive = t?.isActive === false;
-                    const editable = canEditRow(t);
-                    return (
-                      <tr key={id} className={inactive ? 'opacity-60' : undefined}>
-                        <td className="font-medium">{t?.name || 'Untitled template'}</td>
-                        <td className="text-ink-muted">{typeLabel(t?.type)}</td>
-                        <td>
-                          <Badge value={t?.ownerType === 'clinic' ? 'clinic' : 'mine'} />
-                        </td>
-                        <td>
-                          <Badge value={inactive ? 'inactive' : 'active'} />
-                        </td>
-                        <td className="text-ink-muted max-w-[16rem]">
-                          <span className="line-clamp-2 text-sm">{previewText(t) || '—'}</span>
-                        </td>
-                        <td className="text-right whitespace-nowrap">
-                          {editable ? (
-                            inactive ? (
-                              <button
-                                type="button"
-                                className="text-sm font-semibold text-accent-700"
-                                onClick={() => restore(t)}
-                              >
-                                Restore
-                              </button>
-                            ) : (
-                              <div className="inline-flex items-center gap-3 justify-end">
-                                <button
-                                  type="button"
-                                  className="text-sm font-semibold text-accent-700"
-                                  onClick={() => openEdit(t)}
-                                >
-                                  View
-                                </button>
-                                <button
-                                  type="button"
-                                  className="text-sm font-medium text-ink-muted hover:text-ink"
-                                  onClick={() => deactivate(t)}
-                                >
-                                  Deactivate
-                                </button>
-                              </div>
-                            )
-                          ) : (
-                            <button
-                              type="button"
-                              className="text-sm font-semibold text-accent-700"
-                              onClick={() => openEdit(t)}
-                            >
-                              View
-                            </button>
-                          )}
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
-          </div>
-
-          <div className="md:hidden space-y-2">
-            {filtered.map((t) => {
-              const id = t?._id || t?.name;
-              const inactive = t?.isActive === false;
-              const editable = canEditRow(t);
-              return (
-                <button
-                  key={id}
-                  type="button"
-                  className={`card !p-4 block w-full text-left ${inactive ? 'opacity-60' : ''}`}
-                  onClick={() => openEdit(t)}
-                >
-                  <div className="flex items-start justify-between gap-2">
-                    <div className="min-w-0">
-                      <p className="font-semibold text-ink">{t?.name || 'Untitled template'}</p>
-                      <p className="text-sm text-ink-muted mt-0.5 capitalize">{typeLabel(t?.type)}</p>
-                    </div>
-                    <Badge value={inactive ? 'inactive' : 'active'} />
+        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3">
+          {filtered.map((t) => {
+            const id = t?._id || t?.name;
+            const inactive = t?.isActive === false;
+            const editable = canEditRow(t);
+            const visibility = t?.ownerType === 'clinic' ? 'Clinic' : 'Only me';
+            return (
+              <div
+                key={id}
+                className={`card relative ${inactive ? 'opacity-60' : ''}`}
+              >
+                <div className="flex justify-between gap-2">
+                  <div className="min-w-0">
+                    <h3 className="font-semibold text-ink truncate">{t?.name || 'Untitled template'}</h3>
+                    <p className="text-sm text-ink-muted mt-0.5">{typeLabel(t?.type)}</p>
                   </div>
-                  {previewText(t) ? (
-                    <p className="text-xs text-ink-faint mt-2 line-clamp-2">{previewText(t)}</p>
+                  <span
+                    className={`inline-flex items-center justify-center h-6 min-w-[4.25rem] px-2 rounded-md text-[10px] font-bold uppercase tracking-[0.08em] ring-1 shrink-0 ${
+                      inactive
+                        ? 'bg-[#f3f3f4] text-[#52525b] ring-[#d4d4d8]/80'
+                        : 'bg-[#eef6f1] text-[#2d5a40] ring-[#c5ddd0]/80'
+                    }`}
+                  >
+                    {inactive ? 'Inactive' : 'Active'}
+                  </span>
+                </div>
+                <p className="text-sm text-ink-faint mt-2">Visibility: {visibility}</p>
+                <div className="flex flex-wrap gap-2 mt-3">
+                  <button type="button" className="btn-secondary btn-sm" onClick={() => openEdit(t)}>
+                    View
+                  </button>
+                  {editable ? (
+                    inactive ? (
+                      <button type="button" className="btn-ghost btn-sm" onClick={() => restore(t)}>
+                        Restore
+                      </button>
+                    ) : (
+                      <button type="button" className="btn-ghost btn-sm" onClick={() => deactivate(t)}>
+                        Deactivate
+                      </button>
+                    )
                   ) : null}
-                  {editable && !inactive ? (
-                    <p className="text-xs text-ink-faint mt-2">Tap to edit · Deactivate from desktop</p>
-                  ) : null}
-                </button>
-              );
-            })}
-          </div>
-        </>
+                </div>
+              </div>
+            );
+          })}
+        </div>
       )}
 
       <Modal
         open={open}
-        title={editingId ? 'Edit template' : 'Add New Template'}
+        title={
+          !editingId
+            ? 'Add New Template'
+            : formEditable
+              ? 'Edit template'
+              : 'View template'
+        }
         onClose={() => {
           setOpen(false);
           setEditingId(null);

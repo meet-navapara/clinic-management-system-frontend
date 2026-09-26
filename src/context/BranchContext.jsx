@@ -19,7 +19,7 @@ function staffPrimaryBranchId(user) {
 function canListBranches(user) {
   if (!user || user.role === 'super_admin') return false;
   if (user.role === 'doctor') return user.approvalStatus === 'approved';
-  return can(user, P.BRANCHES_VIEW) || can(user, P.QUEUE_MANAGE) || can(user, P.BILLING_VIEW);
+  return can(user, P.BRANCHES_VIEW) || can(user, P.BILLING_VIEW);
 }
 
 function userBranchKey(user) {

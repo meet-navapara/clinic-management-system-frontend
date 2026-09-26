@@ -18,7 +18,7 @@ export default function LandingFooter() {
             <p>Product</p>
             <a href="#product">Overview</a>
             <a href="#how-it-works">How it works</a>
-            <a href="#features">Queue & consult</a>
+            <a href="#features">Calendar & consult</a>
             <a href="#roles">Roles</a>
           </div>
           <div>

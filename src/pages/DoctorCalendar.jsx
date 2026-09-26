@@ -31,6 +31,16 @@ function toDateKey(d) {
   return format(d, 'yyyy-MM-dd');
 }
 
+const DEFAULT_WORKING_DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'];
+
+function resolveWorkingDays(list) {
+  return Array.isArray(list) && list.length ? list : DEFAULT_WORKING_DAYS;
+}
+
+function isWorkingDay(day, workingDays) {
+  return resolveWorkingDays(workingDays).includes(format(day, 'EEEE'));
+}
+
 function canMoveAppointment(appt) {
   const status = normalizeAppointmentStatus(appt?.status);
   return status === 'scheduled' || status === 'confirmed';
@@ -43,6 +53,15 @@ function doctorIdOf(appt, user) {
     appt?.doctor ||
     (user?.role === 'doctor' ? user?._id || user?.id : '')
   );
+}
+
+function doctorWorkingDaysOf(appt, user) {
+  const doc = appt?.doctor;
+  if (doc && typeof doc === 'object' && Array.isArray(doc.availableDays)) {
+    return resolveWorkingDays(doc.availableDays);
+  }
+  if (user?.role === 'doctor') return resolveWorkingDays(user.availableDays);
+  return resolveWorkingDays(null);
 }
 
 const WEEKDAY_LABELS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
@@ -231,6 +250,20 @@ export default function DoctorCalendar() {
     return map;
   }, [appointments, days]);
 
+  // Column background: doctor's schedule; while dragging, use that visit's doctor.
+  const scheduleWorkingDays = useMemo(() => {
+    if (draggingId) {
+      const appt = appointments.find((a) => a._id === draggingId);
+      if (appt) return doctorWorkingDaysOf(appt, user);
+    }
+    if (user?.role === 'doctor') return resolveWorkingDays(user.availableDays);
+    return resolveWorkingDays(null);
+  }, [draggingId, appointments, user]);
+
+  const dayIsBookable = useCallback(
+    (day) => isWorkingDay(day, scheduleWorkingDays),
+    [scheduleWorkingDays]
+  );
   useEffect(() => {
     if (!moveTarget) {
       setSlots([]);
@@ -282,6 +315,11 @@ export default function DoctorCalendar() {
       toast.error('Only scheduled or confirmed visits can be moved.');
       return;
     }
+    const day = new Date(`${dayKey}T12:00:00`);
+    if (!isWorkingDay(day, doctorWorkingDaysOf(appointment, user))) {
+      toast.error(`Doctor is not available on ${format(day, 'EEEE')}.`);
+      return;
+    }
     const fromKey = toDateKey(new Date(appointment.appointmentDate));
     if (fromKey === dayKey) {
       // Same day — still allow picking a new time
@@ -291,14 +329,34 @@ export default function DoctorCalendar() {
     setMoveTarget({ appointment, dayKey, sameDay: false });
   };
 
-  const handleDropOnDay = (e, dayKey) => {
+  const handleDropOnDay = (e, dayKey, day) => {
     e.preventDefault();
     const id = e.dataTransfer.getData('text/appointment-id') || draggingId;
+    if (!id || !canManage) {
+      clearDrag();
+      return;
+    }
+    const appointment = appointments.find((a) => a._id === id);
+    if (day && appointment && !isWorkingDay(day, doctorWorkingDaysOf(appointment, user))) {
+      clearDrag();
+      toast.error(`Doctor is not available on ${format(day, 'EEEE')}.`);
+      return;
+    }
     clearDrag();
-    if (!id || !canManage) return;
     openMovePopup(id, dayKey);
   };
 
+  const allowDragOverDay = (e, day, key) => {
+    if (!canManage || !draggingId) return;
+    if (!dayIsBookable(day)) {
+      e.dataTransfer.dropEffect = 'none';
+      return;
+    }
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    if (leaveTimer.current) clearTimeout(leaveTimer.current);
+    setDropDayKey(key);
+  };
   const confirmMove = async () => {
     if (!moveTarget || !selectedSlot) {
       toast.error('Select an available time.');
@@ -446,38 +504,46 @@ export default function DoctorCalendar() {
                     const visible = list.slice(0, 3);
                     const more = list.length - visible.length;
                     const isDrop = dropDayKey === key;
+                    const offDay = !dayIsBookable(day);
                     return (
                       <section
                         key={key}
                         className={`min-h-[7.5rem] flex flex-col p-1.5 transition-colors ${
-                          inMonth ? 'bg-white' : 'bg-[#f7f8fa]'
-                        } ${isToday ? 'bg-[#fbfaf7]' : ''} ${
-                          isDrop ? 'ring-2 ring-inset ring-[#c9a227]/70 bg-[#f8f4e8]' : ''
-                        }`}
-                        onDragOver={(e) => {
-                          if (!canManage || !draggingId) return;
-                          e.preventDefault();
-                          if (leaveTimer.current) clearTimeout(leaveTimer.current);
-                          setDropDayKey(key);
-                        }}
+                          offDay
+                            ? 'bg-[#eef0f3] text-[#9ca3af]'
+                            : inMonth
+                              ? 'bg-white'
+                              : 'bg-[#f7f8fa]'
+                        } ${isToday && !offDay ? 'bg-[#fbfaf7]' : ''} ${
+                          isDrop && !offDay ? 'ring-2 ring-inset ring-[#c9a227]/70 bg-[#f8f4e8]' : ''
+                        } ${offDay ? 'cursor-not-allowed' : ''}`}
+                        title={offDay ? 'Doctor not available' : undefined}
+                        onDragOver={(e) => allowDragOverDay(e, day, key)}
                         onDragLeave={() => {
                           leaveTimer.current = setTimeout(() => setDropDayKey(null), 40);
                         }}
-                        onDrop={(e) => handleDropOnDay(e, key)}
+                        onDrop={(e) => handleDropOnDay(e, key, day)}
                       >
                         <button type="button" onClick={() => openDay(day)} className="self-start mb-1" title="Open day view">
                           <span
                             className={`inline-flex h-7 min-w-7 px-1 items-center justify-center text-[13px] font-semibold ${
-                              isToday
+                              isToday && !offDay
                                 ? 'text-[#a8841f] border-b-2 border-[#c9a227]'
-                                : inMonth
-                                  ? 'text-[#1c2430]'
-                                  : 'text-[#9ca3af]'
+                                : offDay
+                                  ? 'text-[#9ca3af]'
+                                  : inMonth
+                                    ? 'text-[#1c2430]'
+                                    : 'text-[#9ca3af]'
                             }`}
                           >
                             {format(day, 'd')}
                           </span>
                         </button>
+                        {offDay ? (
+                          <p className="text-[10px] font-medium uppercase tracking-wide text-[#9ca3af] px-0.5 mb-1">
+                            Off
+                          </p>
+                        ) : null}
                         <div className="flex-1 min-h-0 space-y-1 overflow-hidden">
                           {visible.map((appt) => (
                             <CalendarEvent
@@ -500,7 +566,7 @@ export default function DoctorCalendar() {
                               +{more} more
                             </button>
                           ) : null}
-                          {isDrop && !list.length ? (
+                          {isDrop && !offDay && !list.length ? (
                             <p className="text-[11px] font-medium text-[#a8841f] px-1 py-1">Drop to move here</p>
                           ) : null}
                         </div>
@@ -514,15 +580,30 @@ export default function DoctorCalendar() {
                 <div className={`grid shrink-0 border-b border-[#e8eaee] ${isWeek ? 'grid-cols-7' : 'grid-cols-1'}`}>
                   {days.map((day) => {
                     const isToday = isSameDay(day, new Date());
+                    const offDay = !dayIsBookable(day);
                     return (
-                      <div key={`h-${toDateKey(day)}`} className={`px-3 py-3 ${isToday ? 'bg-[#fbfaf7]' : ''}`}>
-                        <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-[#8a929c]">
+                      <div
+                        key={`h-${toDateKey(day)}`}
+                        className={`px-3 py-3 ${
+                          offDay ? 'bg-[#eef0f3]' : isToday ? 'bg-[#fbfaf7]' : ''
+                        }`}
+                      >
+                        <p
+                          className={`text-[11px] font-semibold uppercase tracking-[0.12em] ${
+                            offDay ? 'text-[#9ca3af]' : 'text-[#8a929c]'
+                          }`}
+                        >
                           {format(day, 'EEE')}
+                          {offDay ? ' · Off' : ''}
                         </p>
                         <div className="mt-1.5 flex items-center">
                           <span
                             className={`inline-flex text-[20px] font-semibold leading-none ${
-                              isToday ? 'text-[#a8841f] border-b-2 border-[#c9a227] pb-0.5' : 'text-[#1c2430]'
+                              offDay
+                                ? 'text-[#9ca3af]'
+                                : isToday
+                                  ? 'text-[#a8841f] border-b-2 border-[#c9a227] pb-0.5'
+                                  : 'text-[#1c2430]'
                             }`}
                           >
                             {format(day, 'd')}
@@ -539,22 +620,23 @@ export default function DoctorCalendar() {
                     const list = byDay[key] || [];
                     const isToday = isSameDay(day, new Date());
                     const isDrop = dropDayKey === key;
+                    const offDay = !dayIsBookable(day);
                     return (
                       <section
                         key={key}
                         className={`min-h-0 flex flex-col transition-colors ${
-                          isToday ? 'bg-[#fbfaf7]' : 'hover:bg-[#fafbfc]'
-                        } ${isDrop ? 'ring-2 ring-inset ring-[#c9a227]/70 bg-[#f8f4e8]' : ''}`}
-                        onDragOver={(e) => {
-                          if (!canManage || !draggingId) return;
-                          e.preventDefault();
-                          if (leaveTimer.current) clearTimeout(leaveTimer.current);
-                          setDropDayKey(key);
-                        }}
+                          offDay
+                            ? 'bg-[#eef0f3] cursor-not-allowed'
+                            : isToday
+                              ? 'bg-[#fbfaf7]'
+                              : 'hover:bg-[#fafbfc]'
+                        } ${isDrop && !offDay ? 'ring-2 ring-inset ring-[#c9a227]/70 bg-[#f8f4e8]' : ''}`}
+                        title={offDay ? 'Doctor not available — cannot drop here' : undefined}
+                        onDragOver={(e) => allowDragOverDay(e, day, key)}
                         onDragLeave={() => {
                           leaveTimer.current = setTimeout(() => setDropDayKey(null), 40);
                         }}
-                        onDrop={(e) => handleDropOnDay(e, key)}
+                        onDrop={(e) => handleDropOnDay(e, key, day)}
                       >
                         <div className="flex-1 min-h-0 overflow-y-auto p-2 space-y-2">
                           {list.map((appt) => (
@@ -568,9 +650,14 @@ export default function DoctorCalendar() {
                               onDragEnd={clearDrag}
                             />
                           ))}
-                          {isDrop ? (
+                          {isDrop && !offDay ? (
                             <p className="text-center text-[11px] font-medium text-[#a8841f] py-3 border border-dashed border-[#e2d4a8] rounded-[10px] bg-white/70">
                               Drop to pick a time
+                            </p>
+                          ) : null}
+                          {offDay && !list.length ? (
+                            <p className="text-center text-[11px] font-medium text-[#9ca3af] py-3">
+                              Not available
                             </p>
                           ) : null}
                         </div>

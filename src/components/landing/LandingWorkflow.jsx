@@ -17,26 +17,26 @@ const STEPS = [
   {
     n: '02',
     title: 'Schedule',
-    text: 'Book a slot, or check them into the live queue.',
+    text: 'Book a slot on the day calendar and keep the clinic day in order.',
     ui: (
       <div className="lp-mini">
         <p>Day calendar</p>
         <div><span>10:00</span><b>Meera · New</b></div>
         <div><span>10:30</span><b>Rahul · Review</b></div>
-        <div><span>Queue</span><b>Token A-08</b></div>
+        <div><span>11:00</span><b>Open slot</b></div>
       </div>
     ),
   },
   {
     n: '03',
     title: 'Consult',
-    text: 'Notes, consent, and prescription on that visit.',
+    text: 'Notes and prescription on that visit.',
     ui: (
       <div className="lp-mini">
         <p>Consultation</p>
         <div><span>Notes</span><b>Follow-up plan</b></div>
-        <div><span>Consent</span><b>Captured</b></div>
         <div><span>Rx</span><b>Ready to print</b></div>
+        <div><span>Invoice</span><b>Optional</b></div>
       </div>
     ),
   },

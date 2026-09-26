@@ -56,7 +56,6 @@ function shouldCacheGet(config) {
   // Keep auth/session fresh (manual Check status / login flows)
   if (url.includes('/auth/')) return false;
   // Live boards / badge polls must not serve a 20s-stale snapshot
-  if (url.includes('/queue')) return false;
   if (url.includes('/notifications/inbox')) return false;
   return true;
 }

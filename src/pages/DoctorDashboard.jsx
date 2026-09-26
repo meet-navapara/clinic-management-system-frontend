@@ -187,34 +187,6 @@ export default function DoctorDashboard() {
                   Open calendar
                 </Link>
               </div>
-              {period === 'today' && !!stats?.queue?.length && (
-                <div className="card mb-3 !p-4">
-                  <div className="flex justify-between items-center mb-2">
-                    <p className="section-label">
-                      Queue · {stats.queue.length} active
-                    </p>
-                    <Link to={ROUTES.queue} className="text-xs font-semibold text-accent-700">
-                      Open queue
-                    </Link>
-                  </div>
-                  <p className="text-lg font-semibold">TOKEN #{stats.queue[0].tokenLabel}</p>
-                  <p className="text-sm text-ink-muted">{stats.queue[0].patientId?.name}</p>
-                  {stats.queue.length > 1 && (
-                    <p className="text-xs text-ink-faint mt-1">
-                      Next: {stats.queue.slice(1, 4).map((t) => `#${t.tokenLabel}`).join(', ')}
-                      {stats.queue.length > 4 ? '…' : ''}
-                    </p>
-                  )}
-                  {stats.queue[0].appointmentId && (
-                    <Link
-                      to={ROUTES.doctorConsult(stats.queue[0].appointmentId._id || stats.queue[0].appointmentId)}
-                      className="btn-primary btn-sm mt-2 inline-flex text-sm"
-                    >
-                      Start consultation
-                    </Link>
-                  )}
-                </div>
-              )}
               {!scheduleAppts.length ? (
                 <EmptyState
                   icon={Calendar}

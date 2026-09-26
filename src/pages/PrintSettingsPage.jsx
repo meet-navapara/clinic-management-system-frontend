@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
+import { Trash2 } from 'lucide-react';
 import api from '../utils/api';
 import toast from 'react-hot-toast';
 import PageHeader from '../components/ui/PageHeader';
@@ -567,8 +568,14 @@ export default function PrintSettingsPage() {
                       insertingImage={insertingHeaderImg}
                     />
                     {form.logo && (
-                      <button type="button" className="btn-ghost text-xs mt-1" onClick={clearLogo}>
-                        Remove saved clinic logo
+                      <button
+                        type="button"
+                        className="inline-flex items-center justify-center h-9 w-9 rounded-lg text-ink-muted hover:text-[#9b2c2c] hover:bg-[#fef2f2] transition-colors mt-1"
+                        aria-label="Delete clinic logo"
+                        title="Delete logo"
+                        onClick={clearLogo}
+                      >
+                        <Trash2 className="w-4 h-4" />
                       </button>
                     )}
                   </div>

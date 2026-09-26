@@ -6,7 +6,7 @@ import { LANDING_IMAGES } from '../../constants/landingImages';
 const ROLES = [
   {
     title: 'Doctors',
-    text: 'The practice owner. Patients, calendar, queue, consultation, billing, branches, staff, and campaigns. New accounts wait for approval before full access.',
+    text: 'The practice owner. Patients, calendar, consultation, billing, branches, staff, and campaigns. New accounts wait for approval before full access.',
     cta: { to: ROUTES.doctorSignup, label: 'Create doctor account' },
     image: LANDING_IMAGES.doctor,
     alt: 'Doctor in a clinic',
@@ -14,11 +14,11 @@ const ROLES = [
   },
   {
     title: 'Staff',
-    text: 'Front desk and operations. Appointments, queue, patients, and billing only where a doctor grants permission — a separate login, not a shared password.',
+    text: 'Front desk and operations. Appointments, patients, and billing only where a doctor grants permission — a separate login, not a shared password.',
     cta: { to: ROUTES.login, label: 'Staff login' },
     image: LANDING_IMAGES.frontDesk,
     alt: 'Clinic front desk staff managing appointments',
-    chips: ['Front desk', 'Queue', 'Check-in'],
+    chips: ['Front desk', 'Schedule', 'Patients'],
   },
 ];
 

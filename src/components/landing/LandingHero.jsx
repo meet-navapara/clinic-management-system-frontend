@@ -18,14 +18,14 @@ export default function LandingHero() {
             <span> from check-in to follow-up.</span>
           </h1>
           <p className="lp-lead">
-            Z Health is the workspace doctors and staff share: patients, the day calendar, a live queue, consultation, billing, and WhatsApp or email follow-up.
+            Z Health is the workspace doctors and staff share: patients, the day calendar, consultation, billing, and WhatsApp or email follow-up.
           </p>
           <div className="lp-cta-row">
             <Link to={ROUTES.doctorSignup} className="btn-gold justify-center">Create doctor account</Link>
             <Link to={ROUTES.login} className="btn-secondary justify-center bg-white/90">Login</Link>
           </div>
           <ul className="lp-hero-points">
-            <li>Appointments & live queue</li>
+            <li>Appointments & calendar</li>
             <li>Consultation & billing</li>
             <li>Branches, staff, campaigns</li>
           </ul>
@@ -34,9 +34,9 @@ export default function LandingHero() {
         <div className="lp-hero-stage">
           <LandingProductPreview />
           <aside className="lp-float" aria-hidden>
-            <span>Waiting room</span>
-            <strong>Now serving A-04</strong>
-            <small>Next · A-05</small>
+            <span>Next visit</span>
+            <strong>09:30 · Vikram Shah</strong>
+            <small>Confirmed</small>
           </aside>
         </div>
       </div>

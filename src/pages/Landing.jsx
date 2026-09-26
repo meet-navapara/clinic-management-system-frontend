@@ -12,7 +12,7 @@ import LandingFooter from '../components/landing/LandingFooter';
 
 const PAGE_TITLE = `${APP_NAME} — Clinic software for the full patient visit`;
 const PAGE_DESCRIPTION =
-  'Z Health is clinic software for doctors and staff: patients, appointments, live queue, consultation, billing, branches, and WhatsApp or email campaigns in one workspace.';
+  'Z Health is clinic software for doctors and staff: patients, appointments, consultation, billing, branches, and WhatsApp or email campaigns in one workspace.';
 
 export default function Landing() {
   useEffect(() => {

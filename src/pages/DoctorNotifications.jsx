@@ -27,6 +27,18 @@ const TYPE_OPTIONS = [
   { value: 'appointment_reminder', label: 'Reminder' },
 ];
 
+const STATUS_TONE = {
+  scheduled: 'bg-[#f4f0e8] text-[#6b6254] border-[#e2d8c4]',
+  sent: 'bg-[#ecf7f1] text-[#18794a] border-[#b9dfc8]',
+  failed: 'bg-[#fdf0ee] text-[#9b2c2c] border-[#e8c5c0]',
+  cancelled: 'bg-[#f3f3f4] text-[#6b7280] border-[#e0e0e3]',
+};
+
+const TYPE_TONE = {
+  Confirmation: 'bg-[#ecf7f1] text-[#18794a] border-[#b9dfc8]',
+  Reminder: 'bg-[#eef3f9] text-[#2f5f8f] border-[#c5d5e8]',
+};
+
 function appointmentIdOf(n) {
   const raw = n.appointmentId;
   if (!raw) return null;
@@ -45,6 +57,24 @@ function typeLabel(type) {
   if (type === 'appointment_confirmation') return 'Confirmation';
   if (type === 'appointment_reminder') return 'Reminder';
   return type ? String(type).replace(/_/g, ' ') : 'Reminder';
+}
+
+function visitLabel(n) {
+  const d = n.appointmentId?.appointmentDate ? new Date(n.appointmentId.appointmentDate) : null;
+  if (!d || !isValid(d)) return '—';
+  const date = format(d, 'MMM d');
+  const time = n.appointmentId?.timeSlot;
+  return time ? `${date} · ${time}` : date;
+}
+
+function Chip({ children, className = '' }) {
+  return (
+    <span
+      className={`inline-flex items-center justify-center w-[7.25rem] h-7 px-2 rounded-full text-[10px] font-bold uppercase tracking-[0.08em] border ${className}`}
+    >
+      {children}
+    </span>
+  );
 }
 
 export default function DoctorNotifications() {
@@ -95,7 +125,7 @@ export default function DoctorNotifications() {
     setWaBusyId(n._id);
     try {
       await api.post(`/appointments/${aid}/whatsapp`);
-      toast.success('WhatsApp template sent to the patient.');
+      toast.success('WhatsApp sent.');
       load(page);
     } catch (err) {
       toast.error(err.response?.data?.message || 'Could not send WhatsApp.');
@@ -108,7 +138,7 @@ export default function DoctorNotifications() {
     <div className="page-container">
       <PageHeader
         title="Reminders"
-        description="WhatsApp confirmation and reminder delivery log. Practice activity alerts are in Inbox."
+        description="WhatsApp confirmations and visit reminders."
         actions={
           <Link to={ROUTES.doctorInbox} className="btn-secondary">
             Inbox
@@ -116,9 +146,9 @@ export default function DoctorNotifications() {
         }
       />
 
-      <div className="mb-4 grid sm:grid-cols-2 gap-3 max-w-xl">
-        <div>
-          <label className="label-field" htmlFor="reminder-status">
+      <div className="mb-4 flex flex-wrap items-end gap-2.5">
+        <div className="w-full xs:w-40 sm:w-44">
+          <label className="sr-only" htmlFor="reminder-status">
             Status
           </label>
           <Dropdown
@@ -129,8 +159,8 @@ export default function DoctorNotifications() {
             ariaLabel="Filter by status"
           />
         </div>
-        <div>
-          <label className="label-field" htmlFor="reminder-type">
+        <div className="w-full xs:w-40 sm:w-44">
+          <label className="sr-only" htmlFor="reminder-type">
             Type
           </label>
           <Dropdown
@@ -141,88 +171,186 @@ export default function DoctorNotifications() {
             ariaLabel="Filter by type"
           />
         </div>
+        {!loading && total > 0 ? (
+          <p className="text-xs text-ink-faint pb-2.5 ml-auto">
+            {total} reminder{total === 1 ? '' : 's'}
+          </p>
+        ) : null}
       </div>
 
       {loading ? (
         <SkeletonRows count={PAGE_SIZE} />
       ) : items.length === 0 ? (
         <EmptyState
-          title="No reminders found"
+          title="No reminders"
           description={
             status || type
-              ? 'Try a different filter, or schedule a visit to create reminders.'
-              : 'They appear after you schedule a visit.'
+              ? 'Try a different filter.'
+              : 'Reminders appear after you schedule a visit.'
           }
         />
       ) : (
-        <div className="card !p-0 overflow-hidden divide-y divide-line">
-          {items.map((n) => {
-            const scheduled = n.scheduledAt ? new Date(n.scheduledAt) : null;
-            const aid = appointmentIdOf(n);
-            const pid = patientIdOf(n);
-            const phone = n.recipientPhone || n.appointmentId?.patientId?.phone;
-            return (
-              <article key={n._id} className="px-4 py-3">
-                <div className="flex items-start justify-between gap-3">
-                  <div className="min-w-0">
-                    <p className="font-medium text-ink">
-                      {n.recipientName || n.appointmentId?.patientId?.name || 'Patient'}
-                      {phone ? ` · ${phone}` : ''}
-                    </p>
-                    <p className="text-xs text-ink-faint mt-0.5 capitalize">
-                      {typeLabel(n.notificationType)}
-                      {n.channel ? ` · ${n.channel}` : ''}
-                      {n.provider && n.provider !== 'internal' ? ` · ${n.provider}` : ''}
-                    </p>
-                    {n.appointmentId?.appointmentDate ? (
-                      <p className="text-sm text-ink-muted mt-0.5">
-                        Visit{' '}
-                        {isValid(new Date(n.appointmentId.appointmentDate))
-                          ? format(new Date(n.appointmentId.appointmentDate), 'PP')
-                          : '—'}
-                        {n.appointmentId.timeSlot ? ` · ${n.appointmentId.timeSlot}` : ''}
+        <>
+          {/* Desktop / tablet table — fixed columns + full grid borders */}
+          <div className="hidden md:block overflow-hidden rounded-xl border border-[#d8d2c8] bg-white shadow-[0_1px_2px_rgba(28,36,48,0.04)]">
+            <div className="overflow-x-auto">
+              <table className="w-full min-w-[56rem] table-fixed border-collapse text-sm">
+                <colgroup>
+                  <col className="w-[18%]" />
+                  <col className="w-[14%]" />
+                  <col className="w-[14%]" />
+                  <col className="w-[14%]" />
+                  <col className="w-[14%]" />
+                  <col className="w-[26%]" />
+                </colgroup>
+                <thead>
+                  <tr className="bg-[#f3efe8]">
+                    {['Patient', 'Phone', 'Type', 'Visit', 'Status', 'Actions'].map((label) => (
+                      <th
+                        key={label}
+                        className="px-3 py-3 text-left text-[11px] font-bold uppercase tracking-[0.1em] text-[#6b6254] border-b border-[#d8d2c8] border-r border-[#e4dfd6] last:border-r-0 whitespace-nowrap"
+                      >
+                        {label}
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {items.map((n, idx) => {
+                    const aid = appointmentIdOf(n);
+                    const pid = patientIdOf(n);
+                    const phone = n.recipientPhone || n.appointmentId?.patientId?.phone || '—';
+                    const name = n.recipientName || n.appointmentId?.patientId?.name || 'Patient';
+                    const kind = typeLabel(n.notificationType);
+                    const statusKey = String(n.status || '').toLowerCase();
+                    const busy = waBusyId === n._id;
+                    const rowBg = idx % 2 === 0 ? 'bg-white' : 'bg-[#faf8f4]';
+
+                    return (
+                      <tr key={n._id} className={`${rowBg} hover:bg-[#f5f1ea] transition-colors`}>
+                        <td className="px-3 py-2.5 border-b border-r border-[#e4dfd6] align-middle text-left">
+                          <p className="font-semibold text-ink truncate" title={name}>
+                            {name}
+                          </p>
+                          {n.status === 'failed' && n.error ? (
+                            <p className="text-[11px] text-[#9b2c2c] mt-0.5 line-clamp-1">{n.error}</p>
+                          ) : null}
+                        </td>
+                        <td className="px-3 py-2.5 border-b border-r border-[#e4dfd6] align-middle text-left text-ink-muted whitespace-nowrap tabular-nums">
+                          {phone}
+                        </td>
+                        <td className="px-3 py-2.5 border-b border-r border-[#e4dfd6] align-middle text-left">
+                          <Chip className={TYPE_TONE[kind] || TYPE_TONE.Reminder}>{kind}</Chip>
+                        </td>
+                        <td className="px-3 py-2.5 border-b border-r border-[#e4dfd6] align-middle text-left text-ink-muted whitespace-nowrap">
+                          {visitLabel(n)}
+                        </td>
+                        <td className="px-3 py-2.5 border-b border-r border-[#e4dfd6] align-middle text-left">
+                          <Chip className={STATUS_TONE[statusKey] || STATUS_TONE.scheduled}>
+                            {n.status || '—'}
+                          </Chip>
+                        </td>
+                        <td className="px-3 py-2.5 border-b border-[#e4dfd6] align-middle text-left">
+                          <div className="inline-flex items-center justify-start gap-1.5 flex-nowrap">
+                            {aid ? (
+                              <Link
+                                to={ROUTES.doctorAppointmentDetail(aid)}
+                                className="inline-flex items-center justify-center h-8 min-w-[5.5rem] px-2 rounded-md text-[11px] font-semibold text-ink bg-white border border-[#d8d2c8] hover:border-[#c9a227]/60"
+                              >
+                                Appointment
+                              </Link>
+                            ) : null}
+                            {pid ? (
+                              <Link
+                                to={ROUTES.doctorPatientDetail(pid)}
+                                className="inline-flex items-center justify-center h-8 min-w-[4.5rem] px-2 rounded-md text-[11px] font-semibold text-ink bg-white border border-[#d8d2c8] hover:border-[#c9a227]/60"
+                              >
+                                Patient
+                              </Link>
+                            ) : null}
+                            {phone && phone !== '—' ? (
+                              <button
+                                type="button"
+                                disabled={busy}
+                                onClick={() => openWhatsApp(n)}
+                                className="inline-flex items-center justify-center gap-1 h-8 min-w-[6.5rem] px-2.5 rounded-md text-[11px] font-semibold text-white bg-[#25D366] hover:bg-[#20bd5a] disabled:opacity-60"
+                                aria-label={`Send WhatsApp to ${name}`}
+                              >
+                                <MessageCircle className="w-3.5 h-3.5" aria-hidden />
+                                {busy ? 'Sending…' : 'WhatsApp'}
+                              </button>
+                            ) : null}
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          {/* Mobile stacked cards */}
+          <div className="md:hidden space-y-2">
+            {items.map((n) => {
+              const aid = appointmentIdOf(n);
+              const pid = patientIdOf(n);
+              const phone = n.recipientPhone || n.appointmentId?.patientId?.phone;
+              const name = n.recipientName || n.appointmentId?.patientId?.name || 'Patient';
+              const kind = typeLabel(n.notificationType);
+              const statusKey = String(n.status || '').toLowerCase();
+              const busy = waBusyId === n._id;
+
+              return (
+                <article key={n._id} className="card !p-3.5">
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="min-w-0">
+                      <p className="text-sm font-semibold text-ink truncate">{name}</p>
+                      <p className="mt-0.5 text-xs text-ink-muted">
+                        {[phone, visitLabel(n)].filter(Boolean).join(' · ')}
                       </p>
-                    ) : n.message && !/^hello\s/i.test(n.message) ? (
-                      <p className="text-sm text-ink-muted mt-0.5">{n.message}</p>
-                    ) : null}
-                    {n.status === 'failed' && n.error ? (
-                      <p className="text-xs text-red-600 mt-1">{n.error}</p>
-                    ) : null}
-                    <p className="text-xs text-ink-faint mt-1.5">
-                      {scheduled && isValid(scheduled) ? format(scheduled, 'PPp') : '—'}
-                    </p>
+                    </div>
+                    <Chip className={STATUS_TONE[statusKey] || STATUS_TONE.scheduled}>
+                      {n.status || '—'}
+                    </Chip>
                   </div>
-                  <span className="status-badge bg-[#f3efe8] text-ink-muted ring-line capitalize shrink-0">
-                    {n.status}
-                  </span>
-                </div>
-                <div className="mt-3 flex flex-wrap items-center gap-2">
-                  {aid && (
-                    <Link to={ROUTES.doctorAppointmentDetail(aid)} className="btn-secondary btn-sm">
-                      Open appointment
-                    </Link>
-                  )}
-                  {pid && (
-                    <Link to={ROUTES.doctorPatientDetail(pid)} className="btn-secondary btn-sm">
-                      Patient chart
-                    </Link>
-                  )}
-                  {phone && (
-                    <button
-                      type="button"
-                      className="btn-whatsapp btn-sm"
-                      disabled={waBusyId === n._id}
-                      onClick={() => openWhatsApp(n)}
-                    >
-                      <MessageCircle className="w-3.5 h-3.5" />
-                      {waBusyId === n._id ? 'Sending…' : 'Send WhatsApp'}
-                    </button>
-                  )}
-                </div>
-              </article>
-            );
-          })}
-        </div>
+                  <div className="mt-2">
+                    <Chip className={TYPE_TONE[kind] || TYPE_TONE.Reminder}>{kind}</Chip>
+                  </div>
+                  <div className="mt-3 flex items-center gap-1.5">
+                    {aid ? (
+                      <Link
+                        to={ROUTES.doctorAppointmentDetail(aid)}
+                        className="inline-flex items-center min-h-8 px-2 rounded-md text-[11px] font-semibold text-ink bg-[#f3f1ec] border border-line"
+                      >
+                        Appointment
+                      </Link>
+                    ) : null}
+                    {pid ? (
+                      <Link
+                        to={ROUTES.doctorPatientDetail(pid)}
+                        className="inline-flex items-center min-h-8 px-2 rounded-md text-[11px] font-semibold text-ink bg-[#f3f1ec] border border-line"
+                      >
+                        Patient
+                      </Link>
+                    ) : null}
+                    {phone ? (
+                      <button
+                        type="button"
+                        disabled={busy}
+                        onClick={() => openWhatsApp(n)}
+                        className="ml-auto inline-flex items-center gap-1 min-h-8 px-2.5 rounded-md text-[11px] font-semibold text-white bg-[#25D366]"
+                      >
+                        <MessageCircle className="w-3.5 h-3.5" />
+                        {busy ? '…' : 'WhatsApp'}
+                      </button>
+                    ) : null}
+                  </div>
+                </article>
+              );
+            })}
+          </div>
+        </>
       )}
 
       <Pagination page={page} pages={pages} total={total} limit={PAGE_SIZE} onPage={load} />

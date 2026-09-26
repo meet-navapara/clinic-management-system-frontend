@@ -35,9 +35,6 @@ export const ROUTES = {
   branches: '/branches',
   staff: '/staff',
   templates: '/templates',
-  consent: '/consent',
-  queue: '/queue',
-  queueDisplay: '/queue/display',
   campaigns: '/campaigns',
   campaignNew: '/campaigns/new',
   campaign: (id) => `/campaigns/${id}`,
@@ -109,8 +106,6 @@ export function getPageMeta(pathname) {
   if (pathname === ROUTES.branches) return { title: 'Branches', crumb: 'Clinic' };
   if (pathname === ROUTES.staff) return { title: 'Staff', crumb: 'Clinic' };
   if (pathname === ROUTES.templates) return { title: 'Clinical templates', crumb: 'Clinical' };
-  if (pathname === ROUTES.consent) return { title: 'Consent forms', crumb: 'Clinical' };
-  if (pathname === ROUTES.queue) return { title: 'Patient queue', crumb: 'Front desk' };
   if (pathname === ROUTES.campaigns) return { title: 'Campaigns', crumb: 'Marketing' };
   if (pathname === ROUTES.campaignNew || pathname.startsWith('/campaigns/')) {
     return { title: 'Campaign', crumb: 'Marketing', backTo: ROUTES.campaigns };
@@ -144,9 +139,6 @@ const SHARED = [
   ROUTES.branches,
   ROUTES.staff,
   ROUTES.templates,
-  ROUTES.consent,
-  ROUTES.queue,
-  ROUTES.queueDisplay,
   ROUTES.campaigns,
   ROUTES.campaignNew,
   ROUTES.printSettings,
@@ -170,13 +162,11 @@ function permissionForPath(pathname) {
     return P.APPOINTMENTS_VIEW;
   }
   if (pathname.startsWith('/doctor/patients') || pathname === ROUTES.doctorPatientNew) return P.PATIENTS_VIEW;
-  if (pathname === ROUTES.queue || pathname === ROUTES.queueDisplay) return P.QUEUE_MANAGE;
   if (pathname.startsWith('/billing')) return P.BILLING_VIEW;
   if (pathname === ROUTES.revenue) return P.REVENUE_ALL;
   if (pathname === ROUTES.branches) return P.BRANCHES_VIEW;
   if (pathname === ROUTES.staff) return P.STAFF_MANAGE;
   if (pathname === ROUTES.templates) return [P.TEMPLATES_OWN, P.TEMPLATES_CLINIC];
-  if (pathname === ROUTES.consent) return [P.CONSENT_CAPTURE, P.CONSENT_TEMPLATES];
   if (pathname.startsWith('/campaigns')) return P.CAMPAIGNS_MANAGE;
   if (pathname === ROUTES.printSettings) return P.PRINT_SETTINGS;
   if (pathname === ROUTES.search) return P.SEARCH;

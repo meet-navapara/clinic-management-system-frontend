@@ -12,9 +12,7 @@ import {
   Receipt,
   GitBranch,
   IdCard,
-  ListOrdered,
   Megaphone,
-  FileText,
   Printer,
   IndianRupee,
   ClipboardList,
@@ -51,7 +49,6 @@ function getNavLinks(user) {
       { to: ROUTES.doctorCalendar, label: 'Appointments', icon: CalendarDays, end: true },
       { to: ROUTES.doctorPatients, label: 'Patients', icon: Users, match: 'patients' },
       { to: ROUTES.search, label: 'Search', icon: Search, end: true },
-      { to: ROUTES.queue, label: 'Queue', icon: ListOrdered, end: true },
       { to: ROUTES.doctorBook, label: 'Schedule', icon: Calendar, end: true },
       { to: ROUTES.doctorNotifications, label: 'Reminders', icon: Bell, end: true },
       { to: ROUTES.branches, label: 'Branches', icon: GitBranch, end: true },
@@ -59,7 +56,6 @@ function getNavLinks(user) {
       { to: ROUTES.billing, label: 'Billing', icon: Receipt, end: true },
       { to: ROUTES.revenue, label: 'Revenue', icon: IndianRupee, end: true },
       { to: ROUTES.templates, label: 'Templates', icon: ClipboardList, end: true },
-      { to: ROUTES.consent, label: 'Consent Forms', icon: FileText, end: true },
       { to: ROUTES.campaigns, label: 'Campaigns', icon: Megaphone, end: true },
       { to: ROUTES.printSettings, label: 'Print Settings', icon: Printer, end: true },
       { to: ROUTES.doctorInbox, label: 'Inbox', icon: Inbox, end: true, badge: 'inbox' },
@@ -70,14 +66,12 @@ function getNavLinks(user) {
     if (can(user, P.APPOINTMENTS_VIEW)) links.push({ to: ROUTES.doctorCalendar, label: 'Appointments', icon: CalendarDays, end: true });
     if (can(user, P.PATIENTS_VIEW)) links.push({ to: ROUTES.doctorPatients, label: 'Patients', icon: Users, match: 'patients' });
     if (can(user, P.SEARCH)) links.push({ to: ROUTES.search, label: 'Search', icon: Search, end: true });
-    if (can(user, P.QUEUE_MANAGE)) links.push({ to: ROUTES.queue, label: 'Queue', icon: ListOrdered, end: true });
     if (can(user, P.APPOINTMENTS_MANAGE)) links.push({ to: ROUTES.doctorBook, label: 'Schedule', icon: Calendar, end: true });
     if (can(user, P.BILLING_VIEW)) links.push({ to: ROUTES.billing, label: 'Billing', icon: Receipt, end: true });
     if (can(user, P.REVENUE_ALL)) links.push({ to: ROUTES.revenue, label: 'Revenue', icon: IndianRupee, end: true });
     if (can(user, P.BRANCHES_VIEW)) links.push({ to: ROUTES.branches, label: 'Branches', icon: GitBranch, end: true });
     // Branch create/disable stays Doctor-only even if BRANCHES_MANAGE was granted historically.
     if (can(user, P.TEMPLATES_OWN) || can(user, P.TEMPLATES_CLINIC)) links.push({ to: ROUTES.templates, label: 'Templates', icon: ClipboardList, end: true });
-    if (can(user, P.CONSENT_CAPTURE) || can(user, P.CONSENT_TEMPLATES)) links.push({ to: ROUTES.consent, label: 'Consent Forms', icon: FileText, end: true });
     if (can(user, P.CAMPAIGNS_MANAGE)) links.push({ to: ROUTES.campaigns, label: 'Campaigns', icon: Megaphone, end: true });
     if (can(user, P.PRINT_SETTINGS)) links.push({ to: ROUTES.printSettings, label: 'Print Settings', icon: Printer, end: true });
     return links;
