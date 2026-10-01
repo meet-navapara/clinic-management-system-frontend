@@ -287,7 +287,7 @@ export default function App() {
         <Route path="/billing/:id" element={<Staff permission={P.BILLING_VIEW}><InvoiceDetail /></Staff>} />
         <Route path={ROUTES.revenue} element={<Staff permission={P.REVENUE_ALL}><RevenuePage /></Staff>} />
         <Route path={ROUTES.branches} element={<Staff anyPermission={[P.BRANCHES_VIEW, P.BRANCHES_MANAGE]}><BranchesPage /></Staff>} />
-        <Route path={ROUTES.staff} element={<Staff roles={['doctor']}><StaffPage /></Staff>} />
+        <Route path={ROUTES.staff} element={<Staff permission={P.STAFF_MANAGE}><StaffPage /></Staff>} />
         <Route path={ROUTES.templates} element={<Staff anyPermission={[P.TEMPLATES_OWN, P.TEMPLATES_CLINIC]}><TemplatesPage /></Staff>} />
         <Route path={ROUTES.campaigns} element={<Staff permission={P.CAMPAIGNS_MANAGE}><CampaignsPage /></Staff>} />
         <Route path={ROUTES.campaignNew} element={<Staff permission={P.CAMPAIGNS_MANAGE}><CampaignEditor /></Staff>} />

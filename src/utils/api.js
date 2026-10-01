@@ -27,11 +27,63 @@ const api = axios.create({
   },
 });
 
-let branchHeader = localStorage.getItem('branchId') || '';
+const BRANCH_STORAGE_KEY = 'branchId';
+
+let branchHeader = localStorage.getItem(BRANCH_STORAGE_KEY) || '';
+
+function staffPrimaryBranchId(user) {
+  if (!user) return '';
+  const def = user.defaultBranchId;
+  if (def && typeof def === 'object') return String(def._id || def.id || '');
+  if (def) return String(def);
+  const first = (user.branchIds || [])[0];
+  if (first && typeof first === 'object') return String(first._id || first.id || '');
+  return first ? String(first) : '';
+}
+
+function isStaffLoginUser(user) {
+  if (!user) return false;
+  if (user.role === 'super_admin' || user.role === 'doctor' || user.role === 'patient') return false;
+  return Boolean(user.staffType) || ['receptionist', 'nurse', 'assistant', 'clinic_manager'].includes(user.role);
+}
 
 export function setBranchHeader(id) {
   branchHeader = id || '';
   // Branch scope changed — drop cached GETs
+  clearApiGetCache();
+}
+
+/** Drop branch scope (logout / account switch). */
+export function clearBranchHeader() {
+  branchHeader = '';
+  localStorage.removeItem(BRANCH_STORAGE_KEY);
+  clearApiGetCache();
+}
+
+/**
+ * Apply branch header before child routes mount.
+ * Staff are locked to their assigned branch.
+ * Doctors keep their saved branch selection (All branches = empty).
+ */
+export function syncBranchHeaderForUser(user) {
+  if (!user) {
+    clearBranchHeader();
+    return;
+  }
+  if (isStaffLoginUser(user)) {
+    const locked = staffPrimaryBranchId(user);
+    if (locked) {
+      branchHeader = locked;
+      localStorage.setItem(BRANCH_STORAGE_KEY, locked);
+      clearApiGetCache();
+    } else {
+      clearBranchHeader();
+    }
+    return;
+  }
+  // Doctor / other clinic user — restore saved selection; do not wipe it on /auth/me.
+  const saved = localStorage.getItem(BRANCH_STORAGE_KEY) || '';
+  branchHeader = saved;
   clearApiGetCache();
 }
 

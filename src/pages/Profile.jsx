@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { format, isValid } from 'date-fns';
+import { addDays, format, isValid, startOfDay } from 'date-fns';
 import { useAuth } from '../context/AuthContext';
 import api from '../utils/api';
 import toast from 'react-hot-toast';
@@ -10,8 +10,11 @@ import Checkbox from '../components/ui/Checkbox';
 import RequiredMark from '../components/ui/RequiredMark';
 import PageHeader from '../components/ui/PageHeader';
 import LoadingOverlay from '../components/ui/LoadingOverlay';
+import Modal from '../components/ui/Modal';
 import TimeSelect, { nextTimeSlot, prevTimeSlot } from '../components/ui/TimeSelect';
 import { compressImageFile } from '../utils/image';
+import { generateTimeSlots } from '../utils/timeSlots';
+import { patientDisplayName } from '../utils/display';
 import {
   formatIndianMobileInput,
   normalizeIndianMobile,
@@ -22,6 +25,49 @@ import { ROUTES } from '../constants/routes';
 import { can, P } from '../constants/permissions';
 
 const DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+const WEEKDAY_FROM_DATE = [
+  'Sunday',
+  'Monday',
+  'Tuesday',
+  'Wednesday',
+  'Thursday',
+  'Friday',
+  'Saturday',
+];
+const ACTIVE_VISIT_STATUSES = new Set(['scheduled', 'confirmed', 'pending']);
+
+function scheduleKey(formLike) {
+  return JSON.stringify({
+    availableDays: [...(formLike.availableDays || [])].sort(),
+    dayStart: formLike.dayStart || '09:00',
+    dayEnd: formLike.dayEnd || '18:00',
+    breakStart: formLike.breakStart || '13:00',
+    breakEnd: formLike.breakEnd || '14:00',
+    defaultDurationMinutes: Number(formLike.defaultDurationMinutes) || 30,
+  });
+}
+
+function appointmentConflictsWithSchedule(appointment, schedule) {
+  const date = new Date(appointment.appointmentDate);
+  if (!isValid(date)) return false;
+  const weekday = WEEKDAY_FROM_DATE[date.getDay()];
+  if (!(schedule.availableDays || []).includes(weekday)) {
+    return { reason: `Doctor not available on ${weekday}` };
+  }
+  const allowed = new Set(
+    generateTimeSlots({
+      dayStart: schedule.dayStart || '09:00',
+      dayEnd: schedule.dayEnd || '18:00',
+      durationMinutes: Number(schedule.defaultDurationMinutes) || 30,
+      breakStart: schedule.breakStart || '13:00',
+      breakEnd: schedule.breakEnd || '14:00',
+    })
+  );
+  if (!allowed.has(appointment.timeSlot)) {
+    return { reason: 'Outside new hours or during break' };
+  }
+  return null;
+}
 
 function roleLabel(user) {
   if (!user) return '—';
@@ -146,6 +192,8 @@ export default function Profile() {
   const [photoPreview, setPhotoPreview] = useState(null);
   const [clearPhoto, setClearPhoto] = useState(false);
   const [pwd, setPwd] = useState({ currentPassword: '', newPassword: '', confirmPassword: '' });
+  const [scheduleConflicts, setScheduleConflicts] = useState(null);
+  const [checkingSchedule, setCheckingSchedule] = useState(false);
 
   useEffect(() => {
     setForm(buildFormFromUser(user));
@@ -205,25 +253,7 @@ export default function Profile() {
     setClearPhoto(false);
   };
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    if (isDoctor && form.availableDays.length < 1) {
-      toast.error('Select at least one available day.');
-      setTab('schedule');
-      return;
-    }
-    if (isDoctor) {
-      if (form.dayStart && form.dayEnd && form.dayEnd <= form.dayStart) {
-        toast.error('Day end must be after day start.');
-        setTab('schedule');
-        return;
-      }
-      if (form.breakStart && form.breakEnd && form.breakEnd <= form.breakStart) {
-        toast.error('Break end must be after break start.');
-        setTab('schedule');
-        return;
-      }
-    }
+  const saveProfile = async () => {
     setLoading(true);
     try {
       const formData = new FormData();
@@ -289,6 +319,7 @@ export default function Profile() {
       setProfilePhotoFile(null);
       setPhotoPreview(null);
       setClearPhoto(false);
+      setScheduleConflicts(null);
       if (previewUrlRef.current) {
         URL.revokeObjectURL(previewUrlRef.current);
         previewUrlRef.current = null;
@@ -299,6 +330,85 @@ export default function Profile() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const findScheduleConflicts = async () => {
+    const from = format(startOfDay(new Date()), 'yyyy-MM-dd');
+    const to = format(addDays(startOfDay(new Date()), 90), 'yyyy-MM-dd');
+    const res = await api.get('/appointments/my', {
+      params: { from, to, mine: 1, limit: 500 },
+    });
+    const schedule = {
+      availableDays: form.availableDays,
+      dayStart: form.dayStart || '09:00',
+      dayEnd: form.dayEnd || '18:00',
+      breakStart: form.breakStart || '13:00',
+      breakEnd: form.breakEnd || '14:00',
+      defaultDurationMinutes: Number(form.defaultDurationMinutes) || 30,
+    };
+    return (res.data.appointments || [])
+      .filter((a) => ACTIVE_VISIT_STATUSES.has(String(a.status || '').toLowerCase()))
+      .map((a) => {
+        const conflict = appointmentConflictsWithSchedule(a, schedule);
+        if (!conflict) return null;
+        const patient = a.patientId || a.patient;
+        const dateObj = new Date(a.appointmentDate);
+        return {
+          id: a._id,
+          name: patientDisplayName(patient) || 'Patient',
+          when: isValid(dateObj)
+            ? `${format(dateObj, 'EEE, d MMM yyyy')} · ${a.timeSlot || '—'}`
+            : a.timeSlot || '—',
+          reason: conflict.reason,
+        };
+      })
+      .filter(Boolean);
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    if (isDoctor && form.availableDays.length < 1) {
+      toast.error('Select at least one available day.');
+      setTab('schedule');
+      return;
+    }
+    if (isDoctor) {
+      if (form.dayStart && form.dayEnd && form.dayEnd <= form.dayStart) {
+        toast.error('Day end must be after day start.');
+        setTab('schedule');
+        return;
+      }
+      if (form.breakStart && form.breakEnd && form.breakEnd <= form.breakStart) {
+        toast.error('Break end must be after break start.');
+        setTab('schedule');
+        return;
+      }
+    }
+
+    const scheduleChanged = isDoctor && scheduleKey(form) !== scheduleKey(buildFormFromUser(user));
+    if (scheduleChanged) {
+      setCheckingSchedule(true);
+      try {
+        const conflicts = await findScheduleConflicts();
+        if (conflicts.length) {
+          setScheduleConflicts(conflicts);
+          return;
+        }
+      } catch {
+        toast.error('Could not check existing appointments. Try again.');
+        return;
+      } finally {
+        setCheckingSchedule(false);
+      }
+    }
+
+    await saveProfile();
+  };
+
+  /** Warning popup confirm — always saves the profile (including new schedule). */
+  const confirmScheduleSave = async () => {
+    if (loading) return;
+    await saveProfile();
   };
 
   const handlePassword = async (e) => {
@@ -338,7 +448,16 @@ export default function Profile() {
 
   return (
     <div className="page-container relative">
-      <LoadingOverlay show={loading || pwdLoading} message={pwdLoading ? 'Updating password…' : 'Saving…'} />
+      <LoadingOverlay
+        show={loading || pwdLoading || checkingSchedule}
+        message={
+          pwdLoading
+            ? 'Updating password…'
+            : checkingSchedule
+              ? 'Checking appointments…'
+              : 'Saving…'
+        }
+      />
       <PageHeader
         title="Profile"
         description="Your account details. Letterhead and invoice branding are under Print Settings."
@@ -835,6 +954,53 @@ export default function Profile() {
           )}
         </div>
       </div>
+
+      <Modal
+        open={Boolean(scheduleConflicts?.length)}
+        title="Appointments may be affected"
+        onClose={() => !loading && setScheduleConflicts(null)}
+      >
+        <div className="space-y-4">
+          <p className="text-sm text-ink-muted leading-relaxed">
+            {scheduleConflicts?.length || 0} upcoming patient appointment
+            {(scheduleConflicts?.length || 0) === 1 ? '' : 's'} fall outside your new schedule
+            (removed day, outside hours, or during break). Saving will keep those visits — you may
+            need to reschedule them separately.
+          </p>
+          <ul className="max-h-48 overflow-y-auto space-y-2 rounded-lg border border-line divide-y divide-line">
+            {(scheduleConflicts || []).slice(0, 12).map((c) => (
+              <li key={c.id} className="px-3 py-2 text-sm">
+                <p className="font-medium text-ink">{c.name}</p>
+                <p className="text-xs text-ink-muted mt-0.5">{c.when}</p>
+                <p className="text-xs text-ink-faint mt-0.5">{c.reason}</p>
+              </li>
+            ))}
+          </ul>
+          {(scheduleConflicts?.length || 0) > 12 ? (
+            <p className="text-xs text-ink-faint">
+              And {(scheduleConflicts?.length || 0) - 12} more…
+            </p>
+          ) : null}
+          <div className="flex justify-end gap-2 pt-1 border-t border-line">
+            <button
+              type="button"
+              className="btn-secondary"
+              disabled={loading}
+              onClick={() => setScheduleConflicts(null)}
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              className="btn-primary"
+              disabled={loading}
+              onClick={confirmScheduleSave}
+            >
+              {loading ? 'Saving…' : 'Save anyway'}
+            </button>
+          </div>
+        </div>
+      </Modal>
     </div>
   );
 }

@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Clock, Ban, XCircle, CheckCircle } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import AuthPageLayout from '../components/AuthPageLayout';
@@ -13,26 +14,27 @@ function displayFirstName(name) {
 }
 
 export default function DoctorPending() {
+  const navigate = useNavigate();
   const { user, logout, refreshUser } = useAuth();
   const status = user?.approvalStatus || 'pending';
   const firstName = displayFirstName(user?.name);
   const [checking, setChecking] = useState(false);
+  const [leaving, setLeaving] = useState(false);
 
   useEffect(() => {
     if (status === 'approved') {
-      window.location.assign(ROUTES.doctorDashboard);
+      navigate(ROUTES.doctorDashboard, { replace: true });
     }
-  }, [status]);
+  }, [status, navigate]);
 
-  // No automatic polling — only refresh when the user clicks "Check status"
   const checkNow = async () => {
-    if (checking) return;
+    if (checking || leaving) return;
     setChecking(true);
     try {
       const next = await refreshUser();
       if (next?.approvalStatus === 'approved') {
         toast.success('Your account is approved.');
-        window.location.assign(ROUTES.doctorDashboard);
+        navigate(ROUTES.doctorDashboard, { replace: true });
         return;
       }
       toast('Still waiting for approval.');
@@ -43,9 +45,15 @@ export default function DoctorPending() {
     }
   };
 
-  const goLogin = () => {
-    logout();
-    window.location.assign(ROUTES.login);
+  const goLogin = async () => {
+    if (leaving) return;
+    setLeaving(true);
+    try {
+      await logout();
+    } catch {
+      /* ignore */
+    }
+    navigate(ROUTES.login, { replace: true });
   };
 
   const copy = {
@@ -85,6 +93,7 @@ export default function DoctorPending() {
 
   const view = copy[status] || copy.pending;
   const Icon = view.icon;
+  const busy = checking || leaving;
 
   return (
     <AuthPageLayout>
@@ -122,14 +131,14 @@ export default function DoctorPending() {
               <button
                 type="button"
                 className="btn-secondary flex-1"
-                disabled={checking}
+                disabled={busy}
                 onClick={checkNow}
               >
                 {checking ? 'Checking…' : 'Check status'}
               </button>
             )}
-            <button type="button" className="btn-primary flex-1" onClick={goLogin}>
-              Back to login
+            <button type="button" className="btn-primary flex-1" disabled={busy} onClick={goLogin}>
+              {leaving ? 'Returning…' : 'Back to login'}
             </button>
           </div>
         )}

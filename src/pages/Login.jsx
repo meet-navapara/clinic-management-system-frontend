@@ -7,6 +7,7 @@ import { Mail } from 'lucide-react';
 import AuthPageLogo from '../components/AuthPageLogo';
 import AuthPageLayout from '../components/AuthPageLayout';
 import PasswordInput from '../components/PasswordInput';
+import LoadingOverlay from '../components/ui/LoadingOverlay';
 import { ROUTES } from '../constants/routes';
 import { validateLoginFields } from '../utils/validation';
 import RequiredMark from '../components/ui/RequiredMark';
@@ -46,14 +47,19 @@ export default function Login() {
       toast.success('Welcome back!');
       redirectAfterAuth(data.user.role, data.user);
     } catch (err) {
-      toast.error(err.response?.data?.message || 'Login failed.');
-    } finally {
       setLoading(false);
+      toast.error(err.response?.data?.message || 'Login failed.');
     }
   };
 
   return (
     <AuthPageLayout>
+      <LoadingOverlay
+        show={loading}
+        message="Signing you in…"
+        fullscreen
+      />
+
       <div className="text-center mb-3 sm:mb-5">
         <AuthPageLogo className="mb-3 sm:mb-4" />
         <h1 className="text-lg sm:text-2xl font-bold text-gray-900">Sign in</h1>

@@ -11,6 +11,7 @@ import { ROUTES } from '../constants/routes';
 import { SkeletonDetail } from '../components/ui/Skeleton';
 import LoadingOverlay from '../components/ui/LoadingOverlay';
 import { useAuth } from '../context/AuthContext';
+import { useBranch } from '../context/BranchContext';
 import { can, P } from '../constants/permissions';
 
 const FIELDS = [
@@ -45,6 +46,7 @@ export default function ConsultationPage() {
   const { appointmentId } = useParams();
   const navigate = useNavigate();
   const { user } = useAuth();
+  const { branchId } = useBranch();
   const [appointment, setAppointment] = useState(null);
   const [apptMissing, setApptMissing] = useState(false);
   const [templates, setTemplates] = useState([]);
@@ -93,12 +95,19 @@ export default function ConsultationPage() {
             toast.error(err.response?.data?.message || 'Could not load consultation.');
           }
         }),
-      api
-        .get('/templates')
-        .then((res) => setTemplates(res.data.templates || []))
-        .catch((err) => toast.error(err.response?.data?.message || 'Could not load templates.')),
     ]).finally(() => setLoading(false));
   }, [appointmentId]);
+
+  // Templates follow appointment branch when known, otherwise the global branch switcher.
+  useEffect(() => {
+    const apptBranch = appointment?.branchId?._id || appointment?.branchId || branchId || '';
+    api
+      .get('/templates', {
+        params: apptBranch ? { branchId: String(apptBranch) } : {},
+      })
+      .then((res) => setTemplates(res.data.templates || []))
+      .catch((err) => toast.error(err.response?.data?.message || 'Could not load templates.'));
+  }, [appointment?.branchId, branchId]);
 
   const applyTemplate = (id) => {
     if (!id) {

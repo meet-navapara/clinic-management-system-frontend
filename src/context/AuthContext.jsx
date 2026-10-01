@@ -1,5 +1,5 @@
 import { createContext, useContext, useState, useEffect, useCallback, useMemo } from 'react';
-import api from '../utils/api';
+import api, { clearBranchHeader, syncBranchHeaderForUser } from '../utils/api';
 
 const AuthContext = createContext(null);
 
@@ -10,6 +10,7 @@ const clearStoredAuth = () => {
   sessionStorage.removeItem(AUTH_TOKEN_KEY);
   localStorage.removeItem(AUTH_TOKEN_KEY);
   localStorage.removeItem(AUTH_USER_KEY);
+  clearBranchHeader();
 };
 
 const storeSession = (data) => {
@@ -34,6 +35,7 @@ const usersRoughlyEqual = (a, b) => {
     String(a._id || a.id || '') === String(b._id || b.id || '') &&
     a.role === b.role &&
     a.approvalStatus === b.approvalStatus &&
+    a.clinicWideAccess === b.clinicWideAccess &&
     a.email === b.email &&
     a.name === b.name &&
     a.phone === b.phone &&
@@ -68,7 +70,9 @@ export const AuthProvider = ({ children }) => {
     let hasCachedUser = false;
     if (savedUser) {
       try {
-        setUser(JSON.parse(savedUser));
+        const cached = JSON.parse(savedUser);
+        syncBranchHeaderForUser(cached);
+        setUser(cached);
         hasCachedUser = true;
         setLoading(false);
       } catch {
@@ -84,6 +88,7 @@ export const AuthProvider = ({ children }) => {
           .get('/auth/me')
           .then((res) => {
             const next = res.data.user;
+            if (next) syncBranchHeaderForUser(next);
             setUser((prev) => (usersRoughlyEqual(prev, next) ? prev : next));
             if (next) localStorage.setItem(AUTH_USER_KEY, JSON.stringify(next));
             return next;
@@ -121,6 +126,7 @@ export const AuthProvider = ({ children }) => {
       }
       try {
         const next = JSON.parse(raw);
+        syncBranchHeaderForUser(next);
         setUser((prev) => (usersRoughlyEqual(prev, next) ? prev : next));
       } catch {
         setUser(null);
@@ -131,6 +137,7 @@ export const AuthProvider = ({ children }) => {
   }, []);
 
   const persistSession = useCallback((data) => {
+    syncBranchHeaderForUser(data?.user);
     storeSession(data);
     setUser(data.user);
     return data;
@@ -184,6 +191,7 @@ export const AuthProvider = ({ children }) => {
       .then((res) => {
         const next = res.data.user;
         if (next) {
+          syncBranchHeaderForUser(next);
           setUser((prev) => {
             if (usersRoughlyEqual(prev, next)) return prev;
             localStorage.setItem(AUTH_USER_KEY, JSON.stringify(next));

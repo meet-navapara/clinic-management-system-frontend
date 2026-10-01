@@ -1,9 +1,10 @@
-import { useLocation } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { getDashboardPath, isPathAllowedForRole } from '../constants/routes';
 
 export function useAuthRedirect() {
   const location = useLocation();
+  const navigate = useNavigate();
   const { user } = useAuth();
 
   return (role, authUser = user) => {
@@ -17,6 +18,7 @@ export function useAuthRedirect() {
         ? from
         : getDashboardPath(role, authUser);
 
-    window.location.assign(path);
+    // Soft navigate — avoid full reload (which re-shows auth loader + remounts the page).
+    navigate(path, { replace: true });
   };
 }

@@ -8,9 +8,13 @@ export default function BranchSwitcher({ compact, align }) {
   const { user } = useAuth();
   const { branches, branchId, setBranchId, current } = useBranch();
   const staffLocked = isStaffUser(user);
+  const clinicWideAccess = user?.clinicWideAccess === true;
+  const scopedDoctor =
+    user?.role === 'doctor' &&
+    (user?.clinicWideAccess === false || Array.isArray(user?.accessibleBranchIds));
 
-  if (staffLocked) {
-    const label = current?.name || 'Assigned branch';
+  if (staffLocked || (scopedDoctor && branches.length <= 1)) {
+    const label = current?.name || branches[0]?.name || 'Assigned branch';
     return (
       <div
         className={`min-w-0 truncate text-xs sm:text-sm text-ink-muted ${compact ? 'max-w-[11rem] sm:max-w-[14rem]' : ''}`}
@@ -24,10 +28,15 @@ export default function BranchSwitcher({ compact, align }) {
 
   if (!branches.length) return null;
 
-  const options = [
-    { value: '', label: 'All branches' },
-    ...branches.map((b) => ({ value: String(b._id), label: b.name })),
-  ];
+  // Clinic-wide (Main) doctors: pick a branch to filter all pages, or All branches.
+  const options = branches.map((b) => ({
+    value: String(b._id),
+    label: b.isDefault ? `${b.name} (Main)` : b.name,
+  }));
+
+  if (clinicWideAccess || (!scopedDoctor && user?.role === 'doctor')) {
+    options.unshift({ value: '', label: 'All branches' });
+  }
 
   return (
     <Dropdown

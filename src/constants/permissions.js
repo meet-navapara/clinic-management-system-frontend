@@ -44,6 +44,8 @@ export const STAFF_TYPE_PERMISSIONS = {
     P.APPOINTMENTS_MANAGE,
     P.BILLING_VIEW,
     P.BILLING_MANAGE,
+    P.STAFF_MANAGE,
+    P.BRANCHES_VIEW,
   ],
   nurse: [
     P.PATIENTS_VIEW,
@@ -61,7 +63,8 @@ export const ACCESS_MODULES = [
   { id: 'search', label: 'Clinic search', view: P.SEARCH },
   { id: 'billing', label: 'Billing / Invoices', view: P.BILLING_VIEW, manage: P.BILLING_MANAGE },
   { id: 'revenue', label: 'Revenue / Reports', view: P.REVENUE_ALL },
-  { id: 'branches', label: 'Branches', view: P.BRANCHES_VIEW },
+  { id: 'staff', label: 'Staff (own branch only)', view: P.STAFF_MANAGE },
+  { id: 'branches', label: 'Branches (view)', view: P.BRANCHES_VIEW },
   { id: 'templates', label: 'Doctor Notes / Templates', view: P.TEMPLATES_OWN, manage: P.TEMPLATES_CLINIC },
   { id: 'campaigns', label: 'Campaigns', view: P.CAMPAIGNS_MANAGE },
   { id: 'consult', label: 'Consultations', view: P.CONSULTATION },

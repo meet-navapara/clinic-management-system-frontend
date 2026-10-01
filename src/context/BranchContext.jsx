@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useState, useCallback, useMemo, useRef } from 'react';
+import { createContext, useContext, useEffect, useState, useCallback, useMemo, useRef, useLayoutEffect } from 'react';
 import api, { setBranchHeader } from '../utils/api';
 import { useAuth } from './AuthContext';
 import { can, isStaffUser, P } from '../constants/permissions';
@@ -50,19 +50,31 @@ export function BranchProvider({ children }) {
 
   const sessionKey = useMemo(() => userBranchKey(user), [user]);
 
-  useEffect(() => {
+  // Lock staff to their assigned branch BEFORE child pages fire API calls
+  // (avoids stale doctor Main branch id from localStorage → 403 on every page).
+  useLayoutEffect(() => {
+    if (!user) return;
     if (isStaffUser(user)) {
       const locked = staffPrimaryBranchId(user);
-      if (locked && locked !== branchIdRef.current) setBranchId(locked);
+      if (locked) {
+        branchIdRef.current = locked;
+        setBranchIdState(locked);
+        localStorage.setItem(STORAGE_KEY, locked);
+        setBranchHeader(locked);
+      }
     }
-  }, [sessionKey, user, setBranchId]);
+  }, [sessionKey, user]);
 
   const load = useCallback(() => {
     if (!canListBranches(user)) {
       setBranches([]);
+      // Still lock staff even when they cannot list branches.
+      if (isStaffUser(user)) {
+        const locked = staffPrimaryBranchId(user);
+        if (locked) setBranchId(locked);
+      }
       return;
     }
-    // Do not retry the same session after a 403/failure
     if (failedKeyRef.current && failedKeyRef.current === userBranchKey(user)) {
       return;
     }
@@ -78,9 +90,19 @@ export function BranchProvider({ children }) {
           if (locked) setBranchId(locked);
           return;
         }
+        const scoped =
+          user?.role === 'doctor' &&
+          (user?.clinicWideAccess === false || Array.isArray(user?.accessibleBranchIds));
+        if (scoped && list.length === 1) {
+          setBranchId(String(list[0]._id));
+          return;
+        }
         const currentId = branchIdRef.current;
         if (currentId && !list.some((b) => String(b._id) === String(currentId))) {
-          setBranchId('');
+          setBranchId(scoped && list[0] ? String(list[0]._id) : '');
+        }
+        if (scoped && !currentId && list[0]) {
+          setBranchId(String(list[0]._id));
         }
       })
       .catch((err) => {
@@ -92,7 +114,6 @@ export function BranchProvider({ children }) {
   }, [user, setBranchId]);
 
   useEffect(() => {
-    // New user/approval session → allow a fresh attempt
     failedKeyRef.current = '';
     load();
   }, [sessionKey]); // eslint-disable-line react-hooks/exhaustive-deps

@@ -79,8 +79,9 @@ export default function DoctorDashboard() {
   const patients = stats?.patients || {};
   const appointments = stats?.appointments || {};
   const title = periodTitle(period);
-  const patientCount =
-    period === 'today' ? patients.total ?? 0 : range.patients ?? patients.inPeriod ?? 0;
+  // Stat cards always follow the page period filter (Today / Week / Month) + branch.
+  const patientCount = range.patients ?? patients.inPeriod ?? 0;
+  const completedCount = range.completed ?? 0;
   const SCHEDULE_LIMIT = period === 'today' ? 20 : 10;
   const allScheduleAppts = Array.isArray(range.appointments) ? range.appointments : [];
   const scheduleAppts =
@@ -156,13 +157,13 @@ export default function DoctorDashboard() {
                 to={ROUTES.doctorCalendar}
               />
               <StatCard
-                label="Completed"
-                value={range.completed ?? 0}
+                label={period === 'today' ? 'Completed today' : 'Completed'}
+                value={completedCount}
                 icon={CheckCircle}
                 to={ROUTES.doctorCalendar}
               />
               <StatCard
-                label={period === 'today' ? 'Patients' : 'Patients seen'}
+                label={period === 'today' ? 'Patients today' : 'Patients seen'}
                 value={patientCount}
                 icon={Users}
                 to={ROUTES.doctorPatients}
@@ -279,9 +280,11 @@ export default function DoctorDashboard() {
               {patients.recent?.length > 0 && (
                 <div className="mt-6">
                   <div className="flex items-center justify-between mb-3">
-                    <h3 className="text-sm font-semibold text-ink">Recent patients</h3>
+                    <h3 className="text-sm font-semibold text-ink">
+                      {period === 'today' ? 'Patients today' : `Patients · ${title.toLowerCase()}`}
+                    </h3>
                     <Link to={ROUTES.doctorPatients} className="text-xs font-semibold text-accent-700 hover:underline">
-                      All patients
+                      All patients{patients.total != null ? ` (${patients.total})` : ''}
                     </Link>
                   </div>
                   <div className="card !p-0 overflow-hidden divide-y divide-line">

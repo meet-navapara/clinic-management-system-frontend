@@ -43,8 +43,11 @@ export default function BranchesPage() {
   const [justSelectedId, setJustSelectedId] = useState(null);
   const highlightTimer = useRef(null);
 
-  // API create/update requires clinic doctor — match UI to avoid dead buttons for staff.
-  const canManageBranches = user?.role === 'doctor' && can(user, P.BRANCHES_MANAGE);
+  // Only Main / clinic-wide doctors may create or disable branches.
+  const canManageBranches =
+    user?.role === 'doctor' &&
+    can(user, P.BRANCHES_MANAGE) &&
+    user?.clinicWideAccess !== false;
 
   useEffect(() => () => clearTimeout(highlightTimer.current), []);
 

@@ -11,7 +11,8 @@ import Checkbox from '../components/ui/Checkbox';
 import PasswordInput from '../components/PasswordInput';
 import { SkeletonRows } from '../components/ui/Skeleton';
 import { useBranch } from '../context/BranchContext';
-import { STAFF_TYPES, STAFF_TYPE_PERMISSIONS, ACCESS_MODULES, togglePermission } from '../constants/permissions';
+import { useAuth } from '../context/AuthContext';
+import { STAFF_TYPES, STAFF_TYPE_PERMISSIONS, ACCESS_MODULES, togglePermission, isStaffUser } from '../constants/permissions';
 import RequiredMark from '../components/ui/RequiredMark';
 import { PAGE_SIZE } from '../constants/pagination';
 import {
@@ -22,7 +23,6 @@ import {
   STRONG_PASSWORD_MESSAGE,
 } from '../utils/validation';
 
-const TYPES = ['doctor', ...STAFF_TYPES];
 const FIELD_ORDER = ['name', 'email', 'phone', 'staffType', 'branch', 'password'];
 
 function FieldError({ id, message }) {
@@ -40,7 +40,7 @@ function passwordIsRequired(form, editing) {
   return !isDoctor && form.loginEnabled && !editing.loginEnabled;
 }
 
-function validateStaffForm(form, editing) {
+function validateStaffForm(form, editing, { requireBranchForDoctor = false } = {}) {
   const errors = {};
   const isDoctor = form.staffType === 'doctor';
 
@@ -61,7 +61,9 @@ function validateStaffForm(form, editing) {
 
   if (!form.staffType) errors.staffType = 'Staff type is required.';
 
-  if (!isDoctor && !form.branchIds[0]) errors.branch = 'Branch is required.';
+  if ((!isDoctor || requireBranchForDoctor) && !form.branchIds[0]) {
+    errors.branch = 'Branch is required.';
+  }
 
   const needPassword = passwordIsRequired(form, editing);
   if (needPassword && !form.password) errors.password = 'Password is required.';
@@ -114,18 +116,30 @@ function needsDoctorApproval(s) {
   return s.role === 'doctor' && s.approvalStatus === 'pending' && s.staffStatus !== 'inactive';
 }
 
-function canApprove(s) {
+function canApprove(s, { actorIsStaff = false } = {}) {
+  if (actorIsStaff && s.role === 'doctor') return false;
   return needsDoctorApproval(s) || s.staffStatus === 'inactive';
 }
 
 function accessCount(s) {
-  if (s.role === 'doctor') return 'All';
+  if (s.role === 'doctor') {
+    const hasBranch = (s.branchIds && s.branchIds.length) || s.defaultBranchId;
+    return hasBranch ? 'Branch' : 'All';
+  }
   const n = (s.permissions || []).length;
   return n ? `${n}` : '0';
 }
 
 export default function StaffPage() {
+  const { user } = useAuth();
   const { branches, branchId } = useBranch();
+  const actorIsStaff = isStaffUser(user);
+  const creatorScoped =
+    actorIsStaff ||
+    user?.clinicWideAccess === false ||
+    Array.isArray(user?.accessibleBranchIds);
+  const requireBranchForDoctor = creatorScoped && !actorIsStaff;
+  const staffTypeOptions = actorIsStaff ? STAFF_TYPES : ['doctor', ...STAFF_TYPES];
   const [rows, setRows] = useState([]);
   const [page, setPage] = useState(1);
   const [pages, setPages] = useState(1);
@@ -178,7 +192,15 @@ export default function StaffPage() {
 
   const openCreate = () => {
     setEditing(null);
-    setForm(emptyForm());
+    const defaultBranch =
+      branchId ||
+      (creatorScoped && branches[0] ? String(branches[0]._id) : '') ||
+      '';
+    setForm({
+      ...emptyForm(),
+      staffType: actorIsStaff ? 'receptionist' : 'receptionist',
+      branchIds: defaultBranch ? [defaultBranch] : [],
+    });
     setFieldErrors({});
     setOpen(true);
   };
@@ -210,7 +232,7 @@ export default function StaffPage() {
 
   const submit = async (e) => {
     e.preventDefault();
-    const errors = validateStaffForm(form, editing);
+    const errors = validateStaffForm(form, editing, { requireBranchForDoctor });
     setFieldErrors(errors);
     if (Object.keys(errors).length) {
       const firstKey = FIELD_ORDER.find((key) => errors[key]) || Object.keys(errors)[0];
@@ -283,6 +305,7 @@ export default function StaffPage() {
     ? true
     : !isDoctorRow && (form.loginEnabled || Boolean(form.password) || !editing);
   const typeLocked = editingDoctor;
+  const branchLocked = actorIsStaff;
   const branchOptions = (() => {
     const map = new Map(branches.map((b) => [String(b._id), b]));
     if (editing) {
@@ -340,15 +363,17 @@ export default function StaffPage() {
                 <p className="text-xs text-ink-faint mt-1">{branchLabel(s)} · Login {s.role === 'doctor' || s.loginEnabled ? 'enabled' : 'disabled'}</p>
                 <div className="flex flex-wrap gap-2 mt-2">
                   <Badge value={statusBadgeValue(s)} />
-                  <button type="button" className="btn-ghost btn-sm" onClick={() => openEdit(s)}>
-                    {s.role === 'doctor' ? 'Edit' : 'Manage Access'}
-                  </button>
-                  {s.staffStatus !== 'inactive' && (
+                  {!(actorIsStaff && s.role === 'doctor') && (
+                    <button type="button" className="btn-ghost btn-sm" onClick={() => openEdit(s)}>
+                      {s.role === 'doctor' ? 'Edit' : 'Manage Access'}
+                    </button>
+                  )}
+                  {s.staffStatus !== 'inactive' && !(actorIsStaff && s.role === 'doctor') && (
                     <button type="button" className="btn-ghost btn-sm" onClick={() => setStatus(s, 'inactive')}>
                       Disable
                     </button>
                   )}
-                  {canApprove(s) && (
+                  {canApprove(s, { actorIsStaff }) && (
                     <button type="button" className="btn-primary btn-sm" onClick={() => setStatus(s, 'active')}>
                       {needsDoctorApproval(s) ? 'Approve doctor' : 'Re-enable'}
                     </button>
@@ -384,13 +409,15 @@ export default function StaffPage() {
                       <td>{accessCount(s)}{s.role === 'doctor' ? '' : ' modules'}</td>
                       <td>
                         <div className="flex gap-2">
-                          <button type="button" className="btn-ghost btn-sm" onClick={() => openEdit(s)}>Edit</button>
-                          {s.staffStatus !== 'inactive' && (
+                          {!(actorIsStaff && s.role === 'doctor') && (
+                            <button type="button" className="btn-ghost btn-sm" onClick={() => openEdit(s)}>Edit</button>
+                          )}
+                          {s.staffStatus !== 'inactive' && !(actorIsStaff && s.role === 'doctor') && (
                             <button type="button" className="btn-ghost btn-sm" onClick={() => setStatus(s, 'inactive')}>
                               Disable
                             </button>
                           )}
-                          {canApprove(s) && (
+                          {canApprove(s, { actorIsStaff }) && (
                             <button type="button" className="btn-primary btn-sm" onClick={() => setStatus(s, 'active')}>
                               {needsDoctorApproval(s) ? 'Approve' : 'Re-enable'}
                             </button>
@@ -493,34 +520,48 @@ export default function StaffPage() {
               onChange={applyPreset}
               disabled={typeLocked}
               ariaLabel="Staff type"
-              options={TYPES.map((r) => ({ value: r, label: r.replace(/_/g, ' ') }))}
+              options={staffTypeOptions.map((r) => ({ value: r, label: r.replace(/_/g, ' ') }))}
             />
             <FieldError id="staff-staffType-error" message={fieldErrors.staffType} />
           </div>
           <div>
             <label htmlFor="staff-branch" className="label-field">
-              Branch {!isDoctorRow ? <RequiredMark /> : null}
+              Branch {!isDoctorRow || requireBranchForDoctor ? <RequiredMark /> : null}
             </label>
             <Dropdown
               id="staff-branch"
               className="mt-0"
-              required={!isDoctorRow}
+              required={!isDoctorRow || requireBranchForDoctor || actorIsStaff}
               value={form.branchIds[0] || ''}
               onChange={(id) => {
+                if (branchLocked) return;
                 setForm({ ...form, branchIds: id ? [id] : [] });
                 clearFieldError('branch');
               }}
-              placeholder={isDoctorRow ? 'Optional' : 'Select branch'}
+              disabled={branchLocked}
+              placeholder={
+                isDoctorRow && !requireBranchForDoctor ? 'Optional (Main = all branches)' : 'Select branch'
+              }
               ariaLabel="Branch"
               options={branchOptions.map((b) => ({
                 value: String(b._id),
-                label: `${b.name}${b.isActive === false ? ' (disabled)' : ''}`,
+                label: `${b.name}${b.isDefault ? ' (Main)' : ''}${b.isActive === false ? ' (disabled)' : ''}`,
               }))}
             />
             <FieldError id="staff-branch-error" message={fieldErrors.branch} />
           </div>
-          {!isDoctorRow && (
-            <p className="text-xs text-ink-faint">Staff operate only in their assigned branch.</p>
+          {isDoctorRow ? (
+            <p className="text-xs text-ink-faint">
+              {requireBranchForDoctor
+                ? 'This doctor will only access records for the selected branch, and can create staff for that branch.'
+                : 'Main branch doctors see all staff and all branch data. A specific non-Main branch limits that doctor to that branch only.'}
+            </p>
+          ) : (
+            <p className="text-xs text-ink-faint">
+              {actorIsStaff
+                ? 'New staff stay on your branch. You cannot create branches or assign other branches.'
+                : 'Staff operate only in their assigned branch.'}
+            </p>
           )}
 
           {!isDoctorRow && (

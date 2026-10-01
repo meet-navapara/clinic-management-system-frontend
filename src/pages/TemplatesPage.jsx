@@ -9,6 +9,7 @@ import Dropdown from '../components/ui/Dropdown';
 import { SkeletonCards } from '../components/ui/Skeleton';
 import { can, P } from '../constants/permissions';
 import { useAuth } from '../context/AuthContext';
+import { useBranch } from '../context/BranchContext';
 import RequiredMark from '../components/ui/RequiredMark';
 
 const TYPES = [
@@ -54,6 +55,7 @@ const typeLabel = (type) => {
 
 export default function TemplatesPage() {
   const { user } = useAuth();
+  const { branchId, current } = useBranch();
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -75,7 +77,7 @@ export default function TemplatesPage() {
     if (typeFilter !== 'all') params.type = typeFilter;
     if (q.trim()) params.q = q.trim();
     api
-      .get('/templates', { params })
+      .get('/templates', { params, skipCache: true })
       .then((res) => {
         let list = Array.isArray(res.data?.templates) ? res.data.templates : [];
         if (statusFilter === 'active') list = list.filter((t) => t?.isActive !== false);
@@ -92,7 +94,7 @@ export default function TemplatesPage() {
   useEffect(() => {
     load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [typeFilter, statusFilter]);
+  }, [typeFilter, statusFilter, branchId]);
 
   const filtered = useMemo(() => {
     if (!q.trim()) return rows;
@@ -188,6 +190,11 @@ export default function TemplatesPage() {
     <div className="page-container">
       <PageHeader
         title="Clinical templates"
+        description={
+          current?.name
+            ? `Templates for ${current.name}. Switch branch to manage another location.`
+            : 'Templates follow the selected branch (or all branches).'
+        }
         description="Reusable visit notes — load them during consultation to fill chief complaint, diagnosis, advice, and more."
         actions={
           canCreate ? (
