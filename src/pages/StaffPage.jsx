@@ -258,8 +258,10 @@ export default function StaffPage() {
         await api.post('/staff', payload);
         toast.success(
           form.staffType === 'doctor'
-            ? 'Doctor added — approve them before they can sign in.'
-            : 'Staff added.'
+            ? 'Doctor added — they must verify email, then be approved before sign-in.'
+            : form.loginEnabled
+              ? 'Staff added — they must verify email with OTP before first sign-in.'
+              : 'Staff added.'
         );
       } else {
         if (form.password) payload.password = form.password;
@@ -324,26 +326,28 @@ export default function StaffPage() {
       <PageHeader
         title="Staff"
         description="Add receptionists, nurses, and additional doctors. New doctors stay Pending until you approve them."
-        actions={<button type="button" className="btn-primary" onClick={openCreate}>Add staff</button>}
+        actions={<button type="button" className="btn-primary shrink-0" onClick={openCreate}>Add staff</button>}
+        toolbar={
+          <div className="flex flex-wrap gap-2 min-w-0 flex-1 sm:flex-none">
+            {[
+              { id: 'all', label: 'All' },
+              { id: 'active', label: 'Active' },
+              { id: 'disabled', label: 'Disabled' },
+            ].map((item) => (
+              <button
+                key={item.id}
+                type="button"
+                onClick={() => setStatusFilter(item.id)}
+                className={`tab-chip ${
+                  statusFilter === item.id ? 'bg-ink text-white' : 'bg-white text-ink-muted ring-1 ring-line'
+                }`}
+              >
+                {item.label}
+              </button>
+            ))}
+          </div>
+        }
       />
-      <div className="flex flex-wrap gap-2 mb-4">
-        {[
-          { id: 'all', label: 'All' },
-          { id: 'active', label: 'Active' },
-          { id: 'disabled', label: 'Disabled' },
-        ].map((item) => (
-          <button
-            key={item.id}
-            type="button"
-            onClick={() => setStatusFilter(item.id)}
-            className={`tab-chip ${
-              statusFilter === item.id ? 'bg-ink text-white' : 'bg-white text-ink-muted ring-1 ring-line'
-            }`}
-          >
-            {item.label}
-          </button>
-        ))}
-      </div>
       {loading ? <SkeletonRows count={PAGE_SIZE} /> : !rows.length ? (
         <EmptyState
           title={statusFilter === 'disabled' ? 'No disabled staff' : 'No staff yet'}
@@ -357,27 +361,33 @@ export default function StaffPage() {
         <>
           <div className="space-y-2 md:hidden">
             {rows.map((s) => (
-              <div key={s._id || s.id} className="card !p-4">
-                <p className="font-semibold">{s.name}</p>
-                <p className="text-sm text-ink-muted capitalize">{staffLabel(s)} · {s.email}</p>
-                <p className="text-xs text-ink-faint mt-1">{branchLabel(s)} · Login {s.role === 'doctor' || s.loginEnabled ? 'enabled' : 'disabled'}</p>
-                <div className="flex flex-wrap gap-2 mt-2">
-                  <Badge value={statusBadgeValue(s)} />
-                  {!(actorIsStaff && s.role === 'doctor') && (
-                    <button type="button" className="btn-ghost btn-sm" onClick={() => openEdit(s)}>
-                      {s.role === 'doctor' ? 'Edit' : 'Manage Access'}
-                    </button>
-                  )}
-                  {s.staffStatus !== 'inactive' && !(actorIsStaff && s.role === 'doctor') && (
-                    <button type="button" className="btn-ghost btn-sm" onClick={() => setStatus(s, 'inactive')}>
-                      Disable
-                    </button>
-                  )}
-                  {canApprove(s, { actorIsStaff }) && (
-                    <button type="button" className="btn-primary btn-sm" onClick={() => setStatus(s, 'active')}>
-                      {needsDoctorApproval(s) ? 'Approve doctor' : 'Re-enable'}
-                    </button>
-                  )}
+              <div key={s._id || s.id} className="card !p-4 flex flex-col min-h-[8.5rem]">
+                <div className="flex items-start justify-between gap-2">
+                  <div className="min-w-0">
+                    <p className="font-semibold truncate">{s.name}</p>
+                    <p className="text-sm text-ink-muted capitalize truncate">{staffLabel(s)} · {s.email}</p>
+                    <p className="text-xs text-ink-faint mt-1">{branchLabel(s)} · Login {s.role === 'doctor' || s.loginEnabled ? 'enabled' : 'disabled'}</p>
+                  </div>
+                  <Badge value={statusBadgeValue(s)} className="shrink-0" />
+                </div>
+                <div className="mt-auto pt-4">
+                  <div className="flex flex-row flex-wrap items-center gap-2 pt-3 border-t border-line">
+                    {!(actorIsStaff && s.role === 'doctor') && (
+                      <button type="button" className="btn-secondary btn-sm" onClick={() => openEdit(s)}>
+                        {s.role === 'doctor' ? 'Edit' : 'Manage Access'}
+                      </button>
+                    )}
+                    {s.staffStatus !== 'inactive' && !(actorIsStaff && s.role === 'doctor') && (
+                      <button type="button" className="btn-danger btn-sm" onClick={() => setStatus(s, 'inactive')}>
+                        Disable
+                      </button>
+                    )}
+                    {canApprove(s, { actorIsStaff }) && (
+                      <button type="button" className="btn-primary btn-sm" onClick={() => setStatus(s, 'active')}>
+                        {needsDoctorApproval(s) ? 'Approve doctor' : 'Re-enable'}
+                      </button>
+                    )}
+                  </div>
                 </div>
               </div>
             ))}
@@ -408,12 +418,14 @@ export default function StaffPage() {
                       <td><Badge value={statusBadgeValue(s)} /></td>
                       <td>{accessCount(s)}{s.role === 'doctor' ? '' : ' modules'}</td>
                       <td>
-                        <div className="flex gap-2">
+                        <div className="flex flex-wrap items-center justify-end gap-2">
                           {!(actorIsStaff && s.role === 'doctor') && (
-                            <button type="button" className="btn-ghost btn-sm" onClick={() => openEdit(s)}>Edit</button>
+                            <button type="button" className="btn-secondary btn-sm" onClick={() => openEdit(s)}>
+                              Edit
+                            </button>
                           )}
                           {s.staffStatus !== 'inactive' && !(actorIsStaff && s.role === 'doctor') && (
-                            <button type="button" className="btn-ghost btn-sm" onClick={() => setStatus(s, 'inactive')}>
+                            <button type="button" className="btn-danger btn-sm" onClick={() => setStatus(s, 'inactive')}>
                               Disable
                             </button>
                           )}

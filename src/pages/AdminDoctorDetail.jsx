@@ -10,6 +10,7 @@ import StatCard from '../components/ui/StatCard';
 import { ApprovalBadge } from '../components/ui/StatusBadge';
 import { SkeletonDetail } from '../components/ui/Skeleton';
 import LoadingOverlay from '../components/ui/LoadingOverlay';
+import PageBack from '../components/ui/PageBack';
 
 export default function AdminDoctorDetail() {
   const { id } = useParams();
@@ -78,6 +79,7 @@ export default function AdminDoctorDetail() {
 
   return (
     <div className="page-container relative">
+      <PageBack />
       <LoadingOverlay show={busy} message="Updating doctor…" />
       <div className="mb-5 min-w-0">
         <div className="flex flex-wrap items-center gap-2 mb-1.5">

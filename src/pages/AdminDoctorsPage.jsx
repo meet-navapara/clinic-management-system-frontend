@@ -125,18 +125,17 @@ export default function AdminDoctorsPage() {
   return (
     <div className="page-container relative">
       <LoadingOverlay show={Boolean(updatingId)} message="Updating doctor…" />
-      <div className="mb-3 sm:mb-5 min-w-0">
-        <p className="section-label mb-0.5 sm:mb-1">Platform</p>
-        <h2 className="page-title">Doctors</h2>
-        <p className="page-subtitle">
-          Approve, reject, suspend, or reactivate doctor accounts.
-        </p>
-      </div>
-
-      <div className="flex flex-col gap-2 sm:gap-3 mb-3 sm:mb-4">
-        <div className="relative min-w-0">
+      <div className="mb-4 sm:mb-5 flex flex-col gap-3 md:flex-row md:items-center md:justify-between md:gap-4">
+        <div className="min-w-0 shrink-0">
+          <p className="section-label mb-0.5 sm:mb-1">Platform</p>
+          <h2 className="page-title">Doctors</h2>
+          <p className="page-subtitle">
+            Approve, reject, suspend, or reactivate doctor accounts.
+          </p>
+        </div>
+        <div className="flex flex-row flex-wrap items-center gap-2 w-full md:w-auto md:justify-end min-w-0">
           <div
-            className="flex gap-1.5 sm:gap-2 overflow-x-auto touch-pan-x overscroll-x-contain [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+            className="flex gap-1.5 sm:gap-2 overflow-x-auto touch-pan-x overscroll-x-contain [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden min-w-0 flex-1 md:flex-none"
             role="tablist"
             aria-label="Doctor status filters"
           >
@@ -155,23 +154,23 @@ export default function AdminDoctorsPage() {
               </button>
             ))}
           </div>
+          <form
+            className="relative min-w-[10rem] flex-1 sm:flex-none sm:w-[13.5rem]"
+            onSubmit={(e) => {
+              e.preventDefault();
+              loadDoctors(1, filter, search);
+            }}
+          >
+            <Search className="absolute left-2.5 sm:left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 sm:w-4 sm:h-4 text-ink-faint pointer-events-none" />
+            <input
+              className="input-field !pl-8 sm:!pl-9"
+              placeholder="Search doctors"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              aria-label="Search doctors"
+            />
+          </form>
         </div>
-        <form
-          className="relative w-full sm:max-w-xs sm:ml-auto"
-          onSubmit={(e) => {
-            e.preventDefault();
-            loadDoctors(1, filter, search);
-          }}
-        >
-          <Search className="absolute left-2.5 sm:left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 sm:w-4 sm:h-4 text-ink-faint pointer-events-none" />
-          <input
-            className="input-field !pl-8 sm:!pl-9"
-            placeholder="Search doctors"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            aria-label="Search doctors"
-          />
-        </form>
       </div>
 
       {loading ? (

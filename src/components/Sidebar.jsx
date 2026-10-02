@@ -7,7 +7,6 @@ import {
   Leaf,
   Bell,
   Users,
-  Inbox,
   X,
   Receipt,
   GitBranch,
@@ -16,7 +15,6 @@ import {
   Printer,
   IndianRupee,
   ClipboardList,
-  Search,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { LOGO_URL, LOGO_MARK_URL, APP_NAME } from '../constants/branding';
@@ -48,7 +46,6 @@ function getNavLinks(user) {
       { to: ROUTES.doctorDashboard, label: 'Dashboard', icon: LayoutDashboard, end: true },
       { to: ROUTES.doctorCalendar, label: 'Appointments', icon: CalendarDays, end: true },
       { to: ROUTES.doctorPatients, label: 'Patients', icon: Users, match: 'patients' },
-      { to: ROUTES.search, label: 'Search', icon: Search, end: true },
       { to: ROUTES.doctorBook, label: 'Schedule', icon: Calendar, end: true },
       { to: ROUTES.doctorNotifications, label: 'Reminders', icon: Bell, end: true },
       { to: ROUTES.branches, label: 'Branches', icon: GitBranch, end: true },
@@ -58,14 +55,12 @@ function getNavLinks(user) {
       { to: ROUTES.templates, label: 'Templates', icon: ClipboardList, end: true },
       { to: ROUTES.campaigns, label: 'Campaigns', icon: Megaphone, end: true },
       { to: ROUTES.printSettings, label: 'Print Settings', icon: Printer, end: true },
-      { to: ROUTES.doctorInbox, label: 'Inbox', icon: Inbox, end: true, badge: 'inbox' },
     ];
   }
   if (isStaffUser(user)) {
     const links = [{ to: ROUTES.deskDashboard, label: 'Dashboard', icon: LayoutDashboard, end: true }];
     if (can(user, P.APPOINTMENTS_VIEW)) links.push({ to: ROUTES.doctorCalendar, label: 'Appointments', icon: CalendarDays, end: true });
     if (can(user, P.PATIENTS_VIEW)) links.push({ to: ROUTES.doctorPatients, label: 'Patients', icon: Users, match: 'patients' });
-    if (can(user, P.SEARCH)) links.push({ to: ROUTES.search, label: 'Search', icon: Search, end: true });
     if (can(user, P.APPOINTMENTS_MANAGE)) links.push({ to: ROUTES.doctorBook, label: 'Schedule', icon: Calendar, end: true });
     if (can(user, P.BILLING_VIEW)) links.push({ to: ROUTES.billing, label: 'Billing', icon: Receipt, end: true });
     if (can(user, P.REVENUE_ALL)) links.push({ to: ROUTES.revenue, label: 'Revenue', icon: IndianRupee, end: true });

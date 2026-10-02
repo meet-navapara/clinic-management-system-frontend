@@ -7,7 +7,9 @@ import { useBranch } from '../context/BranchContext';
 import SkeletonPage from '../components/ui/Skeleton';
 import { fillMethodBreakdown, paymentMethodLabel } from '../constants/payments';
 import ComingSoonPage from '../components/ui/ComingSoonPage';
+import DateRangeFilter from '../components/ui/DateRangeFilter';
 import { REVENUE_COMING_SOON } from '../constants/featureFlags';
+import { resolveDateRange } from '../utils/dateRangePresets';
 
 const METHOD_ICON = {
   cash: Banknote,
@@ -20,6 +22,7 @@ const METHOD_ICON = {
 
 export default function RevenuePage() {
   const { branchId, current } = useBranch();
+  const [range, setRange] = useState(() => resolveDateRange('thisMonth'));
   const [summary, setSummary] = useState(null);
   const [loading, setLoading] = useState(true);
 
@@ -31,11 +34,11 @@ export default function RevenuePage() {
     setSummary(null);
     setLoading(true);
     api
-      .get('/billing/revenue')
+      .get('/billing/revenue', { params: { from: range.from, to: range.to } })
       .then((res) => setSummary(res.data.summary))
       .catch((err) => toast.error(err.response?.data?.message || 'Not authorized or failed to load revenue.'))
       .finally(() => setLoading(false));
-  }, [branchId]);
+  }, [branchId, range.from, range.to]);
 
   const methods = useMemo(() => fillMethodBreakdown(summary?.byMethod || []), [summary]);
 
@@ -57,7 +60,10 @@ export default function RevenuePage() {
   if (!summary) {
     return (
       <div className="page-container">
-        <h1 className="page-title">Revenue</h1>
+        <div className="mb-4 flex flex-col sm:flex-row sm:items-end sm:justify-between gap-3">
+          <h1 className="page-title">Revenue</h1>
+          <DateRangeFilter value={range} onChange={setRange} className="min-w-[10.5rem] flex-1 sm:flex-none sm:w-[13.5rem]" />
+        </div>
         <p className="mt-2 text-sm text-ink-muted">Could not load revenue data.</p>
       </div>
     );
@@ -73,17 +79,27 @@ export default function RevenuePage() {
           aria-hidden
         />
         <div className="relative p-5 sm:p-7">
-          <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-white/55">
-            Revenue · all recorded payments
-          </p>
-          <h1 className="mt-2 text-[32px] sm:text-[40px] font-semibold tracking-tight leading-none">
-            Collections
-          </h1>
-          <p className="mt-2 text-sm text-white/70 max-w-md">
-            {current?.name
-              ? `${current.name} · net of refunds`
-              : 'All branches · net of refunds'}
-          </p>
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            <div className="min-w-0">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-white/55">
+                Revenue · {range.label}
+              </p>
+              <h1 className="mt-2 text-[32px] sm:text-[40px] font-semibold tracking-tight leading-none">
+                Collections
+              </h1>
+              <p className="mt-2 text-sm text-white/70 max-w-md">
+                {current?.name
+                  ? `${current.name} · net of refunds`
+                  : 'All branches · net of refunds'}
+              </p>
+            </div>
+            <DateRangeFilter
+              value={range}
+              onChange={setRange}
+              className="min-w-[10.5rem] flex-1 sm:flex-none sm:w-[13.5rem] shrink-0 [&_button.btn-secondary]:bg-white/95"
+              align="end"
+            />
+          </div>
 
           <div className="mt-7 grid grid-cols-2 lg:grid-cols-4 gap-3">
             {[

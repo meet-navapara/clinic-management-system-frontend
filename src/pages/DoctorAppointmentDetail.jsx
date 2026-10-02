@@ -24,6 +24,7 @@ import EmptyState from '../components/ui/EmptyState';
 import UserAvatar from '../components/UserAvatar';
 import { SkeletonDetail } from '../components/ui/Skeleton';
 import LoadingOverlay from '../components/ui/LoadingOverlay';
+import PageBack from '../components/ui/PageBack';
 import { normalizeAppointmentStatus } from '../constants/appointmentStatus';
 import { can, P } from '../constants/permissions';
 import { filterFutureSlots } from '../utils/timeSlots';
@@ -179,6 +180,7 @@ export default function DoctorAppointmentDetail() {
 
   return (
     <div className="page-container relative">
+      <PageBack />
       <LoadingOverlay show={busy} message="Updating…" />
       <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 mb-5">
         <div>

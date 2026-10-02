@@ -293,14 +293,9 @@ export default function PrintSettingsPage() {
   if (!form) return <SkeletonPage cards={0} rows={8} />;
 
   const saveActions = (
-    <div className="flex flex-wrap gap-2">
-      <button type="submit" form="print-settings-form" className="btn-primary" disabled={saving}>
-        {saving ? 'Saving…' : 'Save'}
-      </button>
-      <Link to={ROUTES.printPreview} className="btn-secondary">
-        Open print preview
-      </Link>
-    </div>
+    <Link to={ROUTES.printPreview} className="btn-secondary">
+      Open print preview
+    </Link>
   );
 
   return (
@@ -666,13 +661,10 @@ export default function PrintSettingsPage() {
           </div>
         </section>
 
-        <div className="flex flex-wrap gap-2 sticky bottom-0 z-10 -mx-1 px-1 py-3 bg-canvas/95 backdrop-blur border-t border-line mt-2">
-          <button type="submit" className="btn-primary" disabled={saving}>
+        <div className="flex justify-end sticky bottom-0 z-10 -mx-1 px-1 py-3 bg-canvas/95 backdrop-blur border-t border-line mt-2">
+          <button type="submit" className="btn-primary w-full sm:w-auto justify-center" disabled={saving}>
             {saving ? 'Saving…' : 'Save'}
           </button>
-          <Link to={ROUTES.printPreview} className="btn-secondary">
-            Open print preview
-          </Link>
         </div>
       </form>
     </div>

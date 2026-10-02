@@ -6,7 +6,6 @@ import api from '../utils/api';
 import toast from 'react-hot-toast';
 import { ROUTES } from '../constants/routes';
 import { useAuth } from '../context/AuthContext';
-import { can, P } from '../constants/permissions';
 import { useBranch } from '../context/BranchContext';
 import {
   normalizeIndianMobile,
@@ -27,6 +26,7 @@ import Dropdown from '../components/ui/Dropdown';
 import DobDatepicker from '../components/DobDatepicker';
 import Checkbox from '../components/ui/Checkbox';
 import RequiredMark from '../components/ui/RequiredMark';
+import PageBack from '../components/ui/PageBack';
 import { compressImageToDataUrl } from '../utils/image';
 
 const FALLBACK_ROOMS = ['OPD', 'Room 1', 'Room 2', 'Room 3', 'Ward'];
@@ -378,7 +378,7 @@ export default function DoctorPatientNew() {
     };
   };
 
-  const savePatient = async (after = 'profile') => {
+  const savePatient = async () => {
     const payload = validate();
     if (!payload) return;
     setLoading(true);
@@ -386,13 +386,7 @@ export default function DoctorPatientNew() {
       const res = await api.post('/patients', payload);
       const patient = res.data.patient;
       toast.success(`Patient created successfully · ${patient.patientCode || ''}`);
-      if (after === 'list') {
-        navigate(ROUTES.doctorPatients);
-      } else if (after === 'book') {
-        navigate(`${ROUTES.doctorBook}?patientId=${patient._id}`);
-      } else {
-        navigate(ROUTES.doctorPatientDetail(patient._id));
-      }
+      navigate(ROUTES.doctorPatients);
     } catch (err) {
       toast.error(err.response?.data?.message || 'Failed to create patient.');
       if (err.response?.data?.errors) setFieldErrors(err.response.data.errors);
@@ -403,6 +397,7 @@ export default function DoctorPatientNew() {
 
   return (
     <div className="page-container">
+      <PageBack />
       <div className="mb-4">
         <h1 className="page-title">Patient Registration</h1>
         <p className="text-sm text-ink-muted mt-1">Capture full patient details for clinical records.</p>
@@ -420,40 +415,13 @@ export default function DoctorPatientNew() {
         noValidate
         onSubmit={(e) => {
           e.preventDefault();
-          savePatient('profile');
+          savePatient();
         }}
       >
         <fieldset
           disabled={loading}
           className="space-y-5 border-0 p-0 m-0 min-w-0 [&_input.input-field]:h-10 [&_input.input-field]:min-h-10 [&_input.input-field]:py-0 [&_button.input-field]:h-10 [&_button.input-field]:min-h-10 [&_button.input-field]:py-0"
         >
-          <div className="sticky top-0 z-20 -mx-1 px-1 py-2 mb-1 border-b border-line bg-white/95 backdrop-blur-sm flex flex-wrap gap-2">
-            <button type="submit" className="btn-primary" disabled={loading}>
-              {loading ? 'Saving...' : 'Add Patient'}
-            </button>
-            <button
-              type="button"
-              className="inline-flex items-center justify-center min-h-10 px-3 rounded-md text-sm font-semibold text-white bg-red-600 hover:bg-red-700 disabled:opacity-50"
-              disabled={loading}
-              onClick={() => savePatient('profile')}
-            >
-              Add Patient and Go to Profile
-            </button>
-            {can(user, P.APPOINTMENTS_MANAGE) && (
-              <button
-                type="button"
-                className="inline-flex items-center justify-center min-h-10 px-3 rounded-md text-sm font-semibold text-white bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50"
-                disabled={loading}
-                onClick={() => savePatient('book')}
-              >
-                Add Patient & Book Appointment
-              </button>
-            )}
-            <Link to={ROUTES.doctorPatients} className="btn-secondary">
-              Cancel
-            </Link>
-          </div>
-
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-5 items-start">
             <div className="lg:col-span-2 min-w-0 grid grid-cols-1 sm:grid-cols-2 gap-x-3 gap-y-4 items-start">
               <p className="label-field sm:col-span-2 mb-0">
@@ -866,6 +834,15 @@ export default function DoctorPatientNew() {
                 </div>
               </div>
             </aside>
+          </div>
+
+          <div className="pt-4 border-t border-line flex flex-col-reverse sm:flex-row sm:justify-end gap-2">
+            <Link to={ROUTES.doctorPatients} className="btn-secondary w-full sm:w-auto justify-center">
+              Cancel
+            </Link>
+            <button type="submit" className="btn-primary w-full sm:w-auto justify-center" disabled={loading}>
+              {loading ? 'Saving…' : 'Add patient'}
+            </button>
           </div>
         </fieldset>
       </form>

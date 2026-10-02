@@ -4,6 +4,7 @@ import { BrowserRouter } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast';
 import App from './App';
 import ScrollToTop from './components/ScrollToTop';
+import NavigationTracker from './components/NavigationTracker';
 import { AuthProvider } from './context/AuthContext';
 import { BranchProvider } from './context/BranchContext';
 import ErrorBoundary from './components/ErrorBoundary';
@@ -13,6 +14,7 @@ ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
     <BrowserRouter>
       <ScrollToTop />
+      <NavigationTracker />
       <ErrorBoundary>
         <AuthProvider>
           <BranchProvider>

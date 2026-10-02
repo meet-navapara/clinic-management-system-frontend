@@ -171,6 +171,7 @@ export default function Datepicker({
       ? createPortal(
           <div
             ref={panelRef}
+            data-datepicker-panel="true"
             className="fixed z-[80] bg-white rounded-lg border border-[#e8e0d4] shadow-xl p-3"
             style={{
               top: panelPos.top,

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Plus, Search } from 'lucide-react';
 import api from '../utils/api';
 import toast from 'react-hot-toast';
@@ -6,11 +6,13 @@ import PageHeader from '../components/ui/PageHeader';
 import EmptyState from '../components/ui/EmptyState';
 import Modal from '../components/ui/Modal';
 import Dropdown from '../components/ui/Dropdown';
+import Pagination from '../components/ui/Pagination';
 import { SkeletonCards } from '../components/ui/Skeleton';
 import { can, P } from '../constants/permissions';
 import { useAuth } from '../context/AuthContext';
 import { useBranch } from '../context/BranchContext';
 import RequiredMark from '../components/ui/RequiredMark';
+import { PAGE_SIZE } from '../constants/pagination';
 
 const TYPES = [
   { id: 'all', label: 'All types' },
@@ -20,6 +22,14 @@ const TYPES = [
   { id: 'prescription_instructions', label: 'Prescription instructions' },
   { id: 'followup_instructions', label: 'Follow-up instructions' },
 ];
+
+const STATUS_OPTIONS = [
+  { value: 'active', label: 'Active' },
+  { value: 'inactive', label: 'Inactive' },
+  { value: 'all', label: 'All statuses' },
+];
+
+const TYPE_OPTIONS = TYPES.map((t) => ({ value: t.id, label: t.label }));
 
 const FIELD_KEYS = [
   ['chiefComplaint', 'Chief complaint'],
@@ -64,43 +74,44 @@ export default function TemplatesPage() {
   const [saving, setSaving] = useState(false);
   const [form, setForm] = useState(() => emptyForm());
   const [q, setQ] = useState('');
+  const [search, setSearch] = useState('');
   const [typeFilter, setTypeFilter] = useState('all');
   const [statusFilter, setStatusFilter] = useState('active');
+  const [page, setPage] = useState(1);
+  const [pages, setPages] = useState(1);
+  const [total, setTotal] = useState(0);
   const canClinic = can(user, P.TEMPLATES_CLINIC);
   const canCreate = canClinic || can(user, P.TEMPLATES_OWN);
 
-  const load = () => {
+  const load = (p = 1) => {
     setLoading(true);
     setError('');
-    const params = {};
-    if (statusFilter === 'all' || statusFilter === 'inactive') params.active = 'all';
+    const params = { page: p, limit: PAGE_SIZE };
+    if (statusFilter === 'all') params.active = 'all';
+    else if (statusFilter === 'inactive') params.active = 'false';
     if (typeFilter !== 'all') params.type = typeFilter;
-    if (q.trim()) params.q = q.trim();
+    if (search.trim()) params.q = search.trim();
     api
       .get('/templates', { params, skipCache: true })
       .then((res) => {
-        let list = Array.isArray(res.data?.templates) ? res.data.templates : [];
-        if (statusFilter === 'active') list = list.filter((t) => t?.isActive !== false);
-        if (statusFilter === 'inactive') list = list.filter((t) => t?.isActive === false);
-        setRows(list);
+        setRows(Array.isArray(res.data?.templates) ? res.data.templates : []);
+        setPage(res.data.page || 1);
+        setPages(res.data.pages || 1);
+        setTotal(res.data.total || 0);
       })
       .catch((err) => {
         setRows([]);
+        setTotal(0);
+        setPages(1);
         setError(err.response?.data?.message || 'Could not load templates.');
       })
       .finally(() => setLoading(false));
   };
 
   useEffect(() => {
-    load();
+    load(1);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [typeFilter, statusFilter, branchId]);
-
-  const filtered = useMemo(() => {
-    if (!q.trim()) return rows;
-    const needle = q.trim().toLowerCase();
-    return rows.filter((t) => String(t?.name || '').toLowerCase().includes(needle));
-  }, [rows, q]);
+  }, [typeFilter, statusFilter, search, branchId]);
 
   const openCreate = () => {
     setEditingId(null);
@@ -118,7 +129,16 @@ export default function TemplatesPage() {
       name: t.name || '',
       type: t.type || 'consultation',
       ownerType: t.ownerType === 'clinic' ? 'clinic' : 'doctor',
-      fields: { ...emptyForm().fields, ...fields },
+      fields: {
+        chiefComplaint: fields.chiefComplaint || '',
+        symptoms: fields.symptoms || '',
+        observation: fields.observation || '',
+        diagnosis: fields.diagnosis || '',
+        treatment: fields.treatment || '',
+        advice: fields.advice || '',
+        followUp: fields.followUp || '',
+        instructions: fields.instructions || '',
+      },
     });
     setOpen(true);
   };
@@ -151,7 +171,7 @@ export default function TemplatesPage() {
       setOpen(false);
       setEditingId(null);
       setForm(emptyForm());
-      load();
+      load(page);
     } catch (err) {
       toast.error(err.response?.data?.message || 'Save failed.');
     } finally {
@@ -164,7 +184,7 @@ export default function TemplatesPage() {
     try {
       await api.patch(`/templates/${t._id}`, { isActive: false });
       toast.success('Template deactivated.');
-      load();
+      load(page);
     } catch (err) {
       toast.error(err.response?.data?.message || 'Could not deactivate template.');
     }
@@ -174,7 +194,7 @@ export default function TemplatesPage() {
     try {
       await api.patch(`/templates/${t._id}`, { isActive: true });
       toast.success('Template restored.');
-      load();
+      load(page);
     } catch (err) {
       toast.error(err.response?.data?.message || 'Could not restore template.');
     }
@@ -192,58 +212,54 @@ export default function TemplatesPage() {
         title="Clinical templates"
         description={
           current?.name
-            ? `Templates for ${current.name}. Switch branch to manage another location.`
-            : 'Templates follow the selected branch (or all branches).'
+            ? `Reusable visit notes for ${current.name}. Load them during consultation to fill chief complaint, diagnosis, advice, and more.`
+            : 'Reusable visit notes — load them during consultation to fill chief complaint, diagnosis, advice, and more.'
         }
-        description="Reusable visit notes — load them during consultation to fill chief complaint, diagnosis, advice, and more."
         actions={
           canCreate ? (
-            <button type="button" className="btn-primary" onClick={openCreate}>
+            <button type="button" className="btn-primary shrink-0 w-auto justify-center" onClick={openCreate}>
               <Plus className="w-4 h-4" /> New template
             </button>
           ) : null
         }
+        toolbar={
+          <form
+            className="relative min-w-0 flex-1 sm:min-w-[12rem] sm:max-w-xs"
+            onSubmit={(e) => {
+              e.preventDefault();
+              setSearch(q.trim());
+            }}
+          >
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-ink-faint" />
+            <input
+              className="input-field !pl-9"
+              placeholder="Search by name"
+              value={q}
+              onChange={(e) => setQ(e.target.value)}
+            />
+          </form>
+        }
+        filters={
+          <>
+            <div className="min-w-0 flex-1 sm:flex-none sm:w-44">
+              <Dropdown
+                value={statusFilter}
+                onChange={setStatusFilter}
+                options={STATUS_OPTIONS}
+                ariaLabel="Status filter"
+              />
+            </div>
+            <div className="min-w-0 flex-1 sm:flex-none sm:w-52">
+              <Dropdown
+                value={typeFilter}
+                onChange={setTypeFilter}
+                options={TYPE_OPTIONS}
+                ariaLabel="Type filter"
+              />
+            </div>
+          </>
+        }
       />
-
-      <div className="flex flex-col sm:flex-row gap-3 mb-4">
-        <form
-          className="relative flex-1 max-w-md"
-          onSubmit={(e) => {
-            e.preventDefault();
-            load();
-          }}
-        >
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-ink-faint" />
-          <input
-            className="input-field !pl-9"
-            placeholder="Search by name"
-            value={q}
-            onChange={(e) => setQ(e.target.value)}
-          />
-        </form>
-        <select
-          className="input-field sm:w-44"
-          value={statusFilter}
-          onChange={(e) => setStatusFilter(e.target.value)}
-          aria-label="Status filter"
-        >
-          <option value="active">Active</option>
-          <option value="inactive">Inactive</option>
-          <option value="all">All statuses</option>
-        </select>
-        <select
-          className="input-field sm:w-52"
-          value={typeFilter}
-          onChange={(e) => setTypeFilter(e.target.value)}
-          aria-label="Type filter"
-        >
-          {TYPES.map((t) => (
-            <option key={t.id} value={t.id}>
-              {t.label}
-            </option>
-          ))}
-        </select>
-      </div>
 
       {loading ? (
         <SkeletonCards count={6} className="!grid-cols-1 sm:!grid-cols-2 xl:!grid-cols-3" />
@@ -252,21 +268,21 @@ export default function TemplatesPage() {
           title="Templates unavailable"
           description={error}
           action={
-            <button type="button" className="btn-secondary" onClick={load}>
+            <button type="button" className="btn-secondary" onClick={() => load(page)}>
               Try again
             </button>
           }
         />
-      ) : !filtered.length ? (
+      ) : !rows.length ? (
         <EmptyState
-          title={q.trim() || typeFilter !== 'all' || statusFilter !== 'active' ? 'No matches' : 'No templates yet'}
+          title={search.trim() || typeFilter !== 'all' || statusFilter !== 'active' ? 'No matches' : 'No templates yet'}
           description={
-            q.trim() || typeFilter !== 'all' || statusFilter !== 'active'
+            search.trim() || typeFilter !== 'all' || statusFilter !== 'active'
               ? 'Try another search or filter.'
               : 'Save a consultation template so you can load it during a visit.'
           }
           action={
-            canCreate && !q.trim() && typeFilter === 'all' && statusFilter === 'active' ? (
+            canCreate && !search.trim() && typeFilter === 'all' && statusFilter === 'active' ? (
               <button type="button" className="btn-primary" onClick={openCreate}>
                 Create template
               </button>
@@ -274,8 +290,9 @@ export default function TemplatesPage() {
           }
         />
       ) : (
+        <>
         <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3">
-          {filtered.map((t) => {
+          {rows.map((t) => {
             const id = t?._id || t?.name;
             const inactive = t?.isActive === false;
             const editable = canEditRow(t);
@@ -283,7 +300,7 @@ export default function TemplatesPage() {
             return (
               <div
                 key={id}
-                className={`card relative ${inactive ? 'opacity-60' : ''}`}
+                className={`card relative h-full flex flex-col ${inactive ? 'opacity-60' : ''}`}
               >
                 <div className="flex justify-between gap-2">
                   <div className="min-w-0">
@@ -300,27 +317,31 @@ export default function TemplatesPage() {
                     {inactive ? 'Inactive' : 'Active'}
                   </span>
                 </div>
-                <p className="text-sm text-ink-faint mt-2">Visibility: {visibility}</p>
-                <div className="flex flex-wrap gap-2 mt-3">
-                  <button type="button" className="btn-secondary btn-sm" onClick={() => openEdit(t)}>
-                    View
-                  </button>
-                  {editable ? (
-                    inactive ? (
-                      <button type="button" className="btn-ghost btn-sm" onClick={() => restore(t)}>
-                        Restore
-                      </button>
-                    ) : (
-                      <button type="button" className="btn-ghost btn-sm" onClick={() => deactivate(t)}>
-                        Deactivate
-                      </button>
-                    )
-                  ) : null}
+                <p className="text-sm text-ink-faint mt-2 flex-1">Visibility: {visibility}</p>
+                <div className="mt-auto pt-4">
+                  <div className="flex flex-row flex-wrap items-center gap-2 pt-3 border-t border-line">
+                    <button type="button" className="btn-secondary btn-sm" onClick={() => openEdit(t)}>
+                      View
+                    </button>
+                    {editable ? (
+                      inactive ? (
+                        <button type="button" className="btn-primary btn-sm" onClick={() => restore(t)}>
+                          Restore
+                        </button>
+                      ) : (
+                        <button type="button" className="btn-danger btn-sm" onClick={() => deactivate(t)}>
+                          Deactivate
+                        </button>
+                      )
+                    ) : null}
+                  </div>
                 </div>
               </div>
             );
           })}
         </div>
+        <Pagination page={page} pages={pages} total={total} limit={PAGE_SIZE} onPage={load} />
+        </>
       )}
 
       <Modal

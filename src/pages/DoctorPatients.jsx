@@ -82,23 +82,26 @@ export default function DoctorPatients() {
 
   return (
     <div className="page-container">
-      <PageHeader actions={addPatientLink} />
-
-      <div className="mb-4">
-        <label htmlFor="patient-search" className="sr-only">
-          Search patients
-        </label>
-        <div className="relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-ink-faint" aria-hidden />
-          <input
-            id="patient-search"
-            className="input-field pl-9"
-            placeholder="Search name, phone, email, or PAT-ID"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-          />
-        </div>
-      </div>
+      <PageHeader
+        title="Patients"
+        crumb="Practice"
+        actions={addPatientLink}
+        toolbar={
+          <div className="relative min-w-[10rem] flex-1 sm:min-w-[14rem] sm:max-w-xs lg:max-w-sm">
+            <label htmlFor="patient-search" className="sr-only">
+              Search patients
+            </label>
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-ink-faint" aria-hidden />
+            <input
+              id="patient-search"
+              className="input-field pl-9"
+              placeholder="Search name, phone, email, or PAT-ID"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+            />
+          </div>
+        }
+      />
 
       {loading ? (
         <SkeletonRows count={PAGE_SIZE} />
@@ -134,9 +137,6 @@ export default function DoctorPatients() {
         />
       ) : (
         <>
-          <p className="text-xs text-ink-faint mb-2">
-            {meta.total} patient{meta.total === 1 ? '' : 's'}
-          </p>
           <div className="hidden md:block card !p-0 overflow-hidden">
             <div className="data-table-wrap">
               <table className="data-table">

@@ -19,14 +19,10 @@ import { patientDisplayName } from '../utils/display';
 import StatCard from '../components/ui/StatCard';
 import EmptyState from '../components/ui/EmptyState';
 import StatusBadge from '../components/ui/StatusBadge';
+import DateRangeFilter from '../components/ui/DateRangeFilter';
 import { SkeletonCards, SkeletonRows } from '../components/ui/Skeleton';
 import { PAGE_SIZE } from '../constants/pagination';
-
-const PERIODS = [
-  { id: 'today', label: 'Today' },
-  { id: 'week', label: 'Week' },
-  { id: 'month', label: 'Month' },
-];
+import { isSingleDayRange, resolveDateRange } from '../utils/dateRangePresets';
 
 function greeting() {
   const h = new Date().getHours();
@@ -35,32 +31,28 @@ function greeting() {
   return 'Good evening';
 }
 
-function periodTitle(period) {
-  if (period === 'week') return 'This week';
-  if (period === 'month') return 'This month';
-  return 'Today';
-}
-
-function formatApptWhen(appt, period) {
+function formatApptWhen(appt, range) {
   const d = new Date(appt.appointmentDate);
   if (!isValid(d)) return appt.timeSlot || '—';
-  if (period === 'today' || isSameDay(d, new Date())) return appt.timeSlot || '—';
+  if (isSingleDayRange(range) || isSameDay(d, new Date())) return appt.timeSlot || '—';
   return `${format(d, 'EEE, MMM d')} · ${appt.timeSlot || '—'}`;
 }
 
 export default function DoctorDashboard() {
   const { user } = useAuth();
   const { branchId } = useBranch();
-  const [period, setPeriod] = useState('today');
+  const [range, setRange] = useState(() => resolveDateRange('thisMonth'));
   const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
 
-  const load = (selectedPeriod = period) => {
+  const load = (selectedRange = range) => {
     setLoading(true);
     setError(false);
     api
-      .get('/appointments/dashboard-stats', { params: { period: selectedPeriod } })
+      .get('/appointments/dashboard-stats', {
+        params: { from: selectedRange.from, to: selectedRange.to },
+      })
       .then((res) => setStats(res.data.stats))
       .catch(() => {
         setError(true);
@@ -70,57 +62,50 @@ export default function DoctorDashboard() {
   };
 
   useEffect(() => {
-    load(period);
+    load(range);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [branchId, period]);
+  }, [branchId, range.from, range.to]);
 
   const name = user?.name?.replace(/^Dr\.?\s*/i, '') || '';
-  const range = stats?.period || stats?.today || {};
+  const periodStats = stats?.period || stats?.today || {};
   const patients = stats?.patients || {};
   const appointments = stats?.appointments || {};
-  const title = periodTitle(period);
-  // Stat cards always follow the page period filter (Today / Week / Month) + branch.
-  const patientCount = range.patients ?? patients.inPeriod ?? 0;
-  const completedCount = range.completed ?? 0;
-  const SCHEDULE_LIMIT = period === 'today' ? 20 : 10;
-  const allScheduleAppts = Array.isArray(range.appointments) ? range.appointments : [];
-  const scheduleAppts =
-    period === 'today'
-      ? allScheduleAppts.slice(0, SCHEDULE_LIMIT)
-      : allScheduleAppts.slice(-SCHEDULE_LIMIT);
+  const title = range.label || 'Selected period';
+  const singleDay = isSingleDayRange(range);
+  const patientCount = periodStats.patients ?? patients.inPeriod ?? 0;
+  const completedCount = periodStats.completed ?? 0;
+  const SCHEDULE_LIMIT = singleDay ? 20 : 10;
+  const allScheduleAppts = Array.isArray(periodStats.appointments) ? periodStats.appointments : [];
+  const scheduleAppts = singleDay
+    ? allScheduleAppts.slice(0, SCHEDULE_LIMIT)
+    : allScheduleAppts.slice(-SCHEDULE_LIMIT);
   const scheduleTotal = allScheduleAppts.length;
   const scheduleHidden = Math.max(0, scheduleTotal - scheduleAppts.length);
 
   return (
     <div className="page-container">
-      <div className="mb-6 flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4">
-        <div>
+      <div className="mb-6 flex flex-col gap-3 md:flex-row md:items-center md:justify-between md:gap-4">
+        <div className="min-w-0 shrink-0">
           <p className="section-label mb-1">{format(new Date(), 'EEEE, MMMM d')}</p>
           <h2 className="page-title">
             {greeting()}, Dr. {name}
           </h2>
         </div>
-        <div className="flex flex-wrap gap-2 items-center">
-          <div className="inline-flex rounded-[10px] border border-[#e5e7eb] bg-white p-0.5">
-            {PERIODS.map((p) => (
-              <button
-                key={p.id}
-                type="button"
-                onClick={() => setPeriod(p.id)}
-                className={`min-h-8 px-3 rounded-[8px] text-sm font-medium transition-colors duration-150 ${
-                  period === p.id ? 'bg-[#1c2430] text-white' : 'text-[#6b7280] hover:text-[#1c2430]'
-                }`}
-              >
-                {p.label}
-              </button>
-            ))}
+        <div className="flex flex-col gap-2 w-full md:w-auto md:flex-row md:items-center md:justify-end">
+          <DateRangeFilter
+            value={range}
+            onChange={setRange}
+            className="w-full md:w-[13.5rem]"
+            align="end"
+          />
+          <div className="flex flex-row gap-2 w-full md:w-auto">
+            <Link to={ROUTES.doctorPatientNew} className="btn-secondary flex-1 md:flex-none justify-center">
+              <UserPlus className="w-4 h-4" /> Add patient
+            </Link>
+            <Link to={ROUTES.doctorBook} className="btn-primary flex-1 md:flex-none justify-center">
+              <CalendarPlus className="w-4 h-4" /> Schedule
+            </Link>
           </div>
-          <Link to={ROUTES.doctorPatientNew} className="btn-secondary">
-            <UserPlus className="w-4 h-4" /> Add patient
-          </Link>
-          <Link to={ROUTES.doctorBook} className="btn-primary">
-            <CalendarPlus className="w-4 h-4" /> Schedule
-          </Link>
         </div>
       </div>
 
@@ -134,7 +119,7 @@ export default function DoctorDashboard() {
           title="Unable to load dashboard"
           description="Check your connection and try again."
           action={
-            <button type="button" className="btn-secondary" onClick={() => load(period)}>
+            <button type="button" className="btn-secondary" onClick={() => load(range)}>
               Try again
             </button>
           }
@@ -146,52 +131,52 @@ export default function DoctorDashboard() {
             <div className="stat-grid">
               <StatCard
                 label="Appointments"
-                value={range.total ?? 0}
+                value={periodStats.total ?? 0}
                 icon={Calendar}
                 to={ROUTES.doctorCalendar}
               />
               <StatCard
-                label={period === 'today' ? 'Pending today' : 'Pending'}
-                value={range.scheduled ?? 0}
+                label={singleDay ? 'Pending today' : 'Pending'}
+                value={periodStats.scheduled ?? 0}
                 icon={Clock}
                 to={ROUTES.doctorCalendar}
               />
               <StatCard
-                label={period === 'today' ? 'Completed today' : 'Completed'}
+                label={singleDay ? 'Completed today' : 'Completed'}
                 value={completedCount}
                 icon={CheckCircle}
                 to={ROUTES.doctorCalendar}
               />
               <StatCard
-                label={period === 'today' ? 'Patients today' : 'Patients seen'}
+                label={singleDay ? 'Patients today' : 'Patients seen'}
                 value={patientCount}
                 icon={Users}
                 to={ROUTES.doctorPatients}
               />
             </div>
-            {(range.cancelled > 0 || range.noShow > 0) && (
+            {(periodStats.cancelled > 0 || periodStats.noShow > 0) && (
               <p className="text-xs text-ink-faint mt-2">
-                Also: {range.cancelled > 0 ? `${range.cancelled} cancelled` : ''}
-                {range.cancelled > 0 && range.noShow > 0 ? ' · ' : ''}
-                {range.noShow > 0 ? `${range.noShow} no-show` : ''}
+                Also: {periodStats.cancelled > 0 ? `${periodStats.cancelled} cancelled` : ''}
+                {periodStats.cancelled > 0 && periodStats.noShow > 0 ? ' · ' : ''}
+                {periodStats.noShow > 0 ? `${periodStats.noShow} no-show` : ''}
               </p>
             )}
           </section>
 
           <div className="grid xl:grid-cols-2 gap-6">
             <section>
-              <div className="flex items-center justify-between mb-3">
-                <h3 className="text-sm font-semibold text-ink">
-                  {period === 'today' ? 'Today’s schedule' : `${title} schedule`}
+              <div className="flex items-center justify-between gap-2 mb-3">
+                <h3 className="text-sm font-semibold text-ink min-w-0 truncate">
+                  {singleDay ? 'Today’s schedule' : `${title} schedule`}
                 </h3>
-                <Link to={ROUTES.doctorCalendar} className="text-xs font-semibold text-accent-700 hover:underline">
+                <Link to={ROUTES.doctorCalendar} className="text-xs font-semibold text-accent-700 hover:underline shrink-0">
                   Open calendar
                 </Link>
               </div>
               {!scheduleAppts.length ? (
                 <EmptyState
                   icon={Calendar}
-                  title={`No appointments ${period === 'today' ? 'today' : `this ${period}`}`}
+                  title={`No appointments for ${title.toLowerCase()}`}
                   description="Schedule a visit to see it here."
                   action={
                     <Link to={ROUTES.doctorBook} className="btn-primary text-sm">
@@ -211,7 +196,7 @@ export default function DoctorDashboard() {
                           className="flex items-center gap-3 px-4 py-3 hover:bg-[#faf8f3]"
                         >
                           <p className="w-[7.5rem] shrink-0 text-sm font-semibold text-ink tabular-nums">
-                            {formatApptWhen(appt, period)}
+                            {formatApptWhen(appt, range)}
                           </p>
                           <div className="min-w-0 flex-1">
                             <p className="font-medium text-ink truncate">{patientDisplayName(patient)}</p>
@@ -242,11 +227,11 @@ export default function DoctorDashboard() {
             </section>
 
             <section>
-              <div className="flex items-center justify-between mb-3">
-                <h3 className="text-sm font-semibold text-ink">Upcoming (from tomorrow)</h3>
+              <div className="flex items-center justify-between gap-2 mb-3">
+                <h3 className="text-sm font-semibold text-ink min-w-0 truncate">Upcoming (from tomorrow)</h3>
                 <Link
                   to={ROUTES.doctorNotifications}
-                  className="text-xs font-semibold text-accent-700 hover:underline inline-flex items-center gap-1"
+                  className="text-xs font-semibold text-accent-700 hover:underline inline-flex items-center gap-1 shrink-0"
                 >
                   <Bell className="w-3.5 h-3.5" /> Reminders
                 </Link>
@@ -279,11 +264,11 @@ export default function DoctorDashboard() {
 
               {patients.recent?.length > 0 && (
                 <div className="mt-6">
-                  <div className="flex items-center justify-between mb-3">
-                    <h3 className="text-sm font-semibold text-ink">
-                      {period === 'today' ? 'Patients today' : `Patients · ${title.toLowerCase()}`}
+                  <div className="flex items-center justify-between gap-2 mb-3">
+                    <h3 className="text-sm font-semibold text-ink min-w-0 truncate">
+                      {singleDay ? 'Patients today' : `Patients · ${title}`}
                     </h3>
-                    <Link to={ROUTES.doctorPatients} className="text-xs font-semibold text-accent-700 hover:underline">
+                    <Link to={ROUTES.doctorPatients} className="text-xs font-semibold text-accent-700 hover:underline shrink-0">
                       All patients{patients.total != null ? ` (${patients.total})` : ''}
                     </Link>
                   </div>

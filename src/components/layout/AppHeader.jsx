@@ -4,7 +4,9 @@ import { Bell, Inbox, LogOut, User } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { ROUTES } from '../../constants/routes';
 import BranchSwitcher from '../BranchSwitcher';
+import TopNavSearch from '../TopNavSearch';
 import UserAvatar, { getInitials } from '../UserAvatar';
+import { can, P } from '../../constants/permissions';
 
 export default function AppHeader({ unread = 0, onMenu }) {
   const { user, logout } = useAuth();
@@ -64,6 +66,7 @@ export default function AppHeader({ unread = 0, onMenu }) {
     .replace(/^Dr\.?\s*/i, '')
     .trim();
   const initial = getInitials(displayName).slice(0, 1) || 'U';
+  const showSearch = can(user, P.SEARCH);
 
   return (
     <header className="sticky top-0 z-20 h-14 shrink-0 bg-[#f6f4f0]/90 backdrop-blur-md border-b border-line relative">
@@ -79,11 +82,24 @@ export default function AppHeader({ unread = 0, onMenu }) {
           </svg>
         </button>
 
-        <div className="min-w-0 flex-1" />
+        {showSearch && (
+          <div className="hidden md:block min-w-0 flex-1 max-w-md mr-auto">
+            <TopNavSearch variant="field" className="w-full" />
+          </div>
+        )}
+
+        {!showSearch && <div className="min-w-0 flex-1" />}
+        {showSearch && <div className="md:hidden min-w-0 flex-1" />}
 
         {user?.role !== 'super_admin' && (
           <div className="hidden md:block">
             <BranchSwitcher compact />
+          </div>
+        )}
+
+        {showSearch && (
+          <div className="md:hidden">
+            <TopNavSearch variant="icon" />
           </div>
         )}
 
@@ -112,7 +128,7 @@ export default function AppHeader({ unread = 0, onMenu }) {
         )}
 
         <div
-          className="relative pl-0.5 sm:pl-1 border-l border-line/80 ml-0.5"
+          className="relative"
           ref={profileRef}
           onMouseEnter={openProfileMenu}
           onMouseLeave={scheduleCloseProfileMenu}

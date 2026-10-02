@@ -140,43 +140,39 @@ export default function DoctorNotifications() {
         title="Reminders"
         description="WhatsApp confirmations and visit reminders."
         actions={
-          <Link to={ROUTES.doctorInbox} className="btn-secondary">
+          <Link to={ROUTES.doctorInbox} className="btn-secondary w-full sm:w-auto justify-center basis-full sm:basis-auto">
             Inbox
           </Link>
         }
+        toolbar={
+          <>
+            <div className="min-w-0 flex-1 sm:flex-none sm:w-44">
+              <label className="sr-only" htmlFor="reminder-status">
+                Status
+              </label>
+              <Dropdown
+                id="reminder-status"
+                value={status}
+                onChange={setStatus}
+                options={STATUS_OPTIONS}
+                ariaLabel="Filter by status"
+              />
+            </div>
+            <div className="min-w-0 flex-1 sm:flex-none sm:w-44">
+              <label className="sr-only" htmlFor="reminder-type">
+                Type
+              </label>
+              <Dropdown
+                id="reminder-type"
+                value={type}
+                onChange={setType}
+                options={TYPE_OPTIONS}
+                ariaLabel="Filter by type"
+              />
+            </div>
+          </>
+        }
       />
-
-      <div className="mb-4 flex flex-wrap items-end gap-2.5">
-        <div className="w-full xs:w-40 sm:w-44">
-          <label className="sr-only" htmlFor="reminder-status">
-            Status
-          </label>
-          <Dropdown
-            id="reminder-status"
-            value={status}
-            onChange={setStatus}
-            options={STATUS_OPTIONS}
-            ariaLabel="Filter by status"
-          />
-        </div>
-        <div className="w-full xs:w-40 sm:w-44">
-          <label className="sr-only" htmlFor="reminder-type">
-            Type
-          </label>
-          <Dropdown
-            id="reminder-type"
-            value={type}
-            onChange={setType}
-            options={TYPE_OPTIONS}
-            ariaLabel="Filter by type"
-          />
-        </div>
-        {!loading && total > 0 ? (
-          <p className="text-xs text-ink-faint pb-2.5 ml-auto">
-            {total} reminder{total === 1 ? '' : 's'}
-          </p>
-        ) : null}
-      </div>
 
       {loading ? (
         <SkeletonRows count={PAGE_SIZE} />

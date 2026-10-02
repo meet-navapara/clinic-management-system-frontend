@@ -10,6 +10,7 @@ import Dropdown from '../components/ui/Dropdown';
 import PatientPicker from '../components/PatientPicker';
 import { SkeletonDetail } from '../components/ui/Skeleton';
 import LoadingOverlay from '../components/ui/LoadingOverlay';
+import PageBack from '../components/ui/PageBack';
 import { useAuth } from '../context/AuthContext';
 import { ROUTES } from '../constants/routes';
 import RequiredMark from '../components/ui/RequiredMark';
@@ -174,6 +175,7 @@ export default function DoctorBookAppointment() {
 
   return (
     <div className="page-container relative">
+      <PageBack />
       <LoadingOverlay show={booking} message="Booking…" />
       {patients.length === 0 ? (
         <EmptyState
@@ -302,12 +304,11 @@ export default function DoctorBookAppointment() {
                 onChange={(e) => setNotes(e.target.value)}
               />
             </div>
-          </div>
-
-          <div className="lg:col-span-2">
-            <button type="submit" className="btn-primary" disabled={booking}>
-              {booking ? 'Booking...' : 'Confirm appointment'}
-            </button>
+            <div className="pt-1 flex justify-end">
+              <button type="submit" className="btn-primary w-full sm:w-auto justify-center" disabled={booking}>
+                {booking ? 'Booking...' : 'Confirm appointment'}
+              </button>
+            </div>
           </div>
         </form>
       )}

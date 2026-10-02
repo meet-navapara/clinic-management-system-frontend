@@ -16,6 +16,7 @@ import RequiredMark from '../components/ui/RequiredMark';
 import { PAYMENT_METHODS, paymentMethodLabel } from '../constants/payments';
 import { downloadInvoicePdf } from '../utils/downloadInvoice';
 import ComingSoonPage from '../components/ui/ComingSoonPage';
+import PageBack from '../components/ui/PageBack';
 import { BILLING_COMING_SOON } from '../constants/featureFlags';
 
 const METHOD_ICON = {
@@ -167,6 +168,7 @@ export default function InvoiceDetail() {
 
   return (
     <div className="page-container relative">
+      <PageBack />
       <LoadingOverlay show={busy} message="Processing…" />
 
       <section className="relative overflow-hidden rounded-[22px] mb-5 border border-[#e4e0d8] bg-gradient-to-br from-[#1c2430] via-[#243040] to-[#3d5a80] text-white shadow-[0_20px_50px_-28px_rgba(28,36,48,0.65)]">

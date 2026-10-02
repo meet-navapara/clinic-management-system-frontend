@@ -142,40 +142,29 @@ export default function DoctorInbox() {
       <PageHeader
         title="Inbox"
         description="Practice alerts. WhatsApp delivery history is in Reminders."
+        toolbar={
+          <div className="w-full min-w-0 sm:w-44">
+            <Dropdown
+              value={filter}
+              onChange={setFilter}
+              ariaLabel="Filter inbox"
+              options={FILTER_OPTIONS}
+            />
+          </div>
+        }
         actions={
-          <div className="flex flex-wrap gap-2">
+          <div className="flex flex-row flex-nowrap items-center gap-2 shrink-0 ml-auto sm:ml-0">
             {unreadCount > 0 && (
-              <button type="button" className="btn-secondary" disabled={busy} onClick={markAll}>
+              <button type="button" className="btn-secondary whitespace-nowrap" disabled={busy} onClick={markAll}>
                 <CheckCheck className="w-4 h-4" /> Mark all read
               </button>
             )}
-            <Link to={ROUTES.doctorNotifications} className="btn-secondary">
+            <Link to={ROUTES.doctorNotifications} className="btn-secondary whitespace-nowrap">
               Reminders
             </Link>
           </div>
         }
       />
-
-      <div className="mb-4 flex flex-wrap items-end gap-2.5">
-        <div className="w-full xs:w-40 sm:w-44">
-          <Dropdown
-            value={filter}
-            onChange={setFilter}
-            ariaLabel="Filter inbox"
-            options={FILTER_OPTIONS}
-          />
-        </div>
-        <p className="text-xs text-ink-faint pb-2.5 ml-auto">
-          {unreadCount ? (
-            <>
-              <span className="font-semibold text-ink">{unreadCount} unread</span>
-              {total ? ` · ${total} total` : ''}
-            </>
-          ) : (
-            <>You’re caught up{total ? ` · ${total} total` : ''}</>
-          )}
-        </p>
-      </div>
 
       {loading ? (
         <SkeletonRows count={PAGE_SIZE} />

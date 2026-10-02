@@ -1,50 +1,78 @@
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { ArrowLeft } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
-import { getDashboardPath, ROUTES } from '../../constants/routes';
+import { getPageMeta, getParentPath, getDashboardPath, ROUTES } from '../../constants/routes';
+import { canGoBackInApp, peekPreviousPath, popNavStack } from '../NavigationTracker';
 
-function canGoBackInApp() {
-  const idx = window.history.state?.idx;
-  if (typeof idx === 'number') return idx > 0;
-  return false;
-}
+export { canGoBackInApp } from '../NavigationTracker';
 
-export default function BackButton({ to, label = 'Back', className = '', variant = 'default' }) {
+/**
+ * Page back control (not for the top nav).
+ * Prefers one-step history; falls back to parent page, then dashboard.
+ */
+export default function BackButton({
+  to,
+  label = 'Back',
+  className = '',
+  variant = 'page',
+}) {
   const navigate = useNavigate();
+  const { pathname, search } = useLocation();
   const { user } = useAuth();
   const onDark = variant === 'onDark';
+  const meta = getPageMeta(pathname);
+  const currentKey = `${pathname}${search || ''}`;
+  const trackedPrev = peekPreviousPath();
+  const parentPath =
+    (typeof to === 'string' && to) ||
+    (typeof meta.backTo === 'string' && meta.backTo) ||
+    getParentPath(pathname, user);
 
-  const fallbackPath = () => {
-    if (typeof to === 'string' && to) return to;
-    if (user) return getDashboardPath(user.role, user);
-    return ROUTES.home;
-  };
+  const hasHistory = canGoBackInApp() || Boolean(trackedPrev && trackedPrev !== currentKey);
+  const isRoot = Boolean(meta.isRoot);
+  const disabled = !hasHistory && isRoot;
 
   const goBack = () => {
+    if (disabled) return;
+
     if (window.opener && !window.opener.closed) {
       window.close();
       return;
     }
+
     if (canGoBackInApp()) {
       navigate(-1);
       return;
     }
-    navigate(fallbackPath());
+
+    if (trackedPrev && trackedPrev !== currentKey) {
+      popNavStack();
+      navigate(trackedPrev);
+      return;
+    }
+
+    if (parentPath && parentPath !== pathname) {
+      navigate(parentPath);
+      return;
+    }
+
+    navigate(user ? getDashboardPath(user.role, user) : ROUTES.home);
   };
+
+  const baseClass = onDark
+    ? 'inline-flex items-center gap-1.5 text-sm font-medium text-white/80 hover:text-white disabled:opacity-30'
+    : 'inline-flex items-center gap-1.5 text-sm font-medium text-ink-muted hover:text-ink disabled:opacity-40';
 
   return (
     <button
       type="button"
       onClick={goBack}
+      disabled={disabled}
       aria-label={label}
-      className={`inline-flex items-center justify-center gap-1.5 min-h-9 min-w-9 sm:min-h-10 sm:min-w-10 px-2 rounded-lg text-xs sm:text-sm font-medium transition-colors ${
-        onDark
-          ? 'text-white/80 hover:text-white hover:bg-white/10'
-          : 'text-ink-muted hover:text-ink hover:bg-white'
-      } ${className}`.trim()}
+      className={`${baseClass} transition-colors disabled:pointer-events-none ${className}`.trim()}
     >
       <ArrowLeft className="w-4 h-4 shrink-0" aria-hidden="true" />
-      <span className="hidden sm:inline">{label}</span>
+      <span>{label}</span>
     </button>
   );
 }

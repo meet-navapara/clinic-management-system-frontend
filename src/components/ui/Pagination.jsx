@@ -31,16 +31,18 @@ function pageItems(current, totalPages) {
 }
 
 /**
- * Server-driven pagination with direct page jumps.
- * Props mirror API meta: page, pages, total (optional), limit (optional).
+ * Server-driven pagination with total count.
+ * Shows total when available; page controls only when pages > 1.
  */
 export default function Pagination({ page = 1, pages = 1, total, limit, onPage, className = '' }) {
-  if (pages <= 1) return null;
+  const hasTotal = total != null && Number(total) >= 0;
+  const multiPage = pages > 1;
+  if (!hasTotal && !multiPage) return null;
 
-  const safePage = Math.min(Math.max(1, Number(page) || 1), pages);
-  const from = total != null && limit ? Math.min(total, (safePage - 1) * limit + 1) : null;
-  const to = total != null && limit ? Math.min(total, safePage * limit) : null;
-  const items = pageItems(safePage, pages);
+  const safePage = Math.min(Math.max(1, Number(page) || 1), Math.max(1, pages));
+  const from = hasTotal && limit ? Math.min(total, (safePage - 1) * limit + 1) : null;
+  const to = hasTotal && limit ? Math.min(total, safePage * limit) : null;
+  const items = multiPage ? pageItems(safePage, pages) : [];
 
   const navBtn =
     'btn-secondary btn-sm inline-flex items-center justify-center gap-0.5 shrink-0';
@@ -54,11 +56,15 @@ export default function Pagination({ page = 1, pages = 1, total, limit, onPage, 
       aria-label="Pagination"
     >
       <p className="text-center sm:text-left text-[11px] sm:text-sm text-ink-muted tabular-nums">
-        {from != null && to != null && total != null ? (
+        {from != null && to != null && hasTotal ? (
           <>
             Showing <span className="font-medium text-ink">{from}</span>–
             <span className="font-medium text-ink">{to}</span> of{' '}
             <span className="font-medium text-ink">{total}</span>
+          </>
+        ) : hasTotal ? (
+          <>
+            <span className="font-medium text-ink">{total}</span> total
           </>
         ) : (
           <>
@@ -68,58 +74,60 @@ export default function Pagination({ page = 1, pages = 1, total, limit, onPage, 
         )}
       </p>
 
-      <div className="flex items-center justify-center gap-1 sm:gap-1.5 min-w-0">
-        <button
-          type="button"
-          className={navBtn}
-          disabled={safePage <= 1}
-          onClick={() => onPage(safePage - 1)}
-          aria-label="Previous page"
-        >
-          <ChevronLeft className="w-4 h-4" aria-hidden />
-          <span className="hidden sm:inline text-xs">Prev</span>
-        </button>
+      {multiPage && typeof onPage === 'function' ? (
+        <div className="flex items-center justify-center gap-1 sm:gap-1.5 min-w-0">
+          <button
+            type="button"
+            className={navBtn}
+            disabled={safePage <= 1}
+            onClick={() => onPage(safePage - 1)}
+            aria-label="Previous page"
+          >
+            <ChevronLeft className="w-4 h-4" aria-hidden />
+            <span className="hidden sm:inline text-xs">Prev</span>
+          </button>
 
-        <div className="flex items-center gap-0.5 sm:gap-1 overflow-x-auto max-w-[min(100%,18rem)] sm:max-w-none [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-          {items.map((item, idx) =>
-            item === 'ellipsis' ? (
-              <span
-                key={`e-${idx}`}
-                className="inline-flex min-w-6 sm:min-w-8 justify-center text-ink-faint text-xs select-none"
-                aria-hidden
-              >
-                …
-              </span>
-            ) : (
-              <button
-                key={item}
-                type="button"
-                aria-label={`Go to page ${item}`}
-                aria-current={item === safePage ? 'page' : undefined}
-                onClick={() => onPage(item)}
-                className={`${pageBtn} ${
-                  item === safePage
-                    ? 'bg-ink text-white'
-                    : 'bg-white text-ink-muted ring-1 ring-line hover:bg-[#f3efe8] hover:text-ink'
-                }`}
-              >
-                {item}
-              </button>
-            )
-          )}
+          <div className="flex items-center gap-0.5 sm:gap-1 overflow-x-auto overflow-y-visible py-1 max-w-[min(100%,18rem)] sm:max-w-none [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+            {items.map((item, idx) =>
+              item === 'ellipsis' ? (
+                <span
+                  key={`e-${idx}`}
+                  className="inline-flex min-w-6 sm:min-w-8 justify-center text-ink-faint text-xs select-none"
+                  aria-hidden
+                >
+                  …
+                </span>
+              ) : (
+                <button
+                  key={item}
+                  type="button"
+                  aria-label={`Go to page ${item}`}
+                  aria-current={item === safePage ? 'page' : undefined}
+                  onClick={() => onPage(item)}
+                  className={`${pageBtn} ${
+                    item === safePage
+                      ? 'bg-ink text-white border border-ink'
+                      : 'bg-white text-ink-muted border border-line hover:bg-[#f3efe8] hover:text-ink'
+                  }`}
+                >
+                  {item}
+                </button>
+              )
+            )}
+          </div>
+
+          <button
+            type="button"
+            className={navBtn}
+            disabled={safePage >= pages}
+            onClick={() => onPage(safePage + 1)}
+            aria-label="Next page"
+          >
+            <span className="hidden sm:inline text-xs">Next</span>
+            <ChevronRight className="w-4 h-4" aria-hidden />
+          </button>
         </div>
-
-        <button
-          type="button"
-          className={navBtn}
-          disabled={safePage >= pages}
-          onClick={() => onPage(safePage + 1)}
-          aria-label="Next page"
-        >
-          <span className="hidden sm:inline text-xs">Next</span>
-          <ChevronRight className="w-4 h-4" aria-hidden />
-        </button>
-      </div>
+      ) : null}
     </div>
   );
 }

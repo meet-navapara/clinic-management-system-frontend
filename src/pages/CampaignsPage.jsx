@@ -180,9 +180,56 @@ export function CampaignsPage() {
         title="Campaigns"
         description="Message eligible patients via WhatsApp or Email when providers are configured."
         actions={
-          <Link to={ROUTES.campaignNew} className="btn-primary">
+          <Link to={ROUTES.campaignNew} className="btn-primary shrink-0 justify-center">
             New campaign
           </Link>
+        }
+        toolbar={
+          <form
+            className="relative min-w-0 flex-1 sm:min-w-[12rem] sm:max-w-xs"
+            onSubmit={(e) => {
+              e.preventDefault();
+              setSearch(q.trim());
+            }}
+          >
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-ink-faint" />
+            <input
+              className="input-field !pl-9"
+              placeholder="Search by name"
+              value={q}
+              onChange={(e) => setQ(e.target.value)}
+            />
+          </form>
+        }
+        filters={
+          <>
+            <div className="min-w-0 flex-1 sm:flex-none sm:w-40">
+              <Dropdown
+                value={statusFilter}
+                onChange={setStatusFilter}
+                ariaLabel="Status filter"
+                options={[
+                  { value: 'all', label: 'All statuses' },
+                  { value: 'draft', label: 'Draft' },
+                  { value: 'scheduled', label: 'Scheduled' },
+                  { value: 'queued', label: 'Queued' },
+                  { value: 'processing', label: 'Processing' },
+                  { value: 'completed', label: 'Completed' },
+                  { value: 'partially_completed', label: 'Partial' },
+                  { value: 'failed', label: 'Failed' },
+                  { value: 'cancelled', label: 'Cancelled' },
+                ]}
+              />
+            </div>
+            <div className="min-w-0 flex-1 sm:flex-none sm:w-36">
+              <Dropdown
+                value={channelFilter}
+                onChange={setChannelFilter}
+                ariaLabel="Channel filter"
+                options={[{ value: 'all', label: 'All channels' }, ...CHANNELS]}
+              />
+            </div>
+          </>
         }
       />
 
@@ -260,25 +307,27 @@ export function CampaignsPage() {
                 />
               </div>
             </div>
-            <button
-              type="button"
-              className="btn-primary"
-              disabled={tplSaving}
-              onClick={async () => {
-                setTplSaving(true);
-                try {
-                  const res = await api.post('/campaigns/whatsapp-template', tplForm);
-                  toast.success(res.data.message || 'Submitted for Super Admin.');
-                  load(page);
-                } catch (err) {
-                  toast.error(err.response?.data?.message || 'Submit failed.');
-                } finally {
-                  setTplSaving(false);
-                }
-              }}
-            >
-              {tplSaving ? 'Submitting…' : 'Submit for Super Admin approval'}
-            </button>
+            <div className="flex justify-end">
+              <button
+                type="button"
+                className="btn-primary w-full sm:w-auto justify-center"
+                disabled={tplSaving}
+                onClick={async () => {
+                  setTplSaving(true);
+                  try {
+                    const res = await api.post('/campaigns/whatsapp-template', tplForm);
+                    toast.success(res.data.message || 'Submitted for Super Admin.');
+                    load(page);
+                  } catch (err) {
+                    toast.error(err.response?.data?.message || 'Submit failed.');
+                  } finally {
+                    setTplSaving(false);
+                  }
+                }}
+              >
+                {tplSaving ? 'Submitting…' : 'Submit for Super Admin approval'}
+              </button>
+            </div>
           </div>
         )}
 
@@ -288,53 +337,6 @@ export function CampaignsPage() {
           waiting for Super Admin (MSG91 create + approve).
         </div>
       )}
-
-      <div className="flex flex-col sm:flex-row gap-3 mb-4">
-        <form
-          className="relative flex-1 max-w-md"
-          onSubmit={(e) => {
-            e.preventDefault();
-            setSearch(q.trim());
-          }}
-        >
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-ink-faint" />
-          <input
-            className="input-field !pl-9"
-            placeholder="Search by name"
-            value={q}
-            onChange={(e) => setQ(e.target.value)}
-          />
-        </form>
-        <select
-          className="input-field sm:w-40"
-          value={statusFilter}
-          onChange={(e) => setStatusFilter(e.target.value)}
-          aria-label="Status filter"
-        >
-          <option value="all">All statuses</option>
-          <option value="draft">Draft</option>
-          <option value="scheduled">Scheduled</option>
-          <option value="queued">Queued</option>
-          <option value="processing">Processing</option>
-          <option value="completed">Completed</option>
-          <option value="partially_completed">Partial</option>
-          <option value="failed">Failed</option>
-          <option value="cancelled">Cancelled</option>
-        </select>
-        <select
-          className="input-field sm:w-36"
-          value={channelFilter}
-          onChange={(e) => setChannelFilter(e.target.value)}
-          aria-label="Channel filter"
-        >
-          <option value="all">All channels</option>
-          {CHANNELS.map((c) => (
-            <option key={c.value} value={c.value}>
-              {c.label}
-            </option>
-          ))}
-        </select>
-      </div>
 
       {loading ? (
         <SkeletonRows count={PAGE_SIZE} />
@@ -356,10 +358,6 @@ export function CampaignsPage() {
         />
       ) : (
         <>
-          <p className="text-xs text-ink-faint mb-2">
-            {total} campaign{total === 1 ? '' : 's'}
-            {pages > 1 ? ` · page ${page} of ${pages}` : ''}
-          </p>
           <div className="hidden md:block card !p-0 overflow-hidden">
             <div className="data-table-wrap">
               <table className="data-table">
@@ -764,28 +762,24 @@ export function CampaignEditor() {
             </div>
             <div>
               <label className="label-field">Campaign type</label>
-              <select
-                className="input-field"
+              <Dropdown
                 value={form.campaignType}
-                onChange={(e) => setField('campaignType', e.target.value)}
-              >
-                {TYPES.map((t) => (
-                  <option key={t.value} value={t.value}>
-                    {t.label}
-                  </option>
-                ))}
-              </select>
+                onChange={(campaignType) => setField('campaignType', campaignType)}
+                options={TYPES}
+                ariaLabel="Campaign type"
+              />
             </div>
             <div>
               <label className="label-field">Purpose</label>
-              <select
-                className="input-field"
+              <Dropdown
                 value={form.purpose}
-                onChange={(e) => setField('purpose', e.target.value)}
-              >
-                <option value="marketing">Marketing</option>
-                <option value="transactional">Transactional</option>
-              </select>
+                onChange={(purpose) => setField('purpose', purpose)}
+                options={[
+                  { value: 'marketing', label: 'Marketing' },
+                  { value: 'transactional', label: 'Transactional' },
+                ]}
+                ariaLabel="Purpose"
+              />
             </div>
             <div className="sm:col-span-2">
               <label className="label-field">Description</label>
@@ -799,40 +793,32 @@ export function CampaignEditor() {
               <label className="label-field">
                 Channel <RequiredMark />
               </label>
-              <select
-                className="input-field"
+              <Dropdown
                 value={form.channel}
-                onChange={(e) => setField('channel', e.target.value)}
-              >
-                {CHANNELS.map((c) => {
+                onChange={(channel) => setField('channel', channel)}
+                ariaLabel="Channel"
+                options={CHANNELS.map((c) => {
                   const ok =
                     c.value === 'whatsapp'
                       ? integrations?.whatsapp?.campaign?.configured
                       : integrations?.[c.value]?.configured;
-                  return (
-                    <option key={c.value} value={c.value}>
-                      {c.label}
-                      {ok ? '' : ' — not configured'}
-                    </option>
-                  );
+                  return {
+                    value: c.value,
+                    label: ok ? c.label : `${c.label} — not configured`,
+                  };
                 })}
-              </select>
+              />
             </div>
             <div>
               <label className="label-field">
                 Audience <RequiredMark />
               </label>
-              <select
-                className="input-field"
+              <Dropdown
                 value={form.audienceType}
-                onChange={(e) => setField('audienceType', e.target.value)}
-              >
-                {AUDIENCES.map((a) => (
-                  <option key={a.value} value={a.value}>
-                    {a.label}
-                  </option>
-                ))}
-              </select>
+                onChange={(audienceType) => setField('audienceType', audienceType)}
+                options={AUDIENCES}
+                ariaLabel="Audience"
+              />
             </div>
             {form.audienceType === 'inactive' && (
               <div>
@@ -944,12 +930,12 @@ export function CampaignEditor() {
             )}
           </div>
 
-          <div className="flex flex-wrap gap-2">
-            <button type="submit" className="btn-secondary" disabled={saving || !editable}>
-              {saving ? 'Saving...' : 'Save draft'}
-            </button>
-            <button type="button" className="btn-secondary" onClick={doPreview} disabled={!editable && !campaignId}>
+          <div className="flex flex-col-reverse sm:flex-row sm:flex-wrap sm:justify-end gap-2">
+            <button type="button" className="btn-secondary w-full sm:w-auto justify-center" onClick={doPreview} disabled={!editable && !campaignId}>
               Preview audience
+            </button>
+            <button type="submit" className="btn-primary w-full sm:w-auto justify-center" disabled={saving || !editable}>
+              {saving ? 'Saving...' : 'Save draft'}
             </button>
           </div>
         </fieldset>
@@ -1013,7 +999,7 @@ export function CampaignEditor() {
                 : 'Email integration required — configure Resend before sending.'}
             </p>
           )}
-          <div className="flex flex-wrap gap-2 items-end">
+          <div className="flex flex-col-reverse sm:flex-row sm:flex-wrap sm:items-end sm:justify-end gap-2">
             <div className="flex-1 min-w-0 w-full sm:min-w-[180px]">
               <label className="label-field">
                 Send test {form.channel === 'email' ? 'email' : 'phone'}
@@ -1027,7 +1013,7 @@ export function CampaignEditor() {
             </div>
             <button
               type="button"
-              className="btn-secondary"
+              className="btn-secondary w-full sm:w-auto justify-center"
               onClick={sendTest}
               disabled={
                 !preview.channelConfigured ||
@@ -1039,7 +1025,7 @@ export function CampaignEditor() {
             </button>
             <button
               type="button"
-              className="btn-primary"
+              className="btn-primary w-full sm:w-auto justify-center"
               onClick={send}
               disabled={previewStale || !preview.channelConfigured || preview.eligibleCount < 1}
             >

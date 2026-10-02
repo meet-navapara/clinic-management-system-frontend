@@ -189,7 +189,7 @@ export default function BranchesPage() {
         description="Each branch has its own appointments and billing. Rooms here appear when registering patients."
         actions={
           canManageBranches && (
-            <button type="button" className="btn-primary" onClick={openCreate}>
+            <button type="button" className="btn-primary w-full sm:w-auto justify-center" onClick={openCreate}>
               Add branch
             </button>
           )
@@ -209,11 +209,11 @@ export default function BranchesPage() {
             return (
               <div
                 key={b._id}
-                className={`card relative ${
+                className={`card relative h-full flex flex-col ${
                   isDefault ? 'border-[#e2d4a8] bg-[#fbfaf6] ring-1 ring-[#c9a227]/40' : ''
                 } ${justSelected ? 'branch-card--just-selected' : ''} ${!isActive ? 'opacity-60' : ''}`}
               >
-                <div className="flex justify-between gap-2">
+                <div className="flex justify-between gap-2 items-start">
                   <div className="min-w-0">
                     <h3 className="font-semibold text-ink truncate">{b.name}</h3>
                     {isDefault ? (
@@ -222,7 +222,7 @@ export default function BranchesPage() {
                       </p>
                     ) : null}
                   </div>
-                  <div className="flex flex-col items-end gap-1 shrink-0">
+                  <div className="flex flex-row flex-wrap items-center justify-end gap-1 shrink-0">
                     <span
                       className={`inline-flex items-center justify-center h-6 min-w-[4.25rem] px-2 rounded-md text-[10px] font-bold uppercase tracking-[0.08em] ring-1 ${
                         isActive
@@ -233,35 +233,43 @@ export default function BranchesPage() {
                       {isActive ? 'Active' : 'Inactive'}
                     </span>
                     {isDefault ? (
-                      <span className="inline-flex items-center justify-center h-5 px-1.5 rounded text-[9px] font-bold uppercase tracking-wide bg-[#f8f1de] text-[#8a6a1f] ring-1 ring-[#e2d4a8]">
+                      <span className="inline-flex items-center justify-center h-6 px-2 rounded-md text-[10px] font-bold uppercase tracking-wide bg-[#f8f1de] text-[#8a6a1f] ring-1 ring-[#e2d4a8]">
                         Default
                       </span>
                     ) : null}
                   </div>
                 </div>
-                <p className="text-sm text-ink-muted mt-1">{b.address || 'No address'}</p>
-                <p className="text-sm text-ink-faint">
-                  {[b.phone, b.email].filter(Boolean).join(' · ') || '—'}
-                </p>
-                {b.displayTitle ? (
-                  <p className="text-xs text-ink-faint mt-1">TV title: {b.displayTitle}</p>
-                ) : null}
-                <p className="text-xs text-ink-faint mt-2">
-                  Rooms: {rooms.join(', ')} · Default: {b.roomLabel || rooms[0]}
-                </p>
+                <div className="flex-1 min-h-0">
+                  <p className="text-sm text-ink-muted mt-1">{b.address || 'No address'}</p>
+                  <p className="text-sm text-ink-faint">
+                    {[b.phone, b.email].filter(Boolean).join(' · ') || '—'}
+                  </p>
+                  {b.displayTitle ? (
+                    <p className="text-xs text-ink-faint mt-1">TV title: {b.displayTitle}</p>
+                  ) : null}
+                  <p className="text-xs text-ink-faint mt-2">
+                    Rooms: {rooms.join(', ')} · Default: {b.roomLabel || rooms[0]}
+                  </p>
+                </div>
                 {canManageBranches && (
-                  <div className="flex flex-wrap gap-2 mt-3">
-                    <button type="button" className="btn-secondary btn-sm" onClick={() => openEdit(b)}>
-                      Edit
-                    </button>
-                    {!isDefault && isActive ? (
-                      <button type="button" className="btn-ghost btn-sm" onClick={() => setAsDefault(b)}>
-                        Set default
+                  <div className="mt-auto pt-4">
+                    <div className="flex flex-row flex-wrap items-center gap-2 pt-3 border-t border-line">
+                      <button type="button" className="btn-secondary btn-sm" onClick={() => openEdit(b)}>
+                        Edit
                       </button>
-                    ) : null}
-                    <button type="button" className="btn-ghost btn-sm" onClick={() => toggle(b)}>
-                      {isActive ? 'Deactivate' : 'Activate'}
-                    </button>
+                      {!isDefault && isActive ? (
+                        <button type="button" className="btn-secondary btn-sm" onClick={() => setAsDefault(b)}>
+                          Set default
+                        </button>
+                      ) : null}
+                      <button
+                        type="button"
+                        className={`${isActive ? 'btn-danger' : 'btn-primary'} btn-sm`}
+                        onClick={() => toggle(b)}
+                      >
+                        {isActive ? 'Deactivate' : 'Activate'}
+                      </button>
+                    </div>
                   </div>
                 )}
               </div>

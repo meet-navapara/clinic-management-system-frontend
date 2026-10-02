@@ -21,6 +21,7 @@ import EmptyState from '../components/ui/EmptyState';
 import RequiredMark from '../components/ui/RequiredMark';
 import { SkeletonDetail } from '../components/ui/Skeleton';
 import LoadingOverlay from '../components/ui/LoadingOverlay';
+import PageBack from '../components/ui/PageBack';
 import { normalizeIndianMobile, formatIndianMobileInput, isValidEmail } from '../utils/validation';
 import { compressImageToDataUrl } from '../utils/image';
 import { useAuth } from '../context/AuthContext';
@@ -233,6 +234,7 @@ export default function DoctorPatientDetail() {
 
   return (
     <div className="page-container relative">
+      <PageBack />
       <LoadingOverlay show={saving || photoSaving} message={photoSaving ? 'Updating photo…' : 'Saving…'} />
       <div className="card mb-4">
         <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">

@@ -17,7 +17,9 @@ import { PAGE_SIZE } from '../constants/pagination';
 import { fillMethodBreakdown } from '../constants/payments';
 import { downloadInvoicePdf } from '../utils/downloadInvoice';
 import ComingSoonPage from '../components/ui/ComingSoonPage';
+import DateRangeFilter from '../components/ui/DateRangeFilter';
 import { BILLING_COMING_SOON } from '../constants/featureFlags';
+import { resolveDateRange } from '../utils/dateRangePresets';
 
 const FILTERS = [
   { id: 'all', label: 'All' },
@@ -47,6 +49,7 @@ export default function BillingList() {
   const [total, setTotal] = useState(0);
   const [status, setStatus] = useState('all');
   const [q, setQ] = useState('');
+  const [range, setRange] = useState(() => resolveDateRange('thisMonth'));
   const [loading, setLoading] = useState(true);
   const [collections, setCollections] = useState(null);
   const [downloadingId, setDownloadingId] = useState(null);
@@ -68,7 +71,14 @@ export default function BillingList() {
 
   const load = (p = page) => {
     setLoading(true);
-    const params = { page: p, limit: PAGE_SIZE };
+    const params = {
+      page: p,
+      limit: PAGE_SIZE,
+      from: range.from,
+      to: range.to,
+      collectFrom: range.from,
+      collectTo: range.to,
+    };
     if (status !== 'all') params.status = status;
     if (q.trim()) params.q = q.trim();
     api
@@ -91,7 +101,7 @@ export default function BillingList() {
     }
     load(1);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [status, branchId]);
+  }, [status, branchId, range.from, range.to]);
 
   const methods = useMemo(
     () => fillMethodBreakdown(collections?.byMethod || []),
@@ -120,20 +130,41 @@ export default function BillingList() {
           aria-hidden
         />
         <div className="relative p-5 sm:p-7">
-          <div className="flex flex-col lg:flex-row lg:items-end lg:justify-between gap-5">
+          <div className="flex flex-col gap-5">
+            <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between md:gap-4">
+              <div className="min-w-0 shrink-0">
+                <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-white/55">
+                  Collections · {range.label || collections?.label || 'Selected period'}
+                </p>
+                <h1 className="mt-2 text-[32px] sm:text-[40px] font-semibold tracking-tight leading-none">
+                  Billing
+                </h1>
+                <p className="mt-2 text-sm text-white/70 max-w-md">
+                  {current?.name
+                    ? `${current.name} · invoices and payments for this branch`
+                    : 'All branches · create bills and track cash, UPI, and card'}
+                </p>
+              </div>
+              <div className="flex flex-row flex-wrap gap-2 items-center w-full md:w-auto md:justify-end shrink-0">
+                <DateRangeFilter
+                  value={range}
+                  onChange={setRange}
+                  className="min-w-[10.5rem] flex-1 sm:flex-none sm:w-[13.5rem] [&_button.btn-secondary]:bg-white/95"
+                  align="end"
+                />
+                {can(user, P.BILLING_MANAGE) && (
+                  <Link
+                    to={ROUTES.billingNew}
+                    className="inline-flex items-center justify-center gap-2 min-h-10 px-4 rounded-[12px] bg-white text-[#1c2430] text-sm font-semibold hover:bg-[#f7f3ea] flex-1 sm:flex-none min-w-[8rem]"
+                  >
+                    <Plus className="w-4 h-4" /> New invoice
+                  </Link>
+                )}
+              </div>
+            </div>
+
             <div>
-              <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-white/55">
-                Collections {collections?.label ? `· ${collections.label}` : '· Today'}
-              </p>
-              <h1 className="mt-2 text-[32px] sm:text-[40px] font-semibold tracking-tight leading-none">
-                Billing
-              </h1>
-              <p className="mt-2 text-sm text-white/70 max-w-md">
-                {current?.name
-                  ? `${current.name} · invoices and payments for this branch`
-                  : 'All branches · create bills and track cash, UPI, and card'}
-              </p>
-              <p className="mt-5 text-[13px] uppercase tracking-[0.14em] text-white/50">Net collected</p>
+              <p className="mt-1 text-[13px] uppercase tracking-[0.14em] text-white/50">Net collected</p>
               <p className="mt-1 text-[40px] sm:text-[48px] font-semibold tabular-nums tracking-tight leading-none">
                 <Money value={collections?.collected || 0} className="text-white" />
               </p>
@@ -145,51 +176,43 @@ export default function BillingList() {
                 </span>
               </p>
             </div>
-            {can(user, P.BILLING_MANAGE) && (
-              <Link
-                to={ROUTES.billingNew}
-                className="inline-flex items-center justify-center gap-2 min-h-11 px-5 rounded-[12px] bg-white text-[#1c2430] text-sm font-semibold hover:bg-[#f7f3ea] transition-colors"
-              >
-                <Plus className="w-4 h-4" /> New invoice
-              </Link>
-            )}
-          </div>
 
-          <div className="mt-7 grid grid-cols-1 sm:grid-cols-3 gap-3">
-            {highlight.map((m, idx) => {
-              const Icon = METHOD_ICON[m.id] || Wallet;
-              return (
-                <div
-                  key={m.id}
-                  className="rounded-[16px] border border-white/10 bg-white/5 backdrop-blur-sm px-4 py-3.5"
-                  style={{ animation: `fadeIn 0.45s ease ${idx * 80}ms both` }}
-                >
-                  <div className="flex items-center gap-2 text-white/65">
-                    <Icon className="w-4 h-4" />
-                    <span className="text-[12px] font-semibold uppercase tracking-[0.12em]">{m.short}</span>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              {highlight.map((m, idx) => {
+                const Icon = METHOD_ICON[m.id] || Wallet;
+                return (
+                  <div
+                    key={m.id}
+                    className="rounded-[16px] border border-white/10 bg-white/5 backdrop-blur-sm px-4 py-3.5"
+                    style={{ animation: `fadeIn 0.45s ease ${idx * 80}ms both` }}
+                  >
+                    <div className="flex items-center gap-2 text-white/65">
+                      <Icon className="w-4 h-4" />
+                      <span className="text-[12px] font-semibold uppercase tracking-[0.12em]">{m.short}</span>
+                    </div>
+                    <p className="mt-2 text-[26px] font-semibold tabular-nums tracking-tight leading-none">
+                      <Money value={m.amount} className="text-white" />
+                    </p>
                   </div>
-                  <p className="mt-2 text-[26px] font-semibold tabular-nums tracking-tight leading-none">
-                    <Money value={m.amount} className="text-white" />
-                  </p>
-                </div>
-              );
-            })}
-          </div>
+                );
+              })}
+            </div>
 
-          <div className="mt-4 flex flex-wrap gap-x-5 gap-y-2 text-[12px] text-white/55">
-            {methods
-              .filter((m) => !['cash', 'upi', 'card'].includes(m.id))
-              .map((m) => (
-                <span key={m.id}>
-                  {m.label}: <Money value={m.amount} className="text-white/80" />
-                </span>
-              ))}
+            <div className="flex flex-wrap gap-x-5 gap-y-2 text-[12px] text-white/55">
+              {methods
+                .filter((m) => !['cash', 'upi', 'card'].includes(m.id))
+                .map((m) => (
+                  <span key={m.id}>
+                    {m.label}: <Money value={m.amount} className="text-white/80" />
+                  </span>
+                ))}
+            </div>
           </div>
         </div>
       </section>
 
-      <div className="flex flex-col sm:flex-row gap-3 mb-4">
-        <div className="flex flex-wrap gap-2 flex-1">
+      <div className="flex flex-row flex-wrap items-center gap-2 mb-4">
+        <div className="flex flex-wrap gap-2 flex-1 min-w-0">
           {FILTERS.map((item) => (
             <button
               key={item.id}
@@ -204,7 +227,7 @@ export default function BillingList() {
           ))}
         </div>
         <form
-          className="relative sm:w-64"
+          className="relative w-full min-[480px]:w-56 shrink-0"
           onSubmit={(e) => {
             e.preventDefault();
             load(1);
@@ -226,10 +249,6 @@ export default function BillingList() {
         <EmptyState title="No invoices" description="Create a bill from a visit or the front desk." />
       ) : (
         <>
-          <p className="text-xs text-ink-faint mb-2">
-            {total} invoice{total === 1 ? '' : 's'}
-            {pages > 1 ? ` · page ${page} of ${pages}` : ''}
-          </p>
           <div className="hidden md:block overflow-hidden rounded-[18px] border border-[#e7e2d8] bg-white shadow-[0_12px_40px_-28px_rgba(28,36,48,0.35)]">
             <div className="data-table-wrap">
               <table className="data-table">
