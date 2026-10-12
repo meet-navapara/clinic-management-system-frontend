@@ -807,7 +807,7 @@ export default function Profile() {
                         ))}
                       </div>
                     </div>
-                    <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                    <div className="grid grid-cols-1 xs:grid-cols-2 lg:grid-cols-4 gap-4">
                       <Field id="profile-dayStart" label="Day start" required>
                         <TimeSelect
                           id="profile-dayStart"

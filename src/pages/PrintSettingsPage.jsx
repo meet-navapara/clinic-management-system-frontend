@@ -81,19 +81,19 @@ function LetterheadPreview({ form, tab }) {
   const showRight = form.showRightSignature !== false;
 
   return (
-    <div className="relative rounded border border-[#cfd6dd] bg-white min-h-[420px] overflow-hidden shadow-sm">
+    <div className="relative rounded border border-[#cfd6dd] bg-white min-h-[280px] sm:min-h-[420px] overflow-x-auto overflow-y-hidden shadow-sm">
       <div className="absolute top-0 right-0 z-10">
         <span className="inline-block bg-[#8a939c] text-white text-[11px] font-medium px-3 py-1 rounded-bl">
           Preview
         </span>
       </div>
       <div
-        className={`p-5 pt-8 ${form.coloredPrint === false ? 'grayscale' : ''}`}
+        className={`p-3 sm:p-5 pt-8 min-w-0 origin-top-left scale-[0.88] sm:scale-100 ${form.coloredPrint === false ? 'grayscale' : ''}`}
         style={{
-          paddingTop: `${Math.max(0.4, form.marginTopIn || 0.5) * 48}px`,
-          paddingBottom: `${Math.max(0.4, form.marginBottomIn || 0.5) * 48}px`,
-          paddingLeft: `${Math.max(0.4, form.marginLeftIn || 0.5) * 48}px`,
-          paddingRight: `${Math.max(0.4, form.marginRightIn || 0.5) * 48}px`,
+          paddingTop: `${Math.max(0.35, form.marginTopIn || 0.5) * 40}px`,
+          paddingBottom: `${Math.max(0.35, form.marginBottomIn || 0.5) * 40}px`,
+          paddingLeft: `${Math.max(0.3, form.marginLeftIn || 0.5) * 36}px`,
+          paddingRight: `${Math.max(0.3, form.marginRightIn || 0.5) * 36}px`,
         }}
       >
         <PrintLetterhead
@@ -310,13 +310,13 @@ export default function PrintSettingsPage() {
       <form id="print-settings-form" onSubmit={save} className="space-y-4">
         <section className="card space-y-4">
           <h2 className="text-sm font-semibold text-ink">All pages — layout & fonts</h2>
-          <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-3">
+          <div className="grid grid-cols-1 xs:grid-cols-2 lg:grid-cols-4 gap-3">
             <NumberField label="Top margin (in)" value={form.marginTopIn} onChange={(marginTopIn) => set({ marginTopIn })} />
             <NumberField label="Left margin (in)" value={form.marginLeftIn} onChange={(marginLeftIn) => set({ marginLeftIn })} />
             <NumberField label="Bottom margin (in)" value={form.marginBottomIn} onChange={(marginBottomIn) => set({ marginBottomIn })} />
             <NumberField label="Right margin (in)" value={form.marginRightIn} onChange={(marginRightIn) => set({ marginRightIn })} />
           </div>
-          <div className="grid sm:grid-cols-2 lg:grid-cols-5 gap-3">
+          <div className="grid grid-cols-1 xs:grid-cols-2 lg:grid-cols-5 gap-3">
             <div>
               <label className="label-field">Page size</label>
               <Dropdown value={form.paperSize || 'A4'} onChange={(paperSize) => set({ paperSize })} ariaLabel="Page size" options={paperOptions} />
@@ -540,25 +540,41 @@ export default function PrintSettingsPage() {
                   </div>
 
                   <div>
-                    <div className="flex items-center justify-between gap-2 mb-1.5">
-                      <p className="text-sm font-medium text-ink">Header</p>
-                      <label className={`text-xs text-[#2f6fed] cursor-pointer ${uploadingLogo ? 'opacity-50 pointer-events-none' : ''}`}>
-                        {uploadingLogo ? 'Uploading logo…' : form.logo ? 'Change clinic logo' : 'Upload clinic logo'}
-                        <input
-                          type="file"
-                          accept="image/png,image/jpeg,image/jpg,image/webp,image/gif"
-                          className="sr-only"
-                          disabled={uploadingLogo}
-                          onChange={onLogoSelected}
-                        />
-                      </label>
+                    <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between mb-1.5">
+                      <div className="min-w-0">
+                        <p className="text-sm font-medium text-ink">Header text (under logo)</p>
+                        <p className="text-xs text-ink-faint">
+                          Optional tagline only — clinic name &amp; contacts come from Clinic identity above. Leave empty if logo is enough.
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-3 shrink-0">
+                        {form.headerHtml ? (
+                          <button
+                            type="button"
+                            className="text-xs text-ink-muted hover:text-[#9b2c2c]"
+                            onClick={() => set({ headerHtml: '' })}
+                          >
+                            Clear
+                          </button>
+                        ) : null}
+                        <label className={`text-xs text-[#2f6fed] cursor-pointer ${uploadingLogo ? 'opacity-50 pointer-events-none' : ''}`}>
+                          {uploadingLogo ? 'Uploading logo…' : form.logo ? 'Change clinic logo' : 'Upload clinic logo'}
+                          <input
+                            type="file"
+                            accept="image/png,image/jpeg,image/jpg,image/webp,image/gif"
+                            className="sr-only"
+                            disabled={uploadingLogo}
+                            onChange={onLogoSelected}
+                          />
+                        </label>
+                      </div>
                     </div>
                     <SimpleRichEditor
                       value={form.headerHtml || ''}
                       onChange={(headerHtml) => set({ headerHtml })}
                       disabled={form.includeHeader === false}
-                      minHeight={140}
-                      placeholder="Add header content or insert your logo image…"
+                      minHeight={100}
+                      placeholder="Optional — short tagline under the logo…"
                       onInsertImage={insertImageIntoHeader}
                       insertingImage={insertingHeaderImg}
                     />
@@ -576,27 +592,54 @@ export default function PrintSettingsPage() {
                   </div>
 
                   <div>
-                    <p className="text-sm font-medium text-ink mb-1.5">Left content (under letterhead)</p>
-                    <p className="text-xs text-ink-faint mb-1.5">
-                      Prints with the header only — not in the footer block.
-                    </p>
+                    <div className="flex items-center justify-between gap-2 mb-1.5">
+                      <div>
+                        <p className="text-sm font-medium text-ink">Left content (under letterhead)</p>
+                        <p className="text-xs text-ink-faint">
+                          Optional one-line note under the header (e.g. timings). Leave empty if unused.
+                        </p>
+                      </div>
+                      {form.leftContentHtml ? (
+                        <button
+                          type="button"
+                          className="text-xs text-ink-muted hover:text-[#9b2c2c] shrink-0"
+                          onClick={() => set({ leftContentHtml: '' })}
+                        >
+                          Clear
+                        </button>
+                      ) : null}
+                    </div>
                     <SimpleRichEditor
                       value={form.leftContentHtml || ''}
                       onChange={(leftContentHtml) => set({ leftContentHtml })}
                       disabled={form.includeHeader === false}
-                      minHeight={100}
-                      placeholder="Left content here…"
+                      minHeight={80}
+                      placeholder="Optional left note…"
                     />
                   </div>
 
                   <div>
-                    <p className="text-sm font-medium text-ink mb-1.5">Right content (under letterhead)</p>
+                    <div className="flex items-center justify-between gap-2 mb-1.5">
+                      <div>
+                        <p className="text-sm font-medium text-ink">Right content (under letterhead)</p>
+                        <p className="text-xs text-ink-faint">Optional — keep short so the header stays clean.</p>
+                      </div>
+                      {form.rightContentHtml ? (
+                        <button
+                          type="button"
+                          className="text-xs text-ink-muted hover:text-[#9b2c2c] shrink-0"
+                          onClick={() => set({ rightContentHtml: '' })}
+                        >
+                          Clear
+                        </button>
+                      ) : null}
+                    </div>
                     <SimpleRichEditor
                       value={form.rightContentHtml || ''}
                       onChange={(rightContentHtml) => set({ rightContentHtml })}
                       disabled={form.includeHeader === false}
-                      minHeight={100}
-                      placeholder="Right content here…"
+                      minHeight={80}
+                      placeholder="Optional right note…"
                     />
                   </div>
                 </>
@@ -631,13 +674,24 @@ export default function PrintSettingsPage() {
                   </div>
 
                   <div>
-                    <p className="text-sm font-medium text-ink mb-1.5">Footer</p>
+                    <div className="flex items-center justify-between gap-2 mb-1.5">
+                      <p className="text-sm font-medium text-ink">Footer</p>
+                      {form.footerHtml ? (
+                        <button
+                          type="button"
+                          className="text-xs text-ink-muted hover:text-[#9b2c2c]"
+                          onClick={() => set({ footerHtml: '' })}
+                        >
+                          Clear
+                        </button>
+                      ) : null}
+                    </div>
                     <SimpleRichEditor
                       value={form.footerHtml || ''}
                       onChange={(footerHtml) => set({ footerHtml })}
                       disabled={form.includeFooter === false}
-                      minHeight={120}
-                      placeholder="Footer content…"
+                      minHeight={100}
+                      placeholder="Short footer line…"
                     />
                   </div>
 

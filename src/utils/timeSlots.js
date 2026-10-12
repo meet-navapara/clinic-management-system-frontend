@@ -15,6 +15,18 @@ export function minutesToTime(total) {
   return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
 }
 
+/** Fill HH:mm starts in [rangeStart, rangeEnd) that fully fit the duration. */
+function pushSlotRange(slots, rangeStart, rangeEnd, step) {
+  if (rangeStart == null || rangeEnd == null || rangeEnd <= rangeStart) return;
+  for (let t = rangeStart; t + step <= rangeEnd; t += step) {
+    slots.push(minutesToTime(t));
+  }
+}
+
+/**
+ * Morning: dayStart → breakStart. Afternoon restarts at breakEnd → dayEnd.
+ * Example: 10:00–18:00, break 12:30–13:30, 90m → 10:00, 13:30, 15:00, 16:30
+ */
 export function generateTimeSlots({
   dayStart = '09:00',
   dayEnd = '18:00',
@@ -29,13 +41,15 @@ export function generateTimeSlots({
 
   const brS = timeToMinutes(breakStart);
   const brE = timeToMinutes(breakEnd);
-  const hasBreak = brS != null && brE != null && brE > brS;
+  const hasBreak =
+    brS != null && brE != null && brE > brS && brS < end && brE > start;
 
   const slots = [];
-  for (let t = start; t + step <= end; t += step) {
-    const slotEnd = t + step;
-    if (hasBreak && t < brE && slotEnd > brS) continue;
-    slots.push(minutesToTime(t));
+  if (hasBreak) {
+    pushSlotRange(slots, start, Math.min(brS, end), step);
+    pushSlotRange(slots, Math.max(brE, start), end, step);
+  } else {
+    pushSlotRange(slots, start, end, step);
   }
   return slots;
 }

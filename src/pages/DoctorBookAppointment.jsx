@@ -188,7 +188,7 @@ export default function DoctorBookAppointment() {
           }
         />
       ) : (
-        <form onSubmit={handleBook} className="grid lg:grid-cols-2 gap-4">
+        <form onSubmit={handleBook} className="grid grid-cols-1 gap-4 max-w-3xl">
           <div className="card space-y-3 lg:col-span-2">
             <label className="label-field">Patient <RequiredMark /></label>
             <PatientPicker

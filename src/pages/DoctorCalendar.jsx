@@ -531,8 +531,86 @@ export default function DoctorCalendar() {
         </div>
       </div>
 
-      <div className="flex-1 min-h-[28rem] min-w-0 overflow-hidden">
-        <div className="h-full overflow-x-auto">
+      <div className="flex-1 min-h-0 sm:min-h-[28rem] min-w-0">
+        {/* Mobile / tablet: vertical agenda (week & month grids need horizontal pan otherwise) */}
+        {(isWeek || isMonth) && (
+          <div className="lg:hidden space-y-2.5 pb-2">
+            {loading ? (
+              <div className="space-y-2" role="status" aria-busy="true">
+                {Array.from({ length: 5 }).map((_, i) => (
+                  <div key={i} className="rounded-xl border border-[#e8eaee] bg-white p-3 space-y-2">
+                    <Skeleton className="h-4 w-28" />
+                    <Skeleton className="h-14 rounded-lg" />
+                  </div>
+                ))}
+              </div>
+            ) : (
+              days
+                .filter((day) => isDayInSelectedRange(day) || (byDay[toDateKey(day)] || []).length > 0)
+                .map((day) => {
+                  const key = toDateKey(day);
+                  const list = byDay[key] || [];
+                  const isToday = isSameDay(day, new Date());
+                  const offDay = !dayIsBookable(day);
+                  const outOfRange = !isDayInSelectedRange(day);
+                  const disabledDay = outOfRange || offDay;
+                  if (!list.length && (outOfRange || offDay)) return null;
+                  return (
+                    <section
+                      key={`m-${key}`}
+                      className={`rounded-xl border border-[#e8eaee] bg-white overflow-hidden ${
+                        isToday ? 'ring-1 ring-[#c9a227]/50' : ''
+                      } ${disabledDay ? 'opacity-70' : ''}`}
+                      onDragOver={disabledDay ? undefined : (e) => allowDragOverDay(e, day, key)}
+                      onDrop={disabledDay ? undefined : (e) => handleDropOnDay(e, key, day)}
+                    >
+                      <button
+                        type="button"
+                        className="w-full flex items-center justify-between gap-2 px-3 py-2.5 text-left border-b border-[#eef0f3] bg-[#fafbfc]"
+                        onClick={() => openDay(day)}
+                      >
+                        <div className="min-w-0">
+                          <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-[#8a929c]">
+                            {format(day, 'EEE')}
+                            {offDay ? ' · Off' : ''}
+                          </p>
+                          <p
+                            className={`text-base font-semibold tabular-nums ${
+                              isToday ? 'text-[#a8841f]' : 'text-[#1c2430]'
+                            }`}
+                          >
+                            {format(day, 'd MMM yyyy')}
+                          </p>
+                        </div>
+                        <span className="text-xs font-semibold text-ink-muted shrink-0">
+                          {list.length} appt{list.length === 1 ? '' : 's'}
+                        </span>
+                      </button>
+                      <div className="p-2 space-y-2">
+                        {list.length ? (
+                          list.map((appt) => (
+                            <CalendarEvent
+                              key={appt._id}
+                              appointment={appt}
+                              onOpen={openAppointment}
+                              draggable={canManage}
+                              dragging={draggingId === appt._id}
+                              onDragStart={(a) => setDraggingId(a._id)}
+                              onDragEnd={clearDrag}
+                            />
+                          ))
+                        ) : (
+                          <p className="text-center text-[11px] text-ink-faint py-3">No appointments</p>
+                        )}
+                      </div>
+                    </section>
+                  );
+                })
+            )}
+          </div>
+        )}
+
+        <div className={`h-full overflow-x-auto ${isWeek || isMonth ? 'hidden lg:block' : ''}`}>
           <div
             className={`h-full min-h-[28rem] bg-white border border-[#e8eaee] rounded-[12px] overflow-hidden flex flex-col ${
               isWeek || isMonth ? 'min-w-[52rem]' : ''
@@ -819,7 +897,7 @@ export default function DoctorCalendar() {
             ) : !slots.length ? (
               <EmptySlotsHint />
             ) : (
-              <div className="grid grid-cols-3 sm:grid-cols-4 gap-2 max-h-56 overflow-y-auto">
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 max-h-56 overflow-y-auto">
                 {slots.map((slot) => (
                   <button
                     key={slot}

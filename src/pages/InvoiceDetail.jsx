@@ -430,7 +430,7 @@ export default function InvoiceDetail() {
             <label className="label-field">
               Method <RequiredMark />
             </label>
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+            <div className="grid grid-cols-1 xs:grid-cols-2 sm:grid-cols-3 gap-2">
               {PAYMENT_METHODS.map((m) => {
                 const Icon = METHOD_ICON[m.id] || Wallet;
                 const active = method === m.id;

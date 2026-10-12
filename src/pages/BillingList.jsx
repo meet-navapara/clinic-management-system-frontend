@@ -211,14 +211,14 @@ export default function BillingList() {
         </div>
       </section>
 
-      <div className="flex flex-row flex-wrap items-center gap-2 mb-4">
-        <div className="flex flex-wrap gap-2 flex-1 min-w-0">
+      <div className="flex flex-col gap-2 mb-4 sm:flex-row sm:flex-wrap sm:items-center">
+        <div className="flex gap-2 flex-1 min-w-0 overflow-x-auto overscroll-x-contain pb-0.5 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
           {FILTERS.map((item) => (
             <button
               key={item.id}
               type="button"
               onClick={() => setStatus(item.id)}
-              className={`tab-chip ${
+              className={`tab-chip shrink-0 ${
                 status === item.id ? 'bg-ink text-white' : 'bg-white text-ink-muted ring-1 ring-line'
               }`}
             >
@@ -227,7 +227,7 @@ export default function BillingList() {
           ))}
         </div>
         <form
-          className="relative w-full min-[480px]:w-56 shrink-0"
+          className="relative w-full sm:w-56 shrink-0"
           onSubmit={(e) => {
             e.preventDefault();
             load(1);
@@ -330,20 +330,20 @@ export default function BillingList() {
                     </div>
                     <Badge value={inv.paymentStatus} />
                   </div>
-                  <div className="mt-3 grid grid-cols-3 gap-2 text-sm">
-                    <div>
+                  <div className="mt-3 grid grid-cols-1 xs:grid-cols-3 gap-2 text-sm">
+                    <div className="flex items-baseline justify-between gap-2 xs:block min-w-0">
                       <p className="text-[11px] uppercase tracking-wide text-ink-faint">Total</p>
-                      <Money value={inv.total} className="font-semibold" />
+                      <Money value={inv.total} className="font-semibold tabular-nums break-all" />
                     </div>
-                    <div>
+                    <div className="flex items-baseline justify-between gap-2 xs:block min-w-0">
                       <p className="text-[11px] uppercase tracking-wide text-ink-faint">Paid</p>
-                      <Money value={inv.paidAmount} />
+                      <Money value={inv.paidAmount} className="tabular-nums break-all" />
                     </div>
-                    <div>
+                    <div className="flex items-baseline justify-between gap-2 xs:block min-w-0">
                       <p className="text-[11px] uppercase tracking-wide text-ink-faint">Due</p>
                       <Money
                         value={inv.dueAmount}
-                        className={Number(inv.dueAmount) > 0 ? 'font-semibold text-[#8a3a32]' : ''}
+                        className={`tabular-nums break-all ${Number(inv.dueAmount) > 0 ? 'font-semibold text-[#8a3a32]' : ''}`}
                       />
                     </div>
                   </div>

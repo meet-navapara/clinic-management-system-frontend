@@ -17,30 +17,26 @@ function SignatureBlock({ branding }) {
   if (!showLeft && !showRight) return null;
 
   return (
-    <div className="print-signatures mt-14 flex justify-between gap-8 text-[12px]">
-      <div className="flex-1">
+    <div className="print-signatures">
+      <div className="print-signature-col">
         {showLeft && (
           <div>
             {branding.signatureImage ? (
-              <img src={branding.signatureImage} alt="" className="h-12 max-w-[160px] object-contain mb-1" />
+              <img src={branding.signatureImage} alt="" className="print-signature-img" />
             ) : null}
-            <p className="whitespace-pre-wrap text-ink-muted">
+            <p className="print-signature-label">
               {branding.leftSignatureText || '_______________'}
             </p>
           </div>
         )}
       </div>
-      <div className="flex-1 text-right">
+      <div className="print-signature-col print-signature-col--right">
         {showRight && (
-          <div className="inline-block text-right">
+          <div>
             {branding.signatureImage ? (
-              <img
-                src={branding.signatureImage}
-                alt=""
-                className="h-12 max-w-[160px] object-contain mb-1 ml-auto"
-              />
+              <img src={branding.signatureImage} alt="" className="print-signature-img print-signature-img--right" />
             ) : null}
-            <p className="whitespace-pre-wrap text-ink-muted">
+            <p className="print-signature-label">
               {branding.rightSignatureText || branding.signatureLabel || 'Doctor signature'}
             </p>
           </div>
@@ -53,10 +49,10 @@ function SignatureBlock({ branding }) {
 function DocumentFooter({ branding }) {
   if (branding.includeFooter === false && !branding.showPoweredBy) return null;
   return (
-    <div className="mt-6">
+    <div className="print-footer-wrap">
       <PrintLetterhead branding={branding} mode="document" section="footer" />
       {branding.showPoweredBy && (
-        <p className="text-center text-[10px] text-ink-faint mt-3">Powered by {BRAND_NAME}</p>
+        <p className="print-powered-by">Powered by {BRAND_NAME}</p>
       )}
     </div>
   );
@@ -191,6 +187,7 @@ export default function PrintDocument() {
           section="header"
         />
 
+        <div className="print-body">
         {type === 'preview' && data.preview && (
           <>
             <h2 className="print-heading font-semibold mb-2">{data.preview.title}</h2>
@@ -203,7 +200,6 @@ export default function PrintDocument() {
                 <p key={i}>{line}</p>
               ))}
             </div>
-            <SignatureBlock branding={branding} />
           </>
         )}
 
@@ -282,7 +278,6 @@ export default function PrintDocument() {
             {data.payments?.[0] && (
               <p className="print-sub mt-3">Payment: {data.payments.map((p) => p.paymentMethod).join(', ')}</p>
             )}
-            <SignatureBlock branding={branding} />
           </>
         )}
 
@@ -300,7 +295,6 @@ export default function PrintDocument() {
                 ? format(new Date(data.payment.paymentDate), 'dd MMM yyyy p')
                 : ''}
             </p>
-            <SignatureBlock branding={branding} />
           </>
         )}
 
@@ -366,7 +360,6 @@ export default function PrintDocument() {
                 <strong>Follow-up:</strong> {data.prescription.followUpInstructions}
               </p>
             )}
-            <SignatureBlock branding={branding} />
           </>
         )}
 
@@ -450,7 +443,6 @@ export default function PrintDocument() {
                 </table>
               </>
             )}
-            <SignatureBlock branding={branding} />
           </>
         )}
 
@@ -467,7 +459,9 @@ export default function PrintDocument() {
             </p>
           </>
         )}
+        </div>
 
+        {type !== 'appointment_slip' && <SignatureBlock branding={branding} />}
         <DocumentFooter branding={branding} />
       </article>
       </div>

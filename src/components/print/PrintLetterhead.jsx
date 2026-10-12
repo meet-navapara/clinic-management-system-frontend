@@ -1,4 +1,4 @@
-import { MapPin, Phone, CalendarDays, Mail } from 'lucide-react';
+import { MapPin, Phone, CalendarDays, Mail, Globe } from 'lucide-react';
 import { sanitizePrintHtml } from '../../utils/sanitizePrintHtml';
 
 /** Keep rich header text; strip images when clinic logo fills the logo slot. */
@@ -7,22 +7,40 @@ export function scrubHeaderHtml(html, logoUrl) {
   if (logoUrl) {
     out = out.replace(/<img\b[^>]*>/gi, '');
   }
-  out = out.replace(/<p>(\s|&nbsp;|<br\s*\/?>)*<\/p>/gi, '').trim();
+  out = out
+    .replace(/<p>(\s|&nbsp;|<br\s*\/?>)*<\/p>/gi, '')
+    .replace(/(<br\s*\/?>\s*){2,}/gi, '<br />')
+    .trim();
   return out;
+}
+
+function hasVisibleHtml(html) {
+  if (!html) return false;
+  return html.replace(/<[^>]+>/g, ' ').replace(/&nbsp;/gi, ' ').replace(/\s+/g, ' ').trim().length > 0;
 }
 
 function ContactLine({ icon: Icon, children }) {
   if (!children) return null;
   return (
-    <div className="flex items-start gap-1.5 text-[11px] leading-snug text-[#333]">
-      <Icon className="w-3.5 h-3.5 shrink-0 mt-0.5 text-[#c0392b]" aria-hidden />
-      <span className="min-w-0">{children}</span>
+    <div className="print-contact-line">
+      <Icon className="print-contact-icon" aria-hidden />
+      <span>{children}</span>
     </div>
   );
 }
 
+function RichBlock({ html, className = '', align = 'left' }) {
+  if (!hasVisibleHtml(html)) return null;
+  return (
+    <div
+      className={`print-rich ${align === 'right' ? 'print-rich--right' : ''} ${className}`.trim()}
+      dangerouslySetInnerHTML={{ __html: html }}
+    />
+  );
+}
+
 /**
- * Kiwi Health–style letterhead used by Print Settings live preview and PrintDocument.
+ * Clinic letterhead for Print Settings live preview and PrintDocument.
  * section: 'header' | 'footer' | 'both'
  */
 export default function PrintLetterhead({
@@ -46,9 +64,11 @@ export default function PrintLetterhead({
   const footerHtml = sanitizePrintHtml(branding.footerHtml || '');
   const isSettings = mode.startsWith('settings');
   const wantHeader = section !== 'footer' && mode !== 'settings-footer';
-  const wantFooter = section !== 'header' && (mode === 'settings-footer' || mode === 'document' || section === 'footer');
+  const wantFooter =
+    section !== 'header' && (mode === 'settings-footer' || mode === 'document' || section === 'footer');
   const showHeaderBlock = wantHeader;
   const showFooterBlock = wantFooter;
+  const showMetaRow = hasVisibleHtml(leftHtml) || hasVisibleHtml(rightHtml) || showPlaceholders;
 
   if (!includeHeader && showHeaderBlock && isSettings) {
     return (
@@ -61,41 +81,26 @@ export default function PrintLetterhead({
   return (
     <div className={isSettings ? '' : 'print-letterhead'}>
       {includeHeader && showHeaderBlock && (
-        <header className="print-header border-b border-[#d8dde3] pb-3 mb-4">
-          <div className="relative flex gap-4 items-start min-h-[76px]">
+        <header className="print-header">
+          <div className="print-header-top">
             {showPlaceholders && (
-              <div className="absolute inset-0 flex items-center justify-center pointer-events-none select-none overflow-hidden">
-                <span className="text-[22px] sm:text-[26px] font-semibold tracking-wide text-[#c5ccd4]/40 uppercase">
-                  Your logo here
-                </span>
+              <div className="print-logo-watermark" aria-hidden>
+                <span>Your logo here</span>
               </div>
             )}
 
-            {/* Left: logo + optional rich header */}
-            <div className="relative z-[1] flex-1 min-w-0">
+            <div className="print-header-brand">
               {logo ? (
-                <img
-                  src={logo}
-                  alt=""
-                  className="max-h-[72px] w-auto max-w-[220px] object-contain object-left"
-                />
+                <img src={logo} alt="" className="print-logo" />
               ) : showPlaceholders ? (
-                <div className="h-16 w-28 rounded border border-dashed border-[#cfd6dd] bg-[#f7f8fa] flex items-center justify-center text-[10px] text-[#9aa3ad]">
-                  Logo
-                </div>
+                <div className="print-logo-placeholder">Logo</div>
               ) : null}
 
-              {headerHtml ? (
-                <div
-                  className="mt-1 text-sm text-ink [&_img]:max-h-[72px] [&_img]:w-auto [&_img]:object-contain"
-                  dangerouslySetInnerHTML={{ __html: headerHtml }}
-                />
-              ) : null}
+              <RichBlock html={headerHtml} className="print-header-html" />
 
-              {/* Clinic name once — only when not already in rich header */}
               {!nameInHeader && branding.clinicName ? (
                 <p
-                  className="mt-1 font-semibold text-ink leading-tight"
+                  className="print-clinic-name"
                   style={{ fontSize: `${branding.headingFontSize || 14}px` }}
                 >
                   {branding.clinicName}
@@ -103,12 +108,11 @@ export default function PrintLetterhead({
               ) : null}
 
               {branding.headerText ? (
-                <p className="text-[11px] text-[#666] whitespace-pre-wrap mt-0.5">{branding.headerText}</p>
+                <p className="print-header-tagline">{branding.headerText}</p>
               ) : null}
             </div>
 
-            {/* Right: contact block */}
-            <div className="relative z-[1] w-[44%] max-w-[260px] shrink-0 space-y-1.5">
+            <div className="print-header-contact">
               <ContactLine icon={MapPin}>
                 {address || (showPlaceholders ? 'Clinic address' : '')}
               </ContactLine>
@@ -129,33 +133,34 @@ export default function PrintLetterhead({
               <ContactLine icon={Mail}>
                 {branding.email || (showPlaceholders ? 'Email' : '')}
               </ContactLine>
-              {branding.website ? (
-                <p className="text-[10px] text-[#888] break-all">{branding.website}</p>
+              <ContactLine icon={Globe}>
+                {branding.website || (showPlaceholders ? '' : '')}
+              </ContactLine>
+              {branding.registrationNumber ? (
+                <p className="print-contact-meta">Reg. {branding.registrationNumber}</p>
               ) : null}
-              {(branding.registrationNumber || branding.gstNumber) && (
-                <p className="text-[10px] text-[#888] pt-0.5">
-                  {branding.registrationNumber ? `Reg. ${branding.registrationNumber} ` : ''}
-                  {branding.gstNumber ? `${branding.taxLabel || 'GST'} ${branding.gstNumber}` : ''}
+              {branding.gstNumber ? (
+                <p className="print-contact-meta">
+                  {branding.taxLabel || 'GST'}-{branding.gstNumber}
                 </p>
-              )}
+              ) : null}
             </div>
           </div>
 
-          {/* Left / Right content row (Kiwi) */}
-          {(leftHtml || rightHtml || showPlaceholders) && (
-            <div className="flex justify-between gap-6 mt-3 text-[12px] text-[#555]">
-              <div className="flex-1 min-w-0">
-                {leftHtml ? (
-                  <div dangerouslySetInnerHTML={{ __html: leftHtml }} />
+          {showMetaRow && (
+            <div className="print-header-meta">
+              <div className="print-header-meta-col">
+                {hasVisibleHtml(leftHtml) ? (
+                  <RichBlock html={leftHtml} />
                 ) : showPlaceholders ? (
-                  <p className="text-[#9aa3ad]">Left Content Here.</p>
+                  <p className="print-placeholder">Left content</p>
                 ) : null}
               </div>
-              <div className="flex-1 min-w-0 text-right">
-                {rightHtml ? (
-                  <div dangerouslySetInnerHTML={{ __html: rightHtml }} />
+              <div className="print-header-meta-col print-header-meta-col--right">
+                {hasVisibleHtml(rightHtml) ? (
+                  <RichBlock html={rightHtml} align="right" />
                 ) : showPlaceholders ? (
-                  <p className="text-[#9aa3ad]">Right Content Here.</p>
+                  <p className="print-placeholder">Right content</p>
                 ) : null}
               </div>
             </div>
@@ -176,12 +181,12 @@ export default function PrintLetterhead({
       )}
 
       {includeFooter && showFooterBlock && (mode === 'document' || mode === 'settings-footer') && (
-        <footer className={`${mode === 'document' ? 'print-footer mt-8' : ''} pt-3 border-t border-[#d8dde3] text-[11px] text-[#666]`}>
-          {footerHtml ? <div className="mb-1" dangerouslySetInnerHTML={{ __html: footerHtml }} /> : null}
-          {branding.footerText ? <p className="whitespace-pre-wrap">{branding.footerText}</p> : null}
-          {branding.terms ? <p className="mt-1 whitespace-pre-wrap text-[#888]">{branding.terms}</p> : null}
-          {showPlaceholders && !footerHtml && !branding.footerText && !branding.terms ? (
-            <p className="text-[#9aa3ad]">Footer text</p>
+        <footer className={`print-footer ${mode === 'document' ? 'print-footer--doc' : ''}`}>
+          <RichBlock html={footerHtml} />
+          {branding.footerText ? <p className="print-footer-text">{branding.footerText}</p> : null}
+          {branding.terms ? <p className="print-footer-terms">{branding.terms}</p> : null}
+          {showPlaceholders && !hasVisibleHtml(footerHtml) && !branding.footerText && !branding.terms ? (
+            <p className="print-placeholder">Footer text</p>
           ) : null}
         </footer>
       )}

@@ -427,7 +427,7 @@ export default function DoctorPatientNew() {
               <p className="label-field sm:col-span-2 mb-0">
                 Name <RequiredMark />
               </p>
-              <div className="sm:col-span-2 min-w-0 grid grid-cols-1 sm:grid-cols-3 gap-x-3 gap-y-4">
+              <div className="sm:col-span-2 min-w-0 grid grid-cols-1 md:grid-cols-3 gap-x-3 gap-y-4">
                 <Field id="patient-firstName" error={fieldErrors.firstName}>
                   <input
                     id="patient-firstName"
@@ -611,17 +611,8 @@ export default function DoctorPatientNew() {
                   maxLength={10}
                 />
               </Field>
-              <Field id="patient-email" label="Email Id" error={fieldErrors.email}>
-                <input
-                  id="patient-email"
-                  name="email"
-                  type="email"
-                  className="input-field w-full"
-                  value={form.email}
-                  onChange={handleChange}
-                  maxLength={120}
-                  autoComplete="email"
-                />
+              <Field id="patient-dateOfBirth" label="DOB" error={fieldErrors.dateOfBirth}>
+                <DobDatepicker id="patient-dateOfBirth" value={form.dateOfBirth} onChange={handleDobChange} />
               </Field>
               <Field id="patient-age" label="Age" error={fieldErrors.age}>
                 <input
@@ -636,9 +627,17 @@ export default function DoctorPatientNew() {
                   maxLength={3}
                 />
               </Field>
-
-              <Field id="patient-dateOfBirth" label="DOB" error={fieldErrors.dateOfBirth}>
-                <DobDatepicker id="patient-dateOfBirth" value={form.dateOfBirth} onChange={handleDobChange} />
+              <Field id="patient-email" label="Email Id" error={fieldErrors.email}>
+                <input
+                  id="patient-email"
+                  name="email"
+                  type="email"
+                  className="input-field w-full"
+                  value={form.email}
+                  onChange={handleChange}
+                  maxLength={120}
+                  autoComplete="email"
+                />
               </Field>
               <Field label="Creation date">
                 <input className="input-field w-full" value={format(new Date(), 'dd-MM-yyyy')} readOnly />

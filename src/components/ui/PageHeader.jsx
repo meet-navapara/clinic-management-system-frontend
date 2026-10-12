@@ -31,13 +31,13 @@ export default function PageHeader({
           hasControls ? 'md:flex-row md:items-start md:justify-between md:gap-4' : ''
         }`}
       >
-        <div className="min-w-0 shrink-0">
+        <div className="min-w-0 w-full md:max-w-[55%] lg:max-w-none md:flex-1">
           {crumb && <p className="section-label mb-0.5 sm:mb-1">{crumb}</p>}
-          {title && <h1 className="page-title">{title}</h1>}
+          {title && <h1 className="page-title break-words">{title}</h1>}
           {description && <p className="page-subtitle break-words">{description}</p>}
         </div>
         {hasControls && (
-          <div className="flex flex-col gap-2 w-full md:w-auto md:items-end min-w-0">
+          <div className="flex flex-col gap-2 w-full md:w-auto md:max-w-full md:items-end min-w-0 shrink-0">
             {hasPrimaryRow && (
               <div className="flex flex-row flex-wrap items-center gap-2 w-full md:w-auto md:justify-end min-w-0">
                 {toolbar}
@@ -45,7 +45,7 @@ export default function PageHeader({
               </div>
             )}
             {hasFilters && (
-              <div className="flex flex-row flex-wrap items-center gap-2 w-full md:w-auto md:justify-end min-w-0">
+              <div className="flex flex-row flex-wrap items-center gap-2 w-full md:w-auto md:justify-end min-w-0 overflow-x-auto overscroll-x-contain [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden pb-0.5">
                 {filters}
               </div>
             )}

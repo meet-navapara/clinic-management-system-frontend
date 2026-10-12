@@ -53,7 +53,7 @@ function getNavLinks(user) {
       { to: ROUTES.billing, label: 'Billing', icon: Receipt, end: true },
       { to: ROUTES.revenue, label: 'Revenue', icon: IndianRupee, end: true },
       { to: ROUTES.templates, label: 'Templates', icon: ClipboardList, end: true },
-      { to: ROUTES.campaigns, label: 'Campaigns', icon: Megaphone, end: true },
+      { to: ROUTES.campaigns, label: 'Campaigns', icon: Megaphone, match: 'campaigns' },
       { to: ROUTES.printSettings, label: 'Print Settings', icon: Printer, end: true },
     ];
   }
@@ -68,7 +68,7 @@ function getNavLinks(user) {
     if (can(user, P.BRANCHES_VIEW)) links.push({ to: ROUTES.branches, label: 'Branches', icon: GitBranch, end: true });
     // Branch create/disable stays Main-doctor-only even if BRANCHES_MANAGE was granted historically.
     if (can(user, P.TEMPLATES_OWN) || can(user, P.TEMPLATES_CLINIC)) links.push({ to: ROUTES.templates, label: 'Templates', icon: ClipboardList, end: true });
-    if (can(user, P.CAMPAIGNS_MANAGE)) links.push({ to: ROUTES.campaigns, label: 'Campaigns', icon: Megaphone, end: true });
+    if (can(user, P.CAMPAIGNS_MANAGE)) links.push({ to: ROUTES.campaigns, label: 'Campaigns', icon: Megaphone, match: 'campaigns' });
     if (can(user, P.PRINT_SETTINGS)) links.push({ to: ROUTES.printSettings, label: 'Print Settings', icon: Printer, end: true });
     return links;
   }
@@ -77,10 +77,11 @@ function getNavLinks(user) {
 
 function isLinkActive(pathname, search, item, navActive) {
   if (item.match === 'patients') {
-    return (
-      pathname === ROUTES.doctorPatients ||
-      (pathname.startsWith('/doctor/patients/') && pathname !== ROUTES.doctorPatientNew)
-    );
+    // List, add patient, and patient detail all keep Patients highlighted
+    return pathname === ROUTES.doctorPatients || pathname.startsWith('/doctor/patients/');
+  }
+  if (item.match === 'campaigns') {
+    return pathname === ROUTES.campaigns || pathname.startsWith('/campaigns/');
   }
   if (item.to.includes('?')) {
     const [path, query] = item.to.split('?');

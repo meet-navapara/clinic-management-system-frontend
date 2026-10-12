@@ -613,8 +613,8 @@ export default function StaffPage() {
           )}
 
           {!isDoctorRow && (
-            <div className="border border-line rounded-xl p-3">
-              <div className="flex items-center justify-between gap-2 mb-2">
+            <div className="rounded-xl border border-line bg-[#f8f9fb] overflow-hidden">
+              <div className="flex items-center justify-between gap-2 px-3 pt-3 pb-1">
                 <p className="text-sm font-semibold text-ink">Access</p>
                 <button
                   type="button"
@@ -624,44 +624,54 @@ export default function StaffPage() {
                   Apply {form.staffType} preset
                 </button>
               </div>
-              <p className="text-xs text-ink-faint mb-3">Preset is a starting point. Change any module below.</p>
-              <div className="space-y-2 max-h-64 overflow-y-auto">
-                {ACCESS_MODULES.map((m) => {
-                  const viewOn = form.permissions.includes(m.view);
-                  const manageOn = m.manage ? form.permissions.includes(m.manage) : false;
-                  return (
-                    <div key={m.id} className="flex flex-wrap items-center gap-3 text-sm border-b border-line/60 pb-2 last:border-0">
-                      <span className="flex-1 min-w-[8rem] text-ink">{m.label}</span>
-                      <Checkbox
-                        variant="inline"
-                        className="text-ink-muted"
-                        checked={viewOn}
-                        onChange={(e) =>
-                          setForm({
-                            ...form,
-                            permissions: togglePermission(form.permissions, m.view, e.target.checked),
-                          })
-                        }
+              <p className="text-xs text-ink-faint px-3 pb-2">
+                Preset is a starting point. Change any module below.
+              </p>
+              <div className="staff-access-scroll max-h-56 overflow-y-auto overscroll-contain px-3 pb-3">
+                <div className="rounded-lg border border-line bg-white divide-y divide-line">
+                  {ACCESS_MODULES.map((m) => {
+                    const viewOn = form.permissions.includes(m.view);
+                    const manageOn = m.manage ? form.permissions.includes(m.manage) : false;
+                    return (
+                      <div
+                        key={m.id}
+                        className="flex flex-col gap-2 xs:grid xs:grid-cols-[minmax(0,1fr)_auto] xs:gap-x-3 xs:items-center px-3 py-2.5 text-sm"
                       >
-                        {m.manage ? 'View' : 'Allow'}
-                      </Checkbox>
-                      {m.manage && (
-                        <Checkbox
-                          variant="inline"
-                          className="text-ink-muted"
-                          checked={manageOn}
-                          onChange={(e) => {
-                            let next = togglePermission(form.permissions, m.manage, e.target.checked);
-                            if (e.target.checked) next = togglePermission(next, m.view, true);
-                            setForm({ ...form, permissions: next });
-                          }}
-                        >
-                          Create / Edit
-                        </Checkbox>
-                      )}
-                    </div>
-                  );
-                })}
+                        <span className="min-w-0 text-ink leading-snug">{m.label}</span>
+                        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 xs:justify-end min-w-0">
+                          <Checkbox
+                            variant="inline"
+                            className="text-ink-muted"
+                            checked={viewOn}
+                            onChange={(e) =>
+                              setForm({
+                                ...form,
+                                permissions: togglePermission(form.permissions, m.view, e.target.checked),
+                              })
+                            }
+                          >
+                            {m.manage ? 'View' : 'Allow'}
+                          </Checkbox>
+                          {m.manage && (
+                            <Checkbox
+                              variant="inline"
+                              className="text-ink-muted"
+                              checked={manageOn}
+                              onChange={(e) => {
+                                let next = togglePermission(form.permissions, m.manage, e.target.checked);
+                                if (e.target.checked) next = togglePermission(next, m.view, true);
+                                setForm({ ...form, permissions: next });
+                              }}
+                            >
+                              <span className="xs:hidden">Edit</span>
+                              <span className="hidden xs:inline">Create / Edit</span>
+                            </Checkbox>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
               </div>
             </div>
           )}

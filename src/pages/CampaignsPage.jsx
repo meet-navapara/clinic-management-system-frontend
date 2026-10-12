@@ -1043,7 +1043,7 @@ export function CampaignEditor() {
               <p className="text-xs text-ink-faint">Refreshing every few seconds…</p>
             )}
           </div>
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-sm">
+          <div className="grid grid-cols-1 xs:grid-cols-2 sm:grid-cols-4 gap-2 text-sm">
             {[
               ['Recipients', analytics.recipients],
               ['Queued', analytics.queued],
@@ -1054,9 +1054,9 @@ export function CampaignEditor() {
               ['Delivery rate', analytics.deliveryRate != null ? `${analytics.deliveryRate}%` : 'Not available'],
               ['Failure rate', analytics.failureRate != null ? `${analytics.failureRate}%` : 'Not available'],
             ].map(([label, value]) => (
-              <div key={label} className="rounded-lg bg-[#f7f4ef] p-3">
+              <div key={label} className="rounded-lg bg-[#f7f4ef] p-3 min-w-0">
                 <p className="text-xs text-ink-faint">{label}</p>
-                <p className="font-semibold mt-1">{value}</p>
+                <p className="font-semibold mt-1 break-words">{value}</p>
               </div>
             ))}
           </div>
@@ -1066,7 +1066,7 @@ export function CampaignEditor() {
                 {deliveryTotal} delivery record{deliveryTotal === 1 ? '' : 's'}
                 {deliveryPages > 1 ? ` · page ${deliveryPage} of ${deliveryPages}` : ''}
               </p>
-              <div className="data-table-wrap">
+              <div className="hidden md:block data-table-wrap">
                 <table className="data-table">
                   <thead>
                     <tr>
@@ -1087,13 +1087,33 @@ export function CampaignEditor() {
                         <td>
                           <Badge value={d.status} />
                         </td>
-                        <td className="font-mono text-xs">{d.providerMessageId || '—'}</td>
+                        <td className="font-mono text-xs max-w-[10rem] truncate">{d.providerMessageId || '—'}</td>
                         <td className="text-xs whitespace-nowrap">{fmt(d.sentAt)}</td>
-                        <td className="text-xs text-red-700">{d.failureReason || '—'}</td>
+                        <td className="text-xs text-red-700 max-w-[12rem] break-words">{d.failureReason || '—'}</td>
                       </tr>
                     ))}
                   </tbody>
                 </table>
+              </div>
+              <div className="md:hidden space-y-2">
+                {deliveries.map((d) => (
+                  <div key={d._id} className="rounded-xl border border-line bg-[#fbfaf7] p-3 space-y-1.5">
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="min-w-0">
+                        <p className="font-semibold text-ink truncate">{d.recipientName}</p>
+                        <p className="text-xs text-ink-faint break-all">{d.recipientPhone || d.recipientEmail}</p>
+                      </div>
+                      <Badge value={d.status} />
+                    </div>
+                    <p className="text-xs text-ink-muted">{fmt(d.sentAt)}</p>
+                    {d.providerMessageId ? (
+                      <p className="text-[11px] font-mono text-ink-faint break-all">{d.providerMessageId}</p>
+                    ) : null}
+                    {d.failureReason ? (
+                      <p className="text-xs text-red-700 break-words">{d.failureReason}</p>
+                    ) : null}
+                  </div>
+                ))}
               </div>
               <Pagination
                 page={deliveryPage}

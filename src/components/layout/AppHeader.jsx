@@ -92,13 +92,13 @@ export default function AppHeader({ unread = 0, onMenu }) {
         {showSearch && <div className="md:hidden min-w-0 flex-1" />}
 
         {user?.role !== 'super_admin' && (
-          <div className="hidden md:block">
+          <div className="min-w-0 max-w-[42vw] xs:max-w-[12rem] sm:max-w-none shrink">
             <BranchSwitcher compact />
           </div>
         )}
 
         {showSearch && (
-          <div className="md:hidden">
+          <div className="md:hidden shrink-0">
             <TopNavSearch variant="icon" />
           </div>
         )}
@@ -107,7 +107,7 @@ export default function AppHeader({ unread = 0, onMenu }) {
           <>
             <Link
               to={ROUTES.doctorInbox}
-              className="relative min-h-10 min-w-10 inline-flex items-center justify-center rounded-lg text-ink-muted hover:text-ink hover:bg-white"
+              className="relative min-h-10 min-w-10 inline-flex items-center justify-center rounded-lg text-ink-muted hover:text-ink hover:bg-white shrink-0"
               aria-label="Inbox"
             >
               <Inbox className="w-5 h-5" />
@@ -119,7 +119,7 @@ export default function AppHeader({ unread = 0, onMenu }) {
             </Link>
             <Link
               to={ROUTES.doctorNotifications}
-              className="hidden xs:inline-flex relative min-h-10 min-w-10 items-center justify-center rounded-lg text-ink-muted hover:text-ink hover:bg-white"
+              className="relative min-h-10 min-w-10 inline-flex items-center justify-center rounded-lg text-ink-muted hover:text-ink hover:bg-white shrink-0"
               aria-label="Reminders"
             >
               <Bell className="w-5 h-5" />

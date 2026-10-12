@@ -48,7 +48,7 @@ export default function BranchSwitcher({ compact, align }) {
       size={compact ? 'sm' : 'md'}
       align={align ?? (compact ? 'right' : 'left')}
       icon={GitBranch}
-      className={compact ? '!w-[11rem] sm:!w-[14rem] shrink-0' : 'w-full'}
+      className={compact ? '!w-full max-w-[11rem] xs:!w-[11rem] sm:!w-[14rem] sm:max-w-none shrink-0' : 'w-full'}
     />
   );
 }

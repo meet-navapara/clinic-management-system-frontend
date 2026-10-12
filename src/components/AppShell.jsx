@@ -20,11 +20,11 @@ export default function AppShell() {
 
   return (
     <ErrorBoundary resetKey={location.pathname}>
-      <div className="min-h-dvh w-full max-w-[100vw] overflow-x-hidden bg-canvas">
+      <div className="min-h-dvh w-full max-w-[100vw] overflow-x-clip bg-canvas">
         <Sidebar open={menuOpen} onClose={() => setMenuOpen(false)} unread={unread} onUnread={setUnread} />
         <div className="flex min-h-dvh flex-col min-w-0 w-full md:pl-[4.25rem] lg:pl-60">
           <AppHeader unread={unread} onMenu={() => setMenuOpen(true)} />
-          <main className="flex-1 w-full flex flex-col min-w-0 min-h-0">
+          <main className="flex-1 w-full flex flex-col min-w-0 min-h-0 overflow-x-clip">
             <ErrorBoundary resetKey={location.pathname}>
               <Outlet />
             </ErrorBoundary>

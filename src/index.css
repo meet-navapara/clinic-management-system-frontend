@@ -6,17 +6,19 @@
   html,
   body,
   #root {
-    @apply w-full min-h-dvh max-w-[100vw] overflow-x-hidden;
+    @apply w-full min-h-dvh max-w-[100vw];
   }
 
   html {
     -webkit-tap-highlight-color: transparent;
+    overflow-x: clip;
   }
 
   body {
     background-color: #f6f4f0;
     color: #1c2430;
-    @apply antialiased overflow-x-hidden font-sans text-[13px] leading-5 sm:text-[15px] sm:leading-6;
+    @apply antialiased font-sans text-[13px] leading-5 sm:text-[15px] sm:leading-6;
+    overflow-x: clip;
   }
 
   :focus-visible {
@@ -813,11 +815,12 @@
   }
 
   .data-table-wrap {
-    @apply overflow-x-auto -mx-3 xs:-mx-4 sm:mx-0;
+    @apply overflow-x-auto overscroll-x-contain -mx-3 xs:-mx-4 sm:mx-0;
+    -webkit-overflow-scrolling: touch;
   }
 
   .data-table {
-    @apply w-full text-xs sm:text-sm text-left min-w-[640px];
+    @apply w-full text-xs sm:text-sm text-left min-w-[560px] md:min-w-[640px];
   }
 
   .data-table th {
@@ -914,8 +917,278 @@
   max-width: none;
   min-height: 100%;
   flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
   background: #fff;
   box-shadow: 0 1px 2px rgba(28, 36, 48, 0.04), 0 16px 40px rgba(28, 36, 48, 0.07);
+  box-sizing: border-box;
+}
+
+.print-a4 .print-sheet {
+  min-height: 297mm;
+}
+
+.print-a5 .print-sheet {
+  min-height: 210mm;
+}
+
+.print-letter .print-sheet {
+  min-height: 11in;
+}
+
+.print-body {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+/* —— Letterhead —— */
+.print-header {
+  border-bottom: 1px solid #d8dde3;
+  padding-bottom: 0.75rem;
+  margin-bottom: 1rem;
+}
+
+.print-header-top {
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(0, 1.2fr) minmax(140px, 0.9fr);
+  gap: 1rem 1.25rem;
+  align-items: start;
+}
+
+.print-logo-watermark {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+  user-select: none;
+  overflow: hidden;
+}
+
+.print-logo-watermark span {
+  font-size: 1.35rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: rgb(197 204 212 / 0.4);
+}
+
+.print-header-brand,
+.print-header-contact {
+  position: relative;
+  z-index: 1;
+  min-width: 0;
+}
+
+.print-logo {
+  display: block;
+  max-height: 72px;
+  width: auto;
+  max-width: 220px;
+  object-fit: contain;
+  object-position: left top;
+}
+
+.print-logo-placeholder {
+  height: 4rem;
+  width: 7rem;
+  border-radius: 0.25rem;
+  border: 1px dashed #cfd6dd;
+  background: #f7f8fa;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 10px;
+  color: #9aa3ad;
+}
+
+.print-clinic-name {
+  margin-top: 0.25rem;
+  font-weight: 600;
+  color: #1c2430;
+  line-height: 1.25;
+}
+
+.print-header-tagline {
+  margin-top: 0.15rem;
+  font-size: 11px;
+  color: #666;
+  white-space: pre-wrap;
+}
+
+.print-header-contact {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+
+.print-contact-line {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.35rem;
+  font-size: 11px;
+  line-height: 1.35;
+  color: #333;
+}
+
+.print-contact-line span {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+.print-contact-icon {
+  width: 0.875rem;
+  height: 0.875rem;
+  flex-shrink: 0;
+  margin-top: 0.1rem;
+  color: #c0392b;
+}
+
+.print-contact-meta {
+  font-size: 10px;
+  color: #888;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+.print-header-meta {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.75rem 1.25rem;
+  margin-top: 0.75rem;
+  font-size: 12px;
+  color: #555;
+}
+
+.print-header-meta-col {
+  min-width: 0;
+}
+
+.print-header-meta-col--right {
+  text-align: right;
+}
+
+.print-placeholder {
+  color: #9aa3ad;
+}
+
+.print-rich {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+.print-rich--right {
+  text-align: right;
+}
+
+.print-rich p,
+.print-rich div,
+.print-rich span,
+.print-rich li {
+  max-width: 100%;
+}
+
+.print-rich * {
+  float: none !important;
+  position: static !important;
+  max-width: 100% !important;
+}
+
+.print-rich p {
+  margin: 0 0 0.2em;
+}
+
+.print-rich p:last-child {
+  margin-bottom: 0;
+}
+
+.print-rich img {
+  max-height: 72px;
+  width: auto;
+  max-width: 100%;
+  object-fit: contain;
+}
+
+.print-rich .ql-align-center {
+  text-align: center;
+}
+
+.print-rich .ql-align-right {
+  text-align: right;
+}
+
+.print-rich .ql-align-justify {
+  text-align: justify;
+}
+
+.print-signatures {
+  display: flex;
+  justify-content: space-between;
+  gap: 2rem;
+  margin-top: 2rem;
+  margin-bottom: 0.5rem;
+  font-size: 12px;
+}
+
+.print-signature-col {
+  flex: 1 1 0;
+  min-width: 0;
+}
+
+.print-signature-col--right {
+  text-align: right;
+}
+
+.print-signature-img {
+  display: block;
+  height: 3rem;
+  max-width: 160px;
+  object-fit: contain;
+  margin-bottom: 0.25rem;
+}
+
+.print-signature-img--right {
+  margin-left: auto;
+}
+
+.print-signature-label {
+  white-space: pre-wrap;
+  color: #5a6570;
+  overflow-wrap: anywhere;
+}
+
+.print-footer-wrap {
+  margin-top: auto;
+  padding-top: 1rem;
+}
+
+.print-footer {
+  border-top: 1px solid #d8dde3;
+  padding-top: 0.65rem;
+  font-size: 11px;
+  color: #666;
+}
+
+.print-footer-text {
+  white-space: pre-wrap;
+}
+
+.print-footer-terms {
+  margin-top: 0.25rem;
+  white-space: pre-wrap;
+  color: #888;
+}
+
+.print-powered-by {
+  text-align: center;
+  font-size: 10px;
+  color: #9aa3ad;
+  margin-top: 0.5rem;
 }
 
 @media print {
@@ -933,8 +1206,7 @@
   }
 
   .print-root,
-  .print-stage,
-  .print-sheet {
+  .print-stage {
     max-width: none !important;
     margin: 0 !important;
     box-shadow: none !important;
@@ -948,25 +1220,34 @@
     overflow: visible !important;
   }
 
+  .print-sheet {
+    display: flex !important;
+    flex-direction: column !important;
+    box-shadow: none !important;
+    background: #fff !important;
+    max-width: none !important;
+    margin: 0 !important;
+  }
+
   .print-a4 .print-sheet {
     width: 210mm;
+    min-height: 297mm;
   }
 
   .print-a5 .print-sheet {
     width: 148mm;
+    min-height: 210mm;
   }
 
   .print-letter .print-sheet {
     width: 8.5in;
+    min-height: 11in;
   }
 
   .print-receipt .print-sheet {
     width: 80mm;
+    min-height: auto;
     font-size: 12px;
-  }
-
-  .print-sheet {
-    page-break-inside: avoid;
   }
 
   .print-header,
@@ -1610,6 +1891,40 @@
 
 @media (prefers-reduced-motion: reduce) {
   .lp-nav-pill { transition: none; }
+}
+
+/* Staff modal — Access permissions scroller */
+.staff-access-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: #c5ccd4 transparent;
+  padding-right: 0.35rem;
+}
+
+.staff-access-scroll::-webkit-scrollbar {
+  width: 6px !important;
+}
+
+.staff-access-scroll::-webkit-scrollbar-track {
+  background: transparent !important;
+  margin: 4px 0;
+}
+
+.staff-access-scroll::-webkit-scrollbar-thumb {
+  background-color: #c5ccd4 !important;
+  border-radius: 9999px !important;
+  border: 0 !important;
+  background-clip: border-box !important;
+  min-height: 28px;
+}
+
+.staff-access-scroll::-webkit-scrollbar-thumb:hover {
+  background-color: #9aa3ad !important;
+}
+
+.staff-access-scroll::-webkit-scrollbar-button {
+  display: none !important;
+  width: 0 !important;
+  height: 0 !important;
 }
 
 /* —— Custom scrollbar (unlayered so it wins over Tailwind) —— */

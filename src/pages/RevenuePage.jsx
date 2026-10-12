@@ -101,7 +101,7 @@ export default function RevenuePage() {
             />
           </div>
 
-          <div className="mt-7 grid grid-cols-2 lg:grid-cols-4 gap-3">
+          <div className="mt-7 grid grid-cols-1 xs:grid-cols-2 lg:grid-cols-4 gap-3">
             {[
               { label: 'Net collected', value: <Money value={summary.collected} className="text-white" /> },
               { label: 'Payments', value: summary.paymentCount },
@@ -114,10 +114,10 @@ export default function RevenuePage() {
             ].map((s) => (
               <div
                 key={s.label}
-                className="rounded-[16px] border border-white/10 bg-white/5 backdrop-blur-sm px-4 py-3.5"
+                className="rounded-[16px] border border-white/10 bg-white/5 backdrop-blur-sm px-3 sm:px-4 py-3 sm:py-3.5 min-w-0"
               >
                 <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-white/55">{s.label}</p>
-                <p className="mt-2 text-[24px] font-semibold tabular-nums tracking-tight leading-none text-white">
+                <p className="mt-2 text-lg sm:text-xl lg:text-[24px] font-semibold tabular-nums tracking-tight leading-none text-white break-words">
                   {s.value}
                 </p>
               </div>
